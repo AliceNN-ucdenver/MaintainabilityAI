@@ -1,4 +1,4 @@
-# Next acts -- Tier 2 (BUILD fan-out) + Tier 3 (chief-auditor hardening)
+# Next acts -- Tier 2 (BUILD fan-out, shipped) + Tier 2.5 (Queen's Next Act) + Tier 3 (auditor hardening)
 
 > **Purpose of this doc.** Captured 2026-05-25 as the personal context page for "what is queued after Phase A-E shipped." Phases A, B, C, D, E are honestly complete in code (see [`agentic-sdlc.md`](agentic-sdlc.md) lead paragraph). The live cert-run on `OKR-2026Q2-IMDB-001-celeb-api` exported a whole-OKR rollup with verdict `✅ PASS -- All 3 phases present, runner-verified, and source-atomic`. The onboarding pack landed under `site-tw/public/docs/onboarding/` and the marketing page now points at it.
 >
@@ -9,8 +9,8 @@
 > From here, the tracks:
 >
 > - **Tier 2 -- BUILD fan-out -- ✅ SHIPPED.** The cross-repo hand-off from WHAT (mesh-side code-design merge) to implementation PRs in target code repos is complete. All seven work items landed: D-PR3 (reference-repos Skill), D-PR4-prep (coordination contract in code-design), D-PR4 (app-side fan-out engine), D-PR5 (Stage 5 card), D-PR6 (E2E smoke), D-PR7 (implementation-agent template), D-PR8 (implementation chain in rollup). Post-cert hardening (six fixes found during cert testing 2026-05-30) is captured at the end of the Tier 2 section.
-> - **Tier 2.5 -- Sign the Red Queen enforcement chain -- 🚧 NEXT (immediate next act).** The bridge between Tier 2 and Tier 3. The impl-provenance gate Tier 2 shipped already READS the Red Queen decision log (`rq_present`/`rq_allowed`/`rq_denied`) but that log is unsigned plain JSONL. Tier 2.5 folds those action-time allow/deny/override decisions into the same per-event Ed25519 chain a Hatter rollup verifies. (Promoted from the old T3-2 -- see the Tier 2.5 section below.)
-> - **Tier 3 -- chief-auditor hardening.** The trust-posture work that came out of seven Codex chief-auditor rounds during Phase E. Cosign-anchored signing (Knight's Seal v2), redacted external bundles, org-separation on dual signature, prompt-pack signature verification. The heavier `redqueen-action` standalone hard gate + cross-chain inclusion proofs / SIEM export stay here (Queen's Next Act).
+> - **Tier 2.5 -- Queen's Next Act (complete the Red Queen enforcement chain) -- 🚧 NEXT.** Everything that finishes the Red Queen's evidence story, in three slices: **(a)** sign the enforcement chain -- the impl-provenance gate Tier 2 shipped already READS the Red Queen decision log (`rq_present`/`rq_allowed`/`rq_denied`), but that log is unsigned plain JSONL; fold those action-time allow/deny/override decisions into the same per-event Ed25519 chain a Hatter rollup verifies; **(b)** the `redqueen-action` standalone hard gate (AST semantic diff + contract diffs); **(c)** cross-chain inclusion proofs + SIEM/CloudEvents export. Slice (a) is the MVP and rides the seam Tier 2 built (promoted from the old T3-2). See the Tier 2.5 section below.
+> - **Tier 3 -- auditor hardening.** Pure trust-posture / chief-auditor work from the seven Codex review rounds during Phase E: cosign-anchored signing (Knight's Seal v2), redacted external bundles, prompt-pack signature verification, org-separation on dual signature. No Red Queen enforcement work lives here -- that all moved up to Tier 2.5 (Queen's Next Act).
 >
 > Tier 1 is closed: live cert-run + onboarding pack. Tier 2 is shipped. This doc enumerates the Tier 2 record, the Tier 2.5 next act, and Tier 3.
 
@@ -22,8 +22,8 @@
 |---|---|---|
 | **Tier 1** | ✅ shipped | Live whole-OKR cert run on `OKR-2026Q2-IMDB-001-celeb-api` returns `VERDICT: ✅ PASS`; onboarding pack live at [`/docs/onboarding/`](../site-tw/public/docs/onboarding/index.md); marketing page strengthened with the actual PASS rollup specifics. |
 | **Tier 2** | ✅ shipped | The fan-out pipeline D-PR3..D-PR8 all landed; the cert run exists. IMDB-Celebs sample OKR walks the whole way: WHY → HOW → WHAT → fan-out (with `depends_on` topological ordering) → implementation PRs landing in dependency waves → whole-OKR rollup `VERDICT: ✅ PASS` with the implementation chain rollup section populated. Three target repos cover the matrix: one brownfield-with-harness, one brownfield-needing-retrofit (manual prompt), one greenfield (auto-scaffold via Cheshire). Post-cert hardening (2026-05-30) captured at the end of the Tier 2 section. |
-| **Tier 2.5** | 🚧 next | Sign the Red Queen enforcement chain -- fold action-time allow/deny/override decisions into the same per-event Ed25519 chain a Hatter rollup verifies. The bridge between Tier 2 (impl chain shipped) and Tier 3 (deeper hardening). |
-| **Tier 3** | 🚧 queued (this doc) | (a) Knight's Seal v2 third-party verifiable via cosign; (b) one-button redacted export bundle for regulators; (c) prompt-pack signature verification on load; (d) org-separation enforced on dual-signature override. |
+| **Tier 2.5 -- Queen's Next Act** | 🚧 next | Complete the Red Queen enforcement chain: **(a)** sign the action-time allow/deny/override decision log into the same per-event Ed25519 chain a Hatter rollup verifies (MVP); **(b)** the `redqueen-action` standalone hard gate (AST + contract diffs); **(c)** cross-chain inclusion proofs + SIEM/CloudEvents export. |
+| **Tier 3 -- auditor hardening** | 🚧 queued | (a) Knight's Seal v2 third-party verifiable via cosign; (b) one-button redacted export bundle for regulators; (c) prompt-pack signature verification on load; (d) org-separation enforced on dual-signature override. Pure trust-posture; no Red Queen enforcement work. |
 
 The single canonical reference is [`agentic-sdlc.md`](agentic-sdlc.md). Everything below should be read alongside it.
 
@@ -35,9 +35,9 @@ Single source of truth for what's open. When an item ships, flip it here AND in 
 
 | Item | This doc | Threat model (`agentic-sdlc-governance.md`) | Roadmap (`agentic-governance-roadmap-2026.md`) | CLAUDE.md / Marketing |
 |---|---|---|---|---|
-| **Signed Red Queen enforcement chain** | Tier 2.5 (below) | STRIDE row `🛠` line ~1595 + card line ~1543 | Gap 1 (SIEM) + Gap 13 (`redqueen-action`) | CLAUDE.md "Planned 🚧"; marketing `red-queens-court.md` "Queen's Next Act" |
-| **`redqueen-action` standalone hard gate (AST diff / contract diffs)** | Tier 3 (Queen's Next Act) | — | Gap 13 / "Phase 9" | CLAUDE.md "Planned 🚧" |
-| **Cross-chain inclusion proofs + SIEM/CloudEvents export** | Tier 3 | — | Gap 1 | CLAUDE.md "Planned 🚧" |
+| **Signed Red Queen enforcement chain** | Tier 2.5 · slice (a, MVP) | STRIDE row `🛠` line ~1595 + card line ~1543 | Gap 1 (SIEM) + Gap 13 (`redqueen-action`) | CLAUDE.md "Planned 🚧"; marketing `red-queens-court.md` "Queen's Next Act" |
+| **`redqueen-action` standalone hard gate (AST diff / contract diffs)** | Tier 2.5 · slice (b) | — | Gap 13 / "Phase 9" | CLAUDE.md "Planned 🚧" |
+| **Cross-chain inclusion proofs + SIEM/CloudEvents export** | Tier 2.5 · slice (c) | — | Gap 1 | CLAUDE.md "Planned 🚧" |
 | **Knight's Seal v2 (cosign/sigstore)** | Tier 3 · T3-1 | "Repudiate" row (persistent verifiability "next act") line ~1505 | Gap 8 | — |
 | **Redacted external bundle** | Tier 3 · T3-3 | Info-disclosure `⚠` line ~1508 + proof card ~1457 | Gap 11 | — |
 | **Prompt injection / sanitization** | (not in this doc) | EoP `⚠` line ~1513; ASTRIDE | Gap (harness) | — |
@@ -568,13 +568,17 @@ Six fixes that landed after the Tier 2 cert run while exercising the fan-out mat
 
 ---
 
-## Tier 2.5 · Sign the Red Queen enforcement chain (the Tier 2 → Tier 3 bridge)
+## Tier 2.5 · Queen's Next Act — complete the Red Queen enforcement chain
 
-This act rides the seam Tier 2 already built. The impl-provenance gate Tier 2 shipped READS the Red Queen decision log (`rq_present` / `rq_allowed` / `rq_denied`) but that log is **unsigned plain JSONL** -- confirmed by the celeb-api PR #8 audit. Tier 2.5 SIGNS what the gate already reads, so the rollup story extends from "the implementation matches the design" to "and here's the proof the implementation agent's tool-calls were governed."
+The Red Queen's evidence story, finished. The Hatter side (planning + implementation) already signs every event; the Red Queen's own action-time decisions do not yet join that signed chain. Tier 2.5 is the whole Queen's Next Act, in three sequenced slices:
 
-**SCOPE NOTE.** Tier 2.5 = sign the decision log (hash-chain + per-epoch Ed25519 via the same `audit-emit-event` / `audit-verify-chain` contract the planning side uses) + the gate/rollup VERIFIES it (not just counts). The heavier **`redqueen-action` standalone status check** and the **cross-chain inclusion proofs / SIEM export** remain **Tier 3 / Queen's Next Act** (see the index table near the top of this doc).
+- **(a) Sign the enforcement chain — MVP (T2.5a below).** The impl-provenance gate Tier 2 shipped already READS the Red Queen decision log (`rq_present` / `rq_allowed` / `rq_denied`), but that log is **unsigned plain JSONL** (confirmed by the celeb-api PR #8 audit). Hash-chain + per-epoch Ed25519 it via the same `audit-emit-event` / `audit-verify-chain` contract the planning side uses, and have the gate/rollup **verify** it (not just count). Rides the seam Tier 2 built — smallest first slice.
+- **(b) `redqueen-action` standalone hard gate (T2.5b).** AST semantic diff + per-file import/layer-graph enforcement + contract diffs as a dedicated required status check (roadmap Gap 13 / "Phase 9"). Sketched, needs design.
+- **(c) Cross-chain inclusion proofs + SIEM/CloudEvents export (T2.5c).** Tie the signed enforcement chain to the planning-intent chain and emit unified Hatter ↔ Red Queen evidence to a SIEM (roadmap Gap 1). Sketched, needs design.
 
-### T2.5 · Red Queen signed enforcement chain (fold action-time evidence into the same chain)
+Auditor-hardening work (cosign, redacted bundle, prompt-pack signing, org-separation) is **Tier 3**, not here.
+
+### T2.5a · Sign the enforcement chain — MVP (fold action-time evidence into the same chain)
 
 - **Goal.** Today the Hatter side (planning: WHY/HOW/WHAT) signs every event in a hash-chain. The Red Queen side (action-time `validate_action` decisions, per-tool-call hooks, override events) writes its own JSONL but does NOT thread into the same chain a Hatter rollup verifies. T2.5 unifies them: a single `chain-ladder.yaml` entry per OKR carries phases `why | how | what | implementation-repoX | implementation-repoY` with per-repo Red Queen chain roots threaded by `parent_intent_thread`. **Builds on D-PR8's MVP cross-repo threading.**
 - **Why.** A whole-OKR rollup today says "the design is provably-this." It does NOT say "the resulting code's tool-calls were governed." For an auditor to walk OKR → design → implementation → "and here's the proof the implementation agent didn't violate Golden Rules," the Red Queen evidence has to be in the same signed chain. Otherwise the rollup story stops at the WHAT merge.
@@ -591,9 +595,19 @@ This act rides the seam Tier 2 already built. The impl-provenance gate Tier 2 sh
   - **Suppress-non-canonical.** Implementation-chain canonicity gaps → PARTIAL with named reason.
   - **Verdict precedence carries through.** FAIL > PARTIAL > PASS across mesh + per-repo chains in the same predicate.
 
+### T2.5b · `redqueen-action` standalone hard gate
+
+- **Goal.** A dedicated required status check (separate from impl-provenance) that runs AST semantic diff (tree-sitter), per-file import/layer-graph enforcement, and contract diffs (oasdiff / buf / graphql-inspector) at the merge boundary. Roadmap Gap 13 / "Phase 9."
+- **Status.** Sketched in the roadmap + CLAUDE.md "Planned"; needs design before code. Sequenced after T2.5a.
+
+### T2.5c · Cross-chain inclusion proofs + SIEM/CloudEvents export
+
+- **Goal.** Tie the (now-signed) Red Queen enforcement chain to the planning-intent chain via inclusion proofs, and emit unified Hatter ↔ Red Queen evidence as CloudEvents to a SIEM. Roadmap Gap 1.
+- **Status.** Sketched; needs design. Sequenced last.
+
 ---
 
-## Tier 3 · chief-auditor hardening
+## Tier 3 · Auditor hardening
 
 The trust-posture work that fell out of the seven Codex chief-auditor rounds during Phase E. Some have full specs in [`agentic-sdlc-futurethoughts.md`](agentic-sdlc-futurethoughts.md); others are sketched and need design before code.
 
@@ -755,10 +769,15 @@ Every Tier 2 + Tier 3 work-item should apply these.
 - [ ] [`agentic-sdlc-codedesigner.md`](agentic-sdlc-codedesigner.md) D5/D9/D10/D11/D12 all flipped to shipped or rewritten to match the app-orchestrated model.
 - [ ] Marketing page "Live-run proof" block updated with the WHAT + fan-out + implementation verdict.
 
-### Tier 3 done-done
+### Tier 2.5 done-done (Queen's Next Act)
+
+- [ ] T2.5a shipped: Red Queen decision log is hash-chained + per-epoch Ed25519-signed via the same contract the planning side uses; whole-OKR rollup includes a runner-verified per-target-repo `## Implementation chain (Red Queen)` section (extends D-PR8); cross-repo verify-chain walks across repos.
+- [ ] T2.5b shipped/captured: `redqueen-action` standalone hard gate (AST + contract diffs) as a required status check.
+- [ ] T2.5c shipped/captured: cross-chain inclusion proofs + SIEM/CloudEvents export.
+
+### Tier 3 done-done (auditor hardening)
 
 - [ ] T3-1 shipped: At least one OKR's WHAT phase signed with cosign-anchored Knight's Seal v2; rollup verifier-notes carries both v1 + v2 commands.
-- [ ] T2.5 shipped: Whole-OKR rollup includes runner-verified per-target-repo `## Implementation chain (Red Queen)` section (extends D-PR8); cross-repo verify-chain walks across repos.
 - [ ] T3-3 shipped: `Export Redacted Bundle` produces a regulator-ready zip with documented redaction policy + verify.sh + audit event.
 - [ ] T3-4 shipped: Dual-signature override enforces org-separation with discriminated rejection reasons.
 - [ ] T3-5 shipped: Mesh refuses unsigned packs; dispatch emits `pack_signature_verified`.
