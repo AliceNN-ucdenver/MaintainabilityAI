@@ -220,7 +220,7 @@ The Architect/Security persona scores describe **what you actually produced**, n
 2. Plan the implementation slice (write it down in PR-draft body as `<!-- plan: ... -->` so the audit chain has provenance for what you intended).
 3. Implement the slice. Run tests if the repo has them.
 4. Run the Tweedles persona-switch loop (Architect + Security, until convergence or `max_auto_rounds=3`).
-5. Stage `.maintainability/audit/events/<run-id>.jsonl` + `.maintainability/audit/keys/<run-id>.epoch-1.pub.pem` + `.redqueen/audit-log.jsonl` (the Red Queen decision trail) into the impl PR.
+5. Stage `.maintainability/audit/events/<run-id>.jsonl` + `.maintainability/audit/keys/<run-id>.epoch-1.pub.pem` + `.redqueen/audit-log.jsonl` (the Red Queen decision trail) into the impl PR. Also stage `.redqueen/hook-signing-probe.jsonl` **if it exists** (a temporary Tier 2.5a signing-context diagnostic the hook writes once on its first invocation — `git add .redqueen/hook-signing-probe.jsonl 2>/dev/null || true`).
 6. Write the PR body with the `implementation_chain` YAML frontmatter block above. Mark PR ready for review.
 7. The Implementation Provenance workflow (`.github/workflows/impl-provenance.yml`) verifies your signed chain + skill manifest + Hatter Tag on PR open + each push, and fails the PR if any is missing.
 
