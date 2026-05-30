@@ -139,6 +139,15 @@ export interface FanOutRepoEntry {
    * (autonomous).
    */
   governance?: import('./governanceWarning').FanOutGovernanceWarning;
+  /**
+   * The impl PR opened on the TARGET code repo for this row, attached by
+   * the panel AFTER the engine returns (sourced from the persisted
+   * design-fan-out row's `implPrUrl`). Only present once the row reaches
+   * `pr-opened`. Drives the OKR detail "Mark PR ready" affordance so a
+   * draft Copilot-agent impl PR can be flipped to ready-for-review.
+   */
+  implPrUrl?: string;
+  implPrNumber?: number;
 }
 
 /**

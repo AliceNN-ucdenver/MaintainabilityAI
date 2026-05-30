@@ -480,6 +480,10 @@ export type LookingGlassWebviewMessage =
   // Surfaced when the agent requested a review but never marked the
   // PR ready (observed on PR #91).
   | { type: 'markOkrPrReady'; okrId: string; phase: string; prNumber: number }
+  // ✅ Mark fan-out impl PR ready — flips a draft impl PR on the TARGET
+  // code repo (carried by repoSlug) to ready-for-review so the
+  // Implementation Provenance gate re-fires, then re-polls the pane.
+  | { type: 'markFanOutImplPrReady'; okrId: string; repoSlug: string; prNumber: number }
   // 🔁 Re-run audit — removes + re-applies the trigger label after a
   // degraded verdict so the workflow fires again on the latest commit.
   | { type: 'rerunOkrAudit'; okrId: string; phase: string; prNumber: number }

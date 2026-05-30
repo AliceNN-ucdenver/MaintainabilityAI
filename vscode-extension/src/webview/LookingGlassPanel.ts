@@ -561,6 +561,11 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     'toggleOkrArtifact':           (m) => this.onToggleOkrArtifact(m.okrId, m.phase),
     'mergeOkrPr':                  (m) => this.onMergeOkrPr(m.okrId, m.phase, m.prNumber),
     'markOkrPrReady':              (m) => this.onMarkOkrPrReady(m.okrId, m.phase, m.prNumber),
+    // ✅ Mark fan-out impl PR ready — flips a draft impl PR on the TARGET
+    // code repo (carried by repoSlug) to ready-for-review, then re-polls
+    // the pre-flight pane. Distinct from markOkrPrReady, which hardcodes
+    // the mesh repo for WHY/HOW/WHAT artifact PRs.
+    'markFanOutImplPrReady':       (m) => this.onMarkFanOutImplPrReady(m.okrId, m.repoSlug, m.prNumber),
     'rerunOkrAudit':               (m) => this.onRerunOkrAudit(m.okrId, m.phase, m.prNumber),
     'reviseWithAgent':             (m) => this.onReviseWithAgent(m.okrId, m.phase, m.prNumber),
     'scaffoldOkrSample':           () => this.onScaffoldOkrSample(),
@@ -959,18 +964,31 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         const bars = this.meshService.createReader(meshPath).listBars();
         for (const entry of report.entries) {
           const bar = bars.find(b => (b.repos ?? []).some(u => this.normalizeGitHubSlug(u) === entry.slug));
-          if (!bar) { continue; }
-          const tier = computeTier(bar);
-          const weakest = ([
-            { name: 'architecture', score: bar.architecture.score },
-            { name: 'security', score: bar.security.score },
-            { name: 'infoRisk', score: bar.infoRisk.score },
-            { name: 'operations', score: bar.operations.score },
-          ] as const)
-            .filter(p => p.score < 50)
-            .sort((a, b) => a.score - b.score)[0] ?? null;
-          const gov = deriveFanOutGovernance(tier, weakest ? { name: weakest.name, score: weakest.score } : null);
-          if (gov) { entry.governance = gov; }
+          if (bar) {
+            const tier = computeTier(bar);
+            const weakest = ([
+              { name: 'architecture', score: bar.architecture.score },
+              { name: 'security', score: bar.security.score },
+              { name: 'infoRisk', score: bar.infoRisk.score },
+              { name: 'operations', score: bar.operations.score },
+            ] as const)
+              .filter(p => p.score < 50)
+              .sort((a, b) => a.score - b.score)[0] ?? null;
+            const gov = deriveFanOutGovernance(tier, weakest ? { name: weakest.name, score: weakest.score } : null);
+            if (gov) { entry.governance = gov; }
+          }
+          // Attach the impl PR (on the target code repo) so the pane can
+          // surface a "Mark PR ready" affordance on rows whose impl PR is
+          // in flight (`pr-opened`). The engine entry has no PR URL, so
+          // source it from the persisted design-fan-out row, matched by
+          // slug. Parse the PR number from the URL for the GraphQL
+          // ready-for-review mutation + the link label.
+          const fanOutRow = prior?.rows.find(r => r.repo === entry.slug);
+          if (fanOutRow?.implPrUrl) {
+            entry.implPrUrl = fanOutRow.implPrUrl;
+            const prMatch = fanOutRow.implPrUrl.match(/github\.com\/[\w.-]+\/[\w.-]+\/pull\/(\d+)/);
+            if (prMatch) { entry.implPrNumber = parseInt(prMatch[1], 10); }
+          }
         }
       }
       this.postMessage({
@@ -3025,6 +3043,30 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     } else {
       this.postMessage({ type: 'error', message: `Failed to mark PR #${prNumber} ready-for-review.` });
     }
+  }
+
+  /**
+   * ✅ Mark a fan-out impl PR ready-for-review. Unlike onMarkOkrPrReady
+   * (which hardcodes the mesh repo for WHY/HOW/WHAT artifact PRs), the
+   * impl PRs live on the TARGET code repo — so the repo slug travels with
+   * the message. Flips the Copilot agent's draft impl PR out of draft via
+   * the GraphQL `markPullRequestReadyForReview` mutation, which re-fires
+   * the Implementation Provenance gate (`ready_for_review` trigger). Then
+   * re-polls the pre-flight pane so the row reflects the new PR state.
+   */
+  private async onMarkFanOutImplPrReady(okrId: string, repoSlug: string, prNumber: number): Promise<void> {
+    const [owner, name] = repoSlug.split('/');
+    if (!owner || !name) {
+      this.postMessage({ type: 'error', message: `Cannot resolve owner/repo from "${repoSlug}" for Mark Ready.` });
+      return;
+    }
+    const ok = await this.githubService.markPullRequestReadyForReview(owner, name, prNumber);
+    if (ok) {
+      void vscode.window.showInformationMessage(`Impl PR #${prNumber} on ${repoSlug} marked ready-for-review.`);
+    } else {
+      this.postMessage({ type: 'error', message: `Failed to mark impl PR #${prNumber} on ${repoSlug} ready-for-review.` });
+    }
+    await this.onFanOutPreflight(okrId);
   }
 
   /**

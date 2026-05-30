@@ -3129,6 +3129,22 @@ function renderOrgScanner(): string {
 // Event Handlers
 // ============================================================================
 
+/**
+ * Validate + dispatch the fan-out "Mark PR ready" click. Extracted from
+ * the delegated fan-out click listener so that listener stays within the
+ * cyclomatic-complexity fitness budget. Reads okrId / repoSlug / prNumber
+ * from the button's dataset and posts markFanOutImplPrReady only when all
+ * three are valid and the click targets the currently-open OKR.
+ */
+function onFanOutMarkPrReadyClick(button: HTMLElement): void {
+  const okrId = button.dataset.okrId ?? '';
+  const repoSlug = button.dataset.repoSlug ?? '';
+  const prNumber = parseInt(button.dataset.prNumber ?? '', 10);
+  if (!okrId || !repoSlug || Number.isNaN(prNumber)) { return; }
+  if (!state.currentOkr || state.currentOkr.meta.id !== okrId) { return; }
+  vscode.postMessage({ type: 'markFanOutImplPrReady', okrId, repoSlug, prNumber });
+}
+
 function attachEventHandlers() {
   // Refresh
   document.getElementById('btn-refresh')?.addEventListener('click', () => {
@@ -4027,6 +4043,17 @@ function attachEventHandlers() {
       const okrId = reset.dataset.okrId;
       if (!okrId || !state.currentOkr || state.currentOkr.meta.id !== okrId) { return; }
       vscode.postMessage({ type: 'resetFanOut', okrId });
+      return;
+    }
+
+    const markPrReady = target.closest('[data-action="fanout-mark-pr-ready"]') as HTMLElement | null;
+    if (markPrReady) {
+      // Flip the draft impl PR (on the target code repo carried by
+      // repoSlug) to ready-for-review. The extension calls the GraphQL
+      // mutation + re-polls pre-flight on completion, so no loading
+      // spinner here. Validation lives in the helper to keep this
+      // delegated listener's complexity within the fitness budget.
+      onFanOutMarkPrReadyClick(markPrReady);
       return;
     }
     });

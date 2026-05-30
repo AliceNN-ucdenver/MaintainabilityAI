@@ -201,6 +201,15 @@ export interface FanOutRepoEntryUi {
     planOnly: boolean;
     reason: string;
   };
+  /**
+   * The impl PR opened on the TARGET code repo for this row, when its
+   * decision is `pr-opened`. Attached by the panel from the engine entry
+   * (or the persisted design-fan-out row). Drives the "Mark PR ready"
+   * affordance so a draft Copilot-agent impl PR can be flipped to
+   * ready-for-review (which re-fires the Implementation Provenance gate).
+   */
+  implPrUrl?: string;
+  implPrNumber?: number;
 }
 
 export type FanOutPreflightReportUi =
@@ -1805,6 +1814,19 @@ function renderFanOutEntryRow(entry: FanOutRepoEntryUi, okr: OkrCard, availableB
     ? renderFanOutPrepAffordance(entry, okr, prepContext, linkHint)
     : '';
 
+  // Mark-PR-ready affordance — surfaced only while the impl PR is in
+  // flight (`pr-opened`) and we know its URL. Mirrors the WHY/HOW/WHAT
+  // "Mark PR ready" button: flips the Copilot agent's draft impl PR (on
+  // the target code repo) to ready-for-review, which re-fires the
+  // Implementation Provenance gate.
+  const prReadyActions = (entry.decision.status === 'pr-opened' && entry.implPrUrl)
+    ? `
+      <div class="okr-fanout-entry-actions">
+        <a class="okr-link-button" href="${escapeAttr(entry.implPrUrl)}" target="_blank" rel="noopener">#${entry.implPrNumber ?? ''} Impl PR ↗</a>
+        ${entry.implPrNumber != null ? `<button class="okr-button-small okr-button-primary" data-action="fanout-mark-pr-ready" data-okr-id="${escapeAttr(okr.meta.id)}" data-repo-slug="${escapeAttr(entry.slug)}" data-pr-number="${entry.implPrNumber}" title="Flip the Copilot agent's draft impl PR to ready-for-review so the Implementation Provenance gate fires. (If GitHub is also holding the run for approval, you'll still click Approve on the PR.)">✅ Mark PR ready</button>` : ''}
+      </div>`
+    : '';
+
   return `
     <div class="okr-fanout-entry okr-fanout-tone-${presentation.tone}">
       <div class="okr-fanout-entry-head">
@@ -1817,6 +1839,7 @@ function renderFanOutEntryRow(entry: FanOutRepoEntryUi, okr: OkrCard, availableB
       ${reason}
       ${govNote}
       ${affordance}
+      ${prReadyActions}
     </div>
   `;
 }

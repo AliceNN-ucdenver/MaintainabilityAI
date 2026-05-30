@@ -1095,7 +1095,7 @@ export function generateImplProvenanceWorkflow(): string {
   lines.push(``);
   lines.push(`on:`);
   lines.push(`  pull_request:`);
-  lines.push(`    types: [opened, synchronize, reopened]`);
+  lines.push(`    types: [opened, synchronize, reopened, ready_for_review]`);
   lines.push(``);
   lines.push(`permissions:`);
   lines.push(`  contents: read`);
