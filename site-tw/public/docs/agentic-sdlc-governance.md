@@ -1307,35 +1307,11 @@ The Hatter's Tea Party is live, and its threat model evolves with every hardenin
 
 ### Threat actors
 
-Five actors the Hatter must withstand:
+Five actors the Hatter must withstand, shown by where they enter the governed SDLC and which checks meet them first:
 
-<div class="docs-grid docs-grid-wide">
-  <div class="docs-card docs-card-rose">
-    <div class="docs-card-kicker">External</div>
-    <div class="docs-heading">External attacker</div>
-    <div class="docs-copy">No legitimate access. Goals: exfiltrate IP from artifacts, poison the audit chain to discredit governance, exploit the GitHub App to reach target repos, or DoS the pipeline. Reaches the system via compromised auth credentials, supply-chain vectors, or social engineering of legitimate users.</div>
-  </div>
-  <div class="docs-card docs-card-amber">
-    <div class="docs-card-kicker">AI</div>
-    <div class="docs-heading">Compromised agent</div>
-    <div class="docs-copy">A legitimate agent session manipulated via prompt injection (most commonly from research-source content) or model jailbreak. Goal: produce artifacts that look governed but violate the intent. Hardest to detect because the agent is "supposed" to be there.</div>
-  </div>
-  <div class="docs-card docs-card-indigo">
-    <div class="docs-card-kicker">Insider</div>
-    <div class="docs-heading">Malicious insider</div>
-    <div class="docs-copy">Legitimate GitHub access. Goals: ship code that bypasses governance, manipulate BAR scores to unlock tier, coordinate a dual-signature override to push restricted work. The dual-signature override (HumanGate tier=restricted), Pocket Watch (drift gate), and tier-freeze controls are aimed here.</div>
-  </div>
-  <div class="docs-card docs-card-cyan">
-    <div class="docs-card-kicker">Insider</div>
-    <div class="docs-heading">Careless insider</div>
-    <div class="docs-copy">Well-intentioned. Pastes secrets into an OKR objective, oversigns an override request without reading it, mis-classifies sensitive research findings, or shares an audit export externally without redaction. Most common day-to-day risk.</div>
-  </div>
-  <div class="docs-card docs-card-violet">
-    <div class="docs-card-kicker">Supply chain</div>
-    <div class="docs-heading">Supply-chain attacker</div>
-    <div class="docs-copy">Targets the prompt-pack template repository, a Skill's external API, a model provider's account, or the Maintainability AI GitHub App itself. One compromised prompt pack propagates to every mesh that pulls the update.</div>
-  </div>
-</div>
+<img src="/images/diagrams/threat-actor-entry-lanes.svg" alt="Five threat actors and where they enter the governed SDLC: external attacker, compromised agent, malicious insider, careless insider, and supply-chain attacker. Each lane shows the entry path, attempted damage, and first control before the governed evidence chain." class="docs-svg" />
+
+These actors do not all attack the same layer. The point of the framework is that each entry path meets a specific check before it can become a trusted artifact.
 
 ### Threats and controls (STRIDE)
 
@@ -1393,8 +1369,8 @@ Five actors the Hatter must withstand:
   <text x="590" y="123" text-anchor="middle" fill="#86efac" font-size="9" font-weight="600" font-family="system-ui, sans-serif">Cost caps (org/OKR)</text>
   <rect x="535" y="136" width="110" height="22" rx="6" fill="rgba(74,222,128,0.16)" stroke="rgba(74,222,128,0.4)"/>
   <text x="590" y="151" text-anchor="middle" fill="#86efac" font-size="9" font-weight="600" font-family="system-ui, sans-serif">Skill timeouts</text>
-  <rect x="535" y="164" width="110" height="22" rx="6" fill="rgba(248,113,113,0.18)" stroke="rgba(248,113,113,0.4)"/>
-  <text x="590" y="179" text-anchor="middle" fill="#fca5a5" font-size="9" font-weight="600" font-family="system-ui, sans-serif">Fan-out cap</text>
+  <rect x="535" y="164" width="110" height="22" rx="6" fill="rgba(74,222,128,0.16)" stroke="rgba(74,222,128,0.4)"/>
+  <text x="590" y="179" text-anchor="middle" fill="#86efac" font-size="9" font-weight="600" font-family="system-ui, sans-serif">Fan-out cap</text>
   <rect x="662" y="108" width="110" height="22" rx="6" fill="rgba(74,222,128,0.16)" stroke="rgba(74,222,128,0.4)"/>
   <text x="717" y="123" text-anchor="middle" fill="#86efac" font-size="9" font-weight="600" font-family="system-ui, sans-serif">Tier deterministic</text>
   <rect x="662" y="136" width="110" height="22" rx="6" fill="rgba(248,113,113,0.18)" stroke="rgba(248,113,113,0.4)"/>
@@ -1484,12 +1460,12 @@ Five actors the Hatter must withstand:
     <div class="docs-proof-evidence"><strong>Current state:</strong> token and cost counts are captured; prompt bodies are not stored. Redacted export is queued with Audit Report Export.</div>
   </div>
   <div class="docs-proof-row">
-    <span class="docs-proof-status docs-proof-status-partial">⚠ Partial</span>
+    <span class="docs-proof-status docs-proof-status-shipped">✓ Shipped</span>
     <div>
-      <p class="docs-proof-title">Cost caps are shipped; fan-out caps are still open</p>
-      <p class="docs-proof-body">Per-skill, per-agent, per-OKR, and per-org caps freeze new assignments before runaway spend. Workflow timeouts cap CI-minute exposure.</p>
+      <p class="docs-proof-title">Cost + fan-out caps are shipped</p>
+      <p class="docs-proof-body">Per-skill, per-agent, per-OKR, and per-org caps freeze new assignments before runaway spend. Workflow timeouts cap CI-minute exposure. The fan-out path now bounds simultaneous in-flight implementation runs with a hard concurrency cap.</p>
     </div>
-    <div class="docs-proof-evidence"><strong>Open gap:</strong> one OKR can still write landing issues to many target repos. Cap + warning threshold is queued.</div>
+    <div class="docs-proof-evidence"><strong>Shipped:</strong> a hard concurrency cap (5) now bounds simultaneous in-flight impl runs; dependency chains serialize via topological waves; excess ready rows queue as <code>pending-on-cap</code> and drain as runs complete.</div>
   </div>
   <div class="docs-proof-row">
     <span class="docs-proof-status docs-proof-status-partial">⚠ Partial</span>
@@ -1532,7 +1508,7 @@ Five actors the Hatter must withstand:
 | **Info disclosure** | Audit Report Export shared externally leaks design IP | Bundle includes merged research, PRD, and code-design verbatim; no redaction layer (PII / IP / secrets scrubbing) yet. Queued for a future release | ⚠ |
 | **DoS** | Cost-cap exhaustion via runaway agent runs | Per-Skill `max_skill_calls_per_run`, per-agent `max_tokens_per_run`, per-OKR `governance.max_cost_usd`, and per-org monthly cap; `cost-cap-reached` label freezes new assignments | ✓ |
 | **DoS** | Skill chains time out exhausting GitHub Actions minutes | Per-Skill timeout + bounded retry policy; workflow `timeout-minutes` on every bus workflow | ✓ |
-| **DoS** | Fan-out blast radius: one OKR writes to N target repos | No upper bound today on `target_code_repos[]` length; the FanOutEngine writes one landing issue per ready entry after the user clicks `Fan out N of M ready` in the pre-flight pane. A user-confirmed pane is the soft cap; an explicit cap + warn threshold is queued for a future release | ⚠ |
+| **DoS** | Fan-out blast radius: one OKR writes to N target repos | FanOutEngine admits ≤ 5 concurrent in-flight impl runs (hard CAP); dependency chains self-serialize via topological waves (`pending-on-upstream`); excess ready rows queue as `pending-on-cap` and drain as runs complete | ✓ |
 | **EoP** | Tier bypass by faking BAR-score-raising artifacts | BAR pillar score is computed deterministically from real artifact presence (threat-model.yaml, controls block, ADRs). Inflation requires creating real artifacts that future agents will reference, so the gate becomes self-reinforcing | ✓ |
 | **EoP** | Prompt injection from a research-source page steers the agent | No content sanitization on Skill outputs; agent prompts don't explicitly partition data-vs-instructions | ⚠ |
 | **EoP** | Compromised prompt pack version applied silently | Hatter Tag records `prompt_pack_version` + SHA; pack-deployment signature verification not in scope today | 🛠 |
