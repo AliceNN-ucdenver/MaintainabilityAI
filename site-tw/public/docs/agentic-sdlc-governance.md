@@ -1598,29 +1598,27 @@ STRIDE alone doesn't cover agent-specific failure modes like goal drift, evidenc
 
 #### One closeout report. Source files underneath.
 
-**What it prevents:** Most audit "trails" are a folder full of JSON nobody reads. An auditor opens it, cannot tell signed from unsigned, cannot tell what is a fact from what is a claim, gives up, and asks a person. At that point the audit has become a conversation, not a record. The closeout report removes that friction. Every merged action ships a single self-contained document an auditor can actually read.
+**What it prevents:** An audit should not depend on a meeting. Without a readable closeout, a reviewer opens a folder of logs and has to ask someone else the basic questions: did the chain pass, which claims are facts, which agent signed what, and which requirement was this supposed to satisfy? The closeout report puts those answers in one place.
 
-**How it works:** When an OKR action completes, Looking Glass exports one markdown document with one click in the dashboard and writes it next to the artifact at `okrs/<id>/audit/exports/<runId>-report.md`. The document is laid out the way an auditor reads, top to bottom:
+**How it works:** When an OKR action completes, Looking Glass exports one markdown report at `okrs/<id>/audit/exports/<runId>-report.md`. The report starts with the answer, then shows the evidence behind it:
 
-- **The verdict, first.** Did the cryptographic verifier accept every signature and replay every hash, end to end? Pass or fail in the first line, with the chain head and event count next to it. This is the same verifier CI runs before merge, using the same code path and producing the same result.
-- **The trust posture next.** A quick seal check at a glance, plus a source table naming where each input came from (canonical GitHub or local mesh) and whether the bytes the report displays match the bytes the verifier read.
-- **Evidence.** Which deterministic skills the agent called, how many times each, which failed. The fact record, not the agent's self-report.
-- **The self-review trail.** Each reviewer persona (Architect, Security) round by round, with the chain event ID that backs each score, so an auditor can jump to the source-of-record event in the JSONL without grep.
-- **Workflow facts.** What got written. What state changed. Which PR closed it. All re-derivable from git, all cross-checked.
-- **The event timeline.** Every event in the chain, collapsible, with who emitted it and whether it was signed.
-- **Control mapping.** Every declared security requirement traced back to the STRIDE category, the OWASP category, the PRD section that named it, and the design section that cites it.
-- **Cross-phase ladder.** How this action's chain links to the WHY, HOW, and WHAT chains around it.
+- **Pass or fail.** The same chain checker CI uses says whether the signatures, hashes, chain head, and event count line up.
+- **Source posture.** The report names where each input came from and whether the report used the same bytes the checker verified.
+- **What happened.** Skills called, files written, PR merged, and state changes, separated from the agent's own claims.
+- **Why the judgment changed.** Architect and Security review rounds, with event IDs for each score.
+- **Requirement trace.** Security requirements mapped back to the PRD, the design, and any declared OWASP or STRIDE category.
+- **Timeline and ladder.** Every event in this action, plus how this action links to the surrounding WHY, HOW, and WHAT chains.
 
-Underneath the closeout, the source files it cites sit on disk for any reviewer to walk independently:
+The report also points to the source files, so a reviewer can drill in without guessing where the evidence lives:
 
-- `okrs/<id>/<phase>/<artifact>.md`: the merged research document, PRD, or code design
-- `okrs/<id>/audit/events/<run>.jsonl`: the hash-chained activity log
-- `okrs/<id>/audit/sources/<run>.source-registry.json`: the hash-pinned citable-source registry for WHY research
-- `okrs/<id>/audit/chain-ladder.yaml`: the cross-phase WHY, HOW, and WHAT ladder
-- `okrs/<id>/audit/keys/<run>.epoch-*.pub.pem`: the public keys used to verify agent signatures
-- `okrs/<id>/how/prd.md`: the PRD the control mapping anchors to
+- `okrs/<id>/<phase>/<artifact>.md`: the merged research document, PRD, or code design.
+- `okrs/<id>/audit/events/<run>.jsonl`: the activity log.
+- `okrs/<id>/audit/keys/<run>.epoch-*.pub.pem`: the public keys used to check signatures.
+- `okrs/<id>/audit/sources/<run>.source-registry.json`: the source registry for WHY research.
+- `okrs/<id>/audit/chain-ladder.yaml`: the cross-phase ladder.
+- `okrs/<id>/how/prd.md`: the PRD used for control mapping.
 
-**What the auditor sees:** One self-contained document at the top. The source files below it. Nothing to grep, nothing to install, nothing to wait for. An internal auditor, a security architect, or an incident-response team at 3 AM walks the same evidence the runner verified, in the same order CI walked it.
+**What the auditor sees:** Open one document. Read the verdict. Check the evidence. Drill into the source files only when needed. Nothing to grep, nothing to install, nothing to wait for. An internal auditor, a security architect, or an incident-response team at 3 AM sees the same evidence CI checked before merge.
 
 <div class="docs-report-preview-callout">
   <div>
