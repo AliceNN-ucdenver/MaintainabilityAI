@@ -175,17 +175,6 @@ export const MAX_FINDINGS = 100;
 // ─────────────────────────────────────────────────────────────────────
 
 /**
- * Bound + sanitize free-form external text before it lands in a finding
- * `detail` (which persists into signed audit metadata). Agent- and
- * provider-supplied strings must never be echoed raw — replace anything
- * outside a conservative safe set and truncate.
- */
-function sanitizeForDetail(value: unknown, max = 32): string {
-  const s = String(value).replace(/[^\w.:/-]/g, '·');
-  return s.length > max ? `${s.slice(0, max)}…` : s;
-}
-
-/**
  * Parse + normalize a URL. Rejects anything that is not http(s) or that
  * fails to parse. Drops the fragment; lowercases the host. Returns the
  * lowercased host so the caller can classify it.
@@ -303,10 +292,11 @@ export function screenQueries(queries: string[], config: OracleGuardrailConfig):
 }
 
 /**
- * Result rail. Quarantines results with an unsafe / malformed URL so they
- * never reach synthesis or the source registry. Annotates provider-allowlist
- * misses and coarse markers (kept — the Python rail is authoritative for
- * injection). Returns the safe subset plus the findings.
+ * Result rail. Quarantines a result with an unsafe / malformed URL, a
+ * non-allowlisted provider, or a high-confidence prompt-control marker so it
+ * never reaches synthesis or the source registry. Annotates weak markers
+ * (kept — the Python rail is authoritative for injection). Returns the safe
+ * subset plus the findings.
  */
 export function screenResults(
   results: ProviderResult[],
@@ -331,7 +321,10 @@ export function screenResults(
         rule: 'provider-not-allowlisted',
         boundary: 'result',
         disposition: 'quarantine',
-        detail: `provider '${sanitizeForDetail(res.provider)}' not in allowlist`,
+        // Never echo the agent-supplied provider value — it could be secret-like
+        // (e.g. a token) and would persist into signed audit metadata. `ref`
+        // locates the offending result.
+        detail: 'provider value not in allowlist',
         ref,
       });
       quarantine = true;

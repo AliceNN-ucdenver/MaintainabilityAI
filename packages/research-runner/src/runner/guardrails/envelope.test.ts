@@ -164,11 +164,13 @@ describe('screenResults', () => {
     assert.equal(safe.length, 0);
     assert.equal(findings.some(f => f.rule === 'provider-not-allowlisted' && f.disposition === 'quarantine'), true);
   });
-  it('sanitizes a non-allowlisted provider value in the finding detail', () => {
-    const { findings } = screenResults([mkResult({ provider: 'evil rm -rf /' as ProviderResult['provider'], url: 'https://example.com' })], CONFIG);
+  it('never echoes the provider value (incl. a secret-like token) in the finding detail', () => {
+    const token = 'ghp_abcdefghijklmnopqrstuvwxyz0123456789';
+    const { findings } = screenResults([mkResult({ provider: token as ProviderResult['provider'], url: 'https://example.com' })], CONFIG);
     const f = findings.find(x => x.rule === 'provider-not-allowlisted');
     assert.ok(f);
-    assert.equal(f.detail.includes('rm -rf'), false); // raw free-form value never echoed
+    assert.equal(f.detail.includes(token), false);
+    assert.equal(f.detail.includes('ghp_'), false); // not even a prefix survives
   });
   it('quarantines a malformed URL', () => {
     const { safe } = screenResults([mkResult({ url: 'not a url' })], CONFIG);
