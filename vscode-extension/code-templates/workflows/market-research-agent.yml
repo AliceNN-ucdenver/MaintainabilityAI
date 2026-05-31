@@ -816,6 +816,107 @@ jobs:
           echo "cosine=$COSINE"    >> "$GITHUB_OUTPUT"
           echo "threshold=$POCKET_THRESHOLD" >> "$GITHUB_OUTPUT"
 
+      # ── Oracle & Privacy Rails — PII rail (Hatter-side evidence boundary) ──
+      # This is NOT a Red Queen feature. Red Queen governs ACTIONS; this rail
+      # governs EVIDENCE (research-doc.md + the source registry) entering the
+      # Hatter planning chain. Trusted helpers are fetched from the default
+      # branch — PR head is DATA only (same posture as verify-source-table.mjs).
+      # Presidio + en_core_web_lg detect PII; the tiered policy hard-fails
+      # contact/identity/secret classes and escalates ambiguous PERSON-in-
+      # sensitive-context to needs_review (blocking during hardening). PR audit
+      # VERIFIES + GATES here; the durable rail-report.json + rail_decision
+      # event are written at FINALIZE (Bug-Z model).
+      - name: Setup Python (Oracle PII rail)
+        if: steps.gate.outputs.skip != 'true' && steps.structure.outputs.doc_found == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache Oracle PII rail deps (pip)
+        if: steps.gate.outputs.skip != 'true' && steps.structure.outputs.doc_found == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: oracle-pii-rail-presidio-2.2.362-spacy-3.8.14-${{ runner.os }}
+
+      - name: Oracle PII rail (gate)
+        id: pii-rail
+        if: steps.gate.outputs.skip != 'true' && steps.structure.outputs.doc_found == 'true'
+        env:
+          OKR_ID: ${{ steps.ctx.outputs.okr_id }}
+          RUN_ID: ${{ steps.ctx.outputs.run_id }}
+          DOC_PATH: okrs/${{ steps.ctx.outputs.okr_id }}/why/research-doc.md
+          REGISTRY_PATH: okrs/${{ steps.ctx.outputs.okr_id }}/audit/sources/${{ steps.ctx.outputs.run_id }}.source-registry.json
+        run: |
+          set -uo pipefail
+          DIR="$RUNNER_TEMP/oracle-rails"
+          mkdir -p "$DIR"
+          # Trusted helpers from the default branch — never run PR-head code
+          # under pull_request_target. Fail CLOSED if any is missing.
+          FETCH_OK=true
+          for f in oracle_rail.py pii.json requirements.txt; do
+            if ! gh api -H "Accept: application/vnd.github.raw" \
+              "repos/${{ github.repository }}/contents/.github/workflows/scripts/oracle-rails/$f?ref=${{ github.event.repository.default_branch }}" \
+              > "$DIR/$f"; then
+              FETCH_OK=false
+            fi
+          done
+          if [ "$FETCH_OK" != "true" ]; then
+            echo "::error::Oracle PII rail helpers not deployed to .github/workflows/scripts/oracle-rails/ on ${{ github.event.repository.default_branch }}. Redeploy mesh workflows from Looking Glass and re-trigger. The PII rail cannot be skipped."
+            echo "ok=false"     >> "$GITHUB_OUTPUT"
+            echo "missing=true" >> "$GITHUB_OUTPUT"
+            echo "reason=PII rail helper scripts missing from mesh (.github/workflows/scripts/oracle-rails/)" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Install pinned Presidio + spaCy + the URL-pinned en_core_web_lg
+          # model (all in requirements.txt) — no `spacy download`, so the EXACT
+          # model artifact is retrieved for replay determinism.
+          python3 -m pip install --quiet --disable-pip-version-check -r "$DIR/requirements.txt"
+          # Config: prefer a mesh-committed policy at
+          # .caterpillar/guardrails/oracle/pii.json fetched from the DEFAULT
+          # BRANCH (trusted, never PR head); fall back to the bundled default.
+          # config_sha256 in the report pins whichever config actually ran.
+          CONFIG="$DIR/pii.json"
+          if gh api -H "Accept: application/vnd.github.raw" \
+            "repos/${{ github.repository }}/contents/.caterpillar/guardrails/oracle/pii.json?ref=${{ github.event.repository.default_branch }}" \
+            > "$DIR/pii.override.json" 2>/dev/null; then
+            CONFIG="$DIR/pii.override.json"
+            echo "::notice::Oracle PII rail using mesh config override (.caterpillar/guardrails/oracle/pii.json)"
+          else
+            echo "::notice::Oracle PII rail using bundled default config (no mesh override present)"
+          fi
+          # Inputs as a bash ARRAY — robust against spaces/special chars in paths.
+          INPUTS=("$DOC_PATH")
+          if [ -f "$REGISTRY_PATH" ]; then INPUTS+=("$REGISTRY_PATH"); fi
+          set +e
+          OUT=$(python3 "$DIR/oracle_rail.py" run \
+            --config "$CONFIG" \
+            --report "$RUNNER_TEMP/oracle-pii.rail-report.json" \
+            --inputs "${INPUTS[@]}" \
+            --okr-id "$OKR_ID" --run-id "$RUN_ID" --phase why 2>/tmp/pii-err.txt)
+          CODE=$?
+          set -e
+          cat /tmp/pii-err.txt || true
+          printf 'rail stdout: %s\n' "$OUT"
+          echo "missing=false" >> "$GITHUB_OUTPUT"
+          if [ "$CODE" -eq 0 ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+            echo "reason=clean (verdict=pass)" >> "$GITHUB_OUTPUT"
+            echo "::notice::Oracle PII rail passed (verdict=pass)"
+          elif [ "$CODE" -eq 2 ]; then
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            echo "reason=blocked PII detected (verdict=fail)" >> "$GITHUB_OUTPUT"
+            echo "::error::Oracle PII rail BLOCKED — a hard-fail PII class was detected in the research doc / source registry"
+          elif [ "$CODE" -eq 3 ]; then
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            echo "reason=needs_review — ambiguous PII in a sensitive context (blocking during hardening)" >> "$GITHUB_OUTPUT"
+            echo "::error::Oracle PII rail NEEDS REVIEW — ambiguous PII in a sensitive context; blocking per policy (block_on_needs_review)"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            echo "reason=rail-not-invoked (Presidio/model/config unloadable, exit $CODE)" >> "$GITHUB_OUTPUT"
+            echo "::error::Oracle PII rail could not run (exit $CODE) — fails closed; evidence cannot be certified PII-clean"
+          fi
+
       - name: Decide verdict
         id: verdict
         if: steps.gate.outputs.skip != 'true'
@@ -1008,6 +1109,18 @@ jobs:
               VERDICT="degraded"; REASON="research-doc.md missing required sections — H2 $H2/10, H3 $H3/4"
               STRUCTURE_FAIL="true"
             fi
+          fi
+
+          # Oracle & Privacy Rails — PII rail (Hatter-side evidence boundary).
+          # Hard-fail on blocked PII OR needs_review (blocking during the first
+          # hardening pass) OR a missing/not-invoked rail (fail-closed). Placed
+          # after the structure check so a missing doc degrades on structure,
+          # not here. Not a Red Queen check — this governs evidence, not actions.
+          PII_OK='${{ steps.pii-rail.outputs.ok }}'
+          PII_REASON='${{ steps.pii-rail.outputs.reason }}'
+          if [ "$VERDICT" = "ok" ] && [ "$DOC_FOUND" = "true" ] && [ "$PII_OK" != "true" ]; then
+            VERDICT="degraded"; REASON="Oracle PII rail: ${PII_REASON:-failed}"
+            EVIDENCE_FAIL="true"
           fi
 
           # Drift
@@ -1203,6 +1316,72 @@ jobs:
           pr-number: ${{ github.event.pull_request.number }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
+      # ── Oracle & Privacy Rails — WHY finalize OWNS rail execution ──────────
+      # This job re-runs the trusted rail over the MERGED WHY bytes and writes
+      # the durable report; the shared finalize action only RECORDS the
+      # rail_decision pointer (generic recorder, never a rail runner). On the
+      # main checkout the rail scripts are trusted (not PR head), so they run
+      # in place — no gh-api fetch needed.
+      - name: Setup Python (Oracle PII rail — finalize)
+        if: steps.ctx.outputs.okr_id != '' && steps.ctx.outputs.run_id != ''
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache Oracle PII rail deps (pip)
+        if: steps.ctx.outputs.okr_id != '' && steps.ctx.outputs.run_id != ''
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: oracle-pii-rail-presidio-2.2.362-spacy-3.8.14-${{ runner.os }}
+
+      - name: Produce durable Oracle PII rail report
+        id: pii-rail-finalize
+        if: steps.ctx.outputs.okr_id != '' && steps.ctx.outputs.run_id != ''
+        env:
+          OKR_ID: ${{ steps.ctx.outputs.okr_id }}
+          RUN_ID: ${{ steps.ctx.outputs.run_id }}
+          DOC_PATH: okrs/${{ steps.ctx.outputs.okr_id }}/why/research-doc.md
+          REGISTRY_PATH: okrs/${{ steps.ctx.outputs.okr_id }}/audit/sources/${{ steps.ctx.outputs.run_id }}.source-registry.json
+        run: |
+          set -uo pipefail
+          SCRIPTS=".github/workflows/scripts/oracle-rails"
+          if [ ! -f "$SCRIPTS/oracle_rail.py" ]; then
+            echo "::error::Oracle PII rail helpers missing on main ($SCRIPTS) — redeploy mesh workflows from Looking Glass."
+            exit 1
+          fi
+          if [ ! -f "$DOC_PATH" ]; then
+            echo "::notice::no research-doc.md at $DOC_PATH — nothing to record"
+            echo "report_path=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          python3 -m pip install --quiet --disable-pip-version-check -r "$SCRIPTS/requirements.txt"
+          # Config: mesh override if committed, else the bundled default
+          # (both live on the trusted main checkout). config_sha256 pins it.
+          CONFIG="$SCRIPTS/pii.json"
+          if [ -f ".caterpillar/guardrails/oracle/pii.json" ]; then CONFIG=".caterpillar/guardrails/oracle/pii.json"; fi
+          REPORT="okrs/${OKR_ID}/audit/rails/${RUN_ID}.rail-report.json"
+          INPUTS=("$DOC_PATH")
+          if [ -f "$REGISTRY_PATH" ]; then INPUTS+=("$REGISTRY_PATH"); fi
+          set +e
+          python3 "$SCRIPTS/oracle_rail.py" run \
+            --config "$CONFIG" --report "$REPORT" \
+            --inputs "${INPUTS[@]}" \
+            --okr-id "$OKR_ID" --run-id "$RUN_ID" --phase why
+          CODE=$?
+          set -e
+          # Phase 2: finalize REQUIRES a pass. The PR-audit gate already blocks
+          # block/needs_review pre-merge, so a merged run should be clean — a
+          # non-pass here means a bypass/override or a policy/model change.
+          # Fail finalize rather than complete the phase with a non-pass (or
+          # un-recordable) rail. (0=pass, 2=blocked, 3=needs_review, 5=not-invoked.)
+          if [ "$CODE" -ne 0 ] || [ ! -f "$REPORT" ]; then
+            echo "::error::Oracle PII rail did not PASS at finalize (exit $CODE) — finalize aborts. The PR-audit gate should have blocked any non-pass pre-merge; investigate the bypass/override or policy/model change before finalizing."
+            exit 1
+          fi
+          echo "report_path=$REPORT" >> "$GITHUB_OUTPUT"
+          echo "::notice::Oracle PII rail PASS at finalize — report written to $REPORT"
+
       # Refactor 3c — delegate to the canonical finalize composite action.
       # PHASE SPEC — see vscode-extension/src/types/phaseSpec.ts.
       # If you rename a label / agent / phase here, update phaseSpec.ts too.
@@ -1225,3 +1404,7 @@ jobs:
           # the phase artifact path so finalize can hash + append
           # artifact_written with idempotency + verify-before-commit.
           artifact-path: okrs/${{ steps.ctx.outputs.okr_id }}/why/research-doc.md
+          # Oracle & Privacy Rails: hand the durable rail report this WHY job
+          # just produced to the generic recorder, which emits the unsigned
+          # workflow-origin rail_decision pointer (empty → no-op).
+          rail-report-path: ${{ steps.pii-rail-finalize.outputs.report_path }}

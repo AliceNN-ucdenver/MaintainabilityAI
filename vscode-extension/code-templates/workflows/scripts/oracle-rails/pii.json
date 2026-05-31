@@ -1,0 +1,49 @@
+{
+  "schema_version": "oracle-pii-config.v1",
+  "language": "en",
+  "score_threshold": 0.5,
+  "block_on_needs_review": true,
+  "nlp_model": "en_core_web_lg",
+  "_note": "Tiered PII policy for a public-figure research domain. PERSON / public ORG / public LOCATION are legitimate content (redact + record); contact/identity/secret PII hard-fails; an allowed entity in a sensitive context escalates to needs_review. A mesh operator may override this file at .caterpillar/guardrails/oracle/pii.json; the workflow prefers that path when present. config_sha256 in the rail report pins whichever config ran.",
+  "tiers": {
+    "block": [
+      "US_SSN",
+      "CREDIT_CARD",
+      "CRYPTO",
+      "IBAN_CODE",
+      "US_BANK_NUMBER",
+      "US_ITIN",
+      "US_PASSPORT",
+      "US_DRIVER_LICENSE",
+      "MEDICAL_LICENSE",
+      "EMAIL_ADDRESS",
+      "PHONE_NUMBER",
+      "IP_ADDRESS",
+      "ORACLE_SECRET"
+    ],
+    "allow_redact": [
+      "PERSON",
+      "LOCATION",
+      "NRP",
+      "ORGANIZATION",
+      "DATE_TIME",
+      "URL",
+      "AGE"
+    ]
+  },
+  "sensitive_context_markers": [
+    "audit/keys",
+    ".env",
+    ".ssh",
+    "id_rsa",
+    "id_ed25519",
+    "private key",
+    "password",
+    "credential",
+    "authorization:",
+    "bearer ",
+    "support-ticket",
+    "leaked",
+    "data breach"
+  ]
+}

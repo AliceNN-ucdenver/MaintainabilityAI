@@ -1,0 +1,115 @@
+name: "Oracle Rails — model replay (Hatter-side evidence boundary)"
+
+# This is NOT a Red Queen feature. Red Queen governs ACTIONS; Oracle & Privacy
+# Rails govern EVIDENCE entering the Hatter planning chain. This job is the
+# authoritative MODEL replay: it re-runs the pinned local rail (Presidio +
+# en_core_web_lg) over each committed rail report + the bytes it cites, and
+# compares to the committed report — tamper-evidence by REPLAY, not signature.
+#
+# Trust split (mirrors the rest of Phase 2):
+#   - PR audit verifies + gates (market-research-agent.yml).
+#   - WHY finalize re-runs the rail and writes the durable report + rail_decision.
+#   - THIS job replays the model and records match / rail-replay-mismatch /
+#     rail-replay-not-invoked. The rollup exporter injects the recorded verdict.
+#
+# It triggers on committed *.rail-report.json and writes *.replay-verdict.json
+# (a DIFFERENT suffix), so its own verdict commit never re-triggers it.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'okrs/**/audit/rails/*.rail-report.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 2
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache Oracle PII rail deps (pip)
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: oracle-pii-rail-presidio-2.2.362-spacy-3.8.14-${{ runner.os }}
+
+      - name: Replay pinned rail over committed reports
+        run: |
+          set -uo pipefail
+          SCRIPTS=".github/workflows/scripts/oracle-rails"
+          if [ ! -f "$SCRIPTS/oracle_rail.py" ]; then
+            echo "::error::Oracle rail helpers missing on main ($SCRIPTS) — redeploy mesh workflows from Looking Glass."
+            exit 1
+          fi
+          python3 -m pip install --quiet --disable-pip-version-check -r "$SCRIPTS/requirements.txt"
+          # Replay only the reports changed in this push; on workflow_dispatch
+          # (no diff) replay every committed report.
+          CHANGED=$(git diff --name-only HEAD^ HEAD -- 'okrs/**/audit/rails/*.rail-report.json' 2>/dev/null || true)
+          if [ -z "$CHANGED" ]; then
+            CHANGED=$(find okrs -path '*/audit/rails/*.rail-report.json' 2>/dev/null || true)
+          fi
+          if [ -z "$CHANGED" ]; then
+            echo "::notice::no rail reports to replay"
+            exit 0
+          fi
+          FAIL=0
+          WROTE=0
+          while IFS= read -r REPORT; do
+            [ -z "$REPORT" ] && continue
+            [ -f "$REPORT" ] || continue
+            CONFIG="$SCRIPTS/pii.json"
+            if [ -f ".caterpillar/guardrails/oracle/pii.json" ]; then CONFIG=".caterpillar/guardrails/oracle/pii.json"; fi
+            # Re-hash targets are the inputs the report itself cites.
+            mapfile -t INPUTS < <(python3 -c "import json,sys; print(chr(10).join(i['path'] for i in json.load(open(sys.argv[1])).get('inputs',[])))" "$REPORT")
+            VERDICT_PATH="${REPORT%.rail-report.json}.replay-verdict.json"
+            if [ "${#INPUTS[@]}" -eq 0 ]; then
+              echo "::warning::$REPORT cites no inputs — cannot replay"
+              printf '%s\n' '{"invoked":true,"ok":false,"reason":"rail-replay-not-invoked-no-inputs"}' > "$VERDICT_PATH"
+              FAIL=1; WROTE=1; continue
+            fi
+            set +e
+            python3 "$SCRIPTS/oracle_rail.py" verify --config "$CONFIG" --report "$REPORT" --inputs "${INPUTS[@]}"
+            CODE=$?
+            set -e
+            case "$CODE" in
+              0) RV='{"invoked":true,"ok":true}' ;;
+              4) RV='{"invoked":true,"ok":false,"reason":"rail-replay-mismatch"}'; FAIL=1 ;;
+              5) RV='{"invoked":true,"ok":false,"reason":"rail-replay-not-invoked"}'; FAIL=1 ;;
+              *) RV='{"invoked":true,"ok":false,"reason":"rail-replay-error"}'; FAIL=1 ;;
+            esac
+            printf '%s\n' "$RV" > "$VERDICT_PATH"
+            WROTE=1
+            echo "::notice::replay $REPORT → exit $CODE"
+          done <<< "$CHANGED"
+
+          # Record the verdict(s). The *.replay-verdict.json suffix does NOT
+          # match this workflow's trigger path, so this commit never re-fires it.
+          if [ "$WROTE" -eq 1 ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            find okrs -path '*/audit/rails/*.replay-verdict.json' -exec git add {} +
+            git commit -m "chore(oracle-rails): record model-replay verdict(s)" || echo "nothing to commit"
+            for attempt in 1 2 3; do
+              if git push; then break; fi
+              git fetch origin main && git rebase origin/main || { git rebase --abort; break; }
+            done
+          fi
+
+          if [ "$FAIL" -ne 0 ]; then
+            echo "::error::Oracle rails model replay FAILED for one or more reports (rail-replay-mismatch / not-invoked) — the committed report could not be reproduced from committed bytes."
+            exit 1
+          fi
+          echo "::notice::Oracle rails model replay: all reports reproduced ✓"

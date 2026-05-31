@@ -13,9 +13,14 @@
  */
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import {
   checkArtifactWrittenIdempotency,
   checkStateTransitionIdempotency,
+  checkRailDecisionIdempotency,
+  computeRailReportPayload,
 } from './append-workflow-events.mjs';
 
 // ─────────────────────────────────────────────────────────────────────
@@ -273,4 +278,93 @@ test('state_transition: different (phase, run) → status absent (run-scoped mat
     pr_number: 134, merge_commit_sha: 'm1',
   };
   assert.equal(checkStateTransitionIdempotency(events, expected).status, 'absent');
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// rail_decision idempotency (Oracle & Privacy Rails — chain-visible pointer)
+// ─────────────────────────────────────────────────────────────────────
+
+const RAIL_EXPECTED = {
+  rail: 'pii',
+  verdict: 'pass',
+  report_path: 'okrs/OKR-X/audit/rails/WHY-1.rail-report.json',
+  report_sha256: 'deadbeef',
+  config_sha256: 'cfg123',
+  merge_commit_sha: 'abc123def456',
+};
+
+test('rail_decision: absent → status absent', () => {
+  const events = [{ event_id: 1, event_kind: 'artifact_written', payload: { path: 'x' } }];
+  assert.equal(checkRailDecisionIdempotency(events, RAIL_EXPECTED).status, 'absent');
+});
+
+test('rail_decision: same report_path + sha + verdict → status match', () => {
+  const events = [
+    { event_id: 9, event_kind: 'rail_decision', payload: { ...RAIL_EXPECTED, emitted_by: 'workflow' } },
+  ];
+  const r = checkRailDecisionIdempotency(events, RAIL_EXPECTED);
+  assert.equal(r.status, 'match');
+  assert.equal(r.event_id, 9);
+});
+
+test('rail_decision: same path but different report sha → status conflict', () => {
+  const events = [
+    { event_id: 9, event_kind: 'rail_decision', payload: { ...RAIL_EXPECTED, report_sha256: 'OLDSHA', emitted_by: 'workflow' } },
+  ];
+  const r = checkRailDecisionIdempotency(events, RAIL_EXPECTED);
+  assert.equal(r.status, 'conflict');
+  assert.equal(r.existing.report_sha256, 'OLDSHA');
+  assert.equal(r.expected.report_sha256, 'deadbeef');
+});
+
+test('rail_decision: same path + sha but flipped verdict → status conflict', () => {
+  const events = [
+    { event_id: 9, event_kind: 'rail_decision', payload: { ...RAIL_EXPECTED, verdict: 'fail', emitted_by: 'workflow' } },
+  ];
+  assert.equal(checkRailDecisionIdempotency(events, RAIL_EXPECTED).status, 'conflict');
+});
+
+test('rail_decision: same path + sha + verdict but different merge_commit_sha → status conflict', () => {
+  const events = [
+    { event_id: 9, event_kind: 'rail_decision', payload: { ...RAIL_EXPECTED, merge_commit_sha: 'OLDMERGE', emitted_by: 'workflow' } },
+  ];
+  const r = checkRailDecisionIdempotency(events, RAIL_EXPECTED);
+  assert.equal(r.status, 'conflict');
+  assert.equal(r.existing.merge_commit_sha, 'OLDMERGE');
+  assert.equal(r.expected.merge_commit_sha, 'abc123def456');
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// computeRailReportPayload — self-describing + guards wrong report attach
+// ─────────────────────────────────────────────────────────────────────
+
+test('computeRailReportPayload: builds a self-describing payload from a matching report', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rail-'));
+  try {
+    const rp = path.join(dir, 'r.json');
+    fs.writeFileSync(rp, JSON.stringify({
+      schema_version: 'oracle-rail-report.v1', rail: 'pii', verdict: 'pass',
+      okr_id: 'OKR-X', run_id: 'WHY-1', phase: 'why', config_sha256: 'cfg',
+    }));
+    const p = computeRailReportPayload(rp, { mergeSha: 'm1', prNumber: 7, okrId: 'OKR-X', runId: 'WHY-1', phase: 'why' });
+    assert.equal(p.schema_version, 'oracle-rail-report.v1');
+    assert.equal(p.okr_id, 'OKR-X');
+    assert.equal(p.run_id, 'WHY-1');
+    assert.equal(p.phase, 'why');
+    assert.equal(p.merge_commit_sha, 'm1');
+    assert.equal(p.emitted_by, 'workflow');
+    assert.equal(typeof p.report_sha256, 'string');
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('computeRailReportPayload: throws when report run_id does not match finalize (wrong report attach)', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rail-'));
+  try {
+    const rp = path.join(dir, 'r.json');
+    fs.writeFileSync(rp, JSON.stringify({ okr_id: 'OKR-X', run_id: 'WHY-OTHER', phase: 'why' }));
+    assert.throws(
+      () => computeRailReportPayload(rp, { mergeSha: 'm1', prNumber: 7, okrId: 'OKR-X', runId: 'WHY-1', phase: 'why' }),
+      /run_id.*does not match/,
+    );
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });

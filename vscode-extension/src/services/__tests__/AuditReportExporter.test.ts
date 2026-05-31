@@ -6,14 +6,17 @@
  * surfaces immediately.
  */
 import { describe, it, expect } from 'vitest';
+import { createHash } from 'node:crypto';
 import {
   buildAuditReportMarkdown,
   buildOkrRollupMarkdown,
   composeOkrRollupSourceTag,
   composeSourceTag,
   computeOkrRollupVerdict,
+  computeOracleRailStatus,
   parseImplementationChainBlock,
   parseRunnerVerdictFromStdout,
+  renderOracleRailsSubsection,
   verifyImplementationChainEntry,
   type AuditReportInput,
   type AuditReportInputSources,
@@ -21,6 +24,7 @@ import {
   type ImplementationChainEntry,
   type ImplementationChainRow,
   type OkrRollupInput,
+  type OracleRailRollupInput,
   type PhaseRollupDigest,
   type RunnerVerifyVerdict,
 } from '../AuditReportExporter';
@@ -1485,6 +1489,61 @@ describe('computeOkrRollupVerdict', () => {
     expect(out.reason).toContain('source-atomic');
   });
 
+  // Oracle & Privacy Rails honesty: the rollup verdict must reflect the rail
+  // status (never PASS over a "MISMATCH ✗" / "model replay FAILED" section).
+  const railSha = (s: string): string => createHash('sha256').update(s, 'utf8').digest('hex');
+  const okRailReport = JSON.stringify({
+    schema_version: 'oracle-rail-report.v1', rail: 'pii', okr_id: 'OKR-X', run_id: 'WHY-1',
+    phase: 'why', config_sha256: 'cfg', verdict: 'pass', inputs: [],
+  });
+  const railEventFor = (reportRaw: string): NonNullable<OracleRailRollupInput['railEvent']> => ({
+    schema_version: 'oracle-rail-report.v1', rail: 'pii', verdict: 'pass',
+    okr_id: 'OKR-X', run_id: 'WHY-1', phase: 'why', config_sha256: 'cfg',
+    report_path: 'okrs/OKR-X/audit/rails/WHY-1.rail-report.json',
+    report_sha256: railSha(reportRaw), merge_commit_sha: 'm'.repeat(40), pr_number: 7,
+  });
+
+  it('FAIL when Oracle rails status is fail (report missing) even though all phases PASS', () => {
+    const failRail: OracleRailRollupInput = {
+      railEvent: { ...railEventFor(okRailReport), report_sha256: 'abc' },
+      reportRaw: null, // chain points at a report that is not committed → fail
+      inputContents: {},
+      ciReplay: { invoked: false, reason: 'n/a' },
+    };
+    const out = computeOkrRollupVerdict(makeInput({ oracleRails: failRail }));
+    expect(out.verdict).toBe('FAIL');
+    expect(out.reason).toContain('Oracle rails FAIL');
+  });
+
+  it('FAIL when CI model replay failed, never PASS under it', () => {
+    const failRail: OracleRailRollupInput = {
+      railEvent: railEventFor(okRailReport), reportRaw: okRailReport, inputContents: {},
+      ciReplay: { invoked: true, ok: false, reason: 'rail-replay-mismatch' },
+    };
+    const out = computeOkrRollupVerdict(makeInput({ oracleRails: failRail }));
+    expect(out.verdict).toBe('FAIL');
+    expect(out.reason).toContain('rail-replay-mismatch');
+  });
+
+  it('PARTIAL when Oracle deterministic checks pass but CI replay not invoked', () => {
+    const partialRail: OracleRailRollupInput = {
+      railEvent: railEventFor(okRailReport), reportRaw: okRailReport, inputContents: {},
+      ciReplay: { invoked: false, reason: 'local export' },
+    };
+    const out = computeOkrRollupVerdict(makeInput({ oracleRails: partialRail }));
+    expect(out.verdict).toBe('PARTIAL');
+    expect(out.reason).toContain('Oracle rails PARTIAL');
+  });
+
+  it('PASS unaffected when Oracle rails fully pass (CI replay match)', () => {
+    const passRail: OracleRailRollupInput = {
+      railEvent: railEventFor(okRailReport), reportRaw: okRailReport, inputContents: {},
+      ciReplay: { invoked: true, ok: true },
+    };
+    const out = computeOkrRollupVerdict(makeInput({ oracleRails: passRail }));
+    expect(out.verdict).toBe('PASS');
+  });
+
   it('FAIL when keys=mismatch breaks atomicity even if runner not invoked', () => {
     const out = computeOkrRollupVerdict(makeInput({
       phases: [
@@ -2204,5 +2263,100 @@ describe('buildOkrRollupMarkdown — implementation chain section', () => {
     const missing = mk({ sealMatch: false, sealEvidenceMissing: true, tailCount: 0, tailOther: 0, tailClean: true });
     expect(missing).toContain('LOG MISSING ✗');
     expect(missing).not.toContain('MISMATCH ✗');
+  });
+});
+
+describe('renderOracleRailsSubsection (Oracle & Privacy Rails — pure re-derivation)', () => {
+  const DOC = 'okrs/OKR-X/why/research-doc.md';
+  const REG = 'okrs/OKR-X/audit/sources/WHY-1.source-registry.json';
+  const docBytes = '# Research\n... public figure names ...';
+  const regBytes = '{"sources":[]}';
+  const sha = (s: string): string => createHash('sha256').update(s, 'utf8').digest('hex');
+
+  function makeReport(over: Record<string, unknown> = {}): string {
+    return JSON.stringify({
+      schema_version: 'oracle-rail-report.v1', rail: 'pii', policy: 'tiered',
+      okr_id: 'OKR-X', run_id: 'WHY-1', phase: 'why', config_sha256: 'cfg', verdict: 'pass',
+      inputs: [{ path: DOC, sha256: sha(docBytes) }, { path: REG, sha256: sha(regBytes) }],
+      counts: { blocked: 0, needs_review: 0, redacted: 2 },
+      allowed_entities: [{ type: 'PERSON', count: 2 }, { type: 'ORGANIZATION', count: 1 }],
+      ...over,
+    });
+  }
+
+  function makeInput(over: Partial<OracleRailRollupInput> = {}): OracleRailRollupInput {
+    const reportRaw = makeReport();
+    return {
+      railEvent: {
+        schema_version: 'oracle-rail-report.v1', rail: 'pii', verdict: 'pass',
+        okr_id: 'OKR-X', run_id: 'WHY-1', phase: 'why', config_sha256: 'cfg',
+        report_path: 'okrs/OKR-X/audit/rails/WHY-1.rail-report.json',
+        report_sha256: sha(reportRaw),
+        merge_commit_sha: 'm'.repeat(40), pr_number: 7,
+      },
+      reportRaw,
+      inputContents: { [DOC]: docBytes, [REG]: regBytes },
+      ciReplay: { invoked: true, ok: true },
+      ...over,
+    };
+  }
+
+  it('omits the section when there is no rail evidence', () => {
+    expect(renderOracleRailsSubsection({ railEvent: null, reportRaw: null, inputContents: {}, ciReplay: { invoked: false, reason: 'n/a' } })).toBe('');
+  });
+
+  it('renders all checks green on a consistent report + CI pass', () => {
+    const md = renderOracleRailsSubsection(makeInput());
+    expect(md).toContain('## Oracle rails (evidence boundary)');
+    expect(md).toContain('report hash: matches chain event ✓');
+    expect(md).toContain('input hashes: match committed bytes ✓ (2/2)');
+    expect(md).toContain('event ↔ report consistency: ✓');
+    expect(md).toContain('model replay: PASS in CI ✓');
+    expect(md).toContain('redacted classes: PERSON, ORGANIZATION');
+  });
+
+  it('flags a report-hash mismatch (committed report ≠ chain event)', () => {
+    // event.report_sha256 points at the original; reportRaw is tampered.
+    const md = renderOracleRailsSubsection(makeInput({ reportRaw: makeReport({ config_sha256: 'TAMPERED' }) }));
+    expect(md).toContain('report hash: MISMATCH ✗');
+  });
+
+  it('flags an input-hash mismatch (committed input bytes changed)', () => {
+    const md = renderOracleRailsSubsection(makeInput({ inputContents: { [DOC]: 'TAMPERED', [REG]: regBytes } }));
+    expect(md).toContain('input hashes: MISMATCH ✗');
+  });
+
+  it('flags an event ↔ report field mismatch', () => {
+    const md = renderOracleRailsSubsection(makeInput({ reportRaw: makeReport({ verdict: 'fail' }) }));
+    // report verdict=fail but event verdict=pass → consistency mismatch (+ hash mismatch)
+    expect(md).toContain('event ↔ report consistency: MISMATCH ✗ (verdict)');
+  });
+
+  it('is honest that the model replay was not invoked in the exporter', () => {
+    const md = renderOracleRailsSubsection(makeInput({ ciReplay: { invoked: false, reason: 'local export' } }));
+    expect(md).toContain('model replay: not invoked in exporter; see CI rail replay (local export)');
+  });
+
+  it('surfaces an injected CI replay mismatch', () => {
+    const md = renderOracleRailsSubsection(makeInput({ ciReplay: { invoked: true, ok: false, reason: 'rail-replay-mismatch' } }));
+    expect(md).toContain('model replay: FAILED ✗ — rail-replay-mismatch');
+  });
+
+  it('computeOracleRailStatus: a cited input with no committed bytes is a fail (not cosmetic)', () => {
+    const s = computeOracleRailStatus(makeInput({ inputContents: {} })); // neither input's bytes provided
+    expect(s.status).toBe('fail');
+    expect(s.inputs.mismatches.some(m => m.includes('bytes not provided'))).toBe(true);
+  });
+
+  it('computeOracleRailStatus: compares schema_version + rail (self-describing fields)', () => {
+    const s = computeOracleRailStatus(makeInput({ reportRaw: makeReport({ rail: 'other', schema_version: 'v2' }) }));
+    expect(s.fieldMismatches).toContain('rail');
+    expect(s.fieldMismatches).toContain('schema_version');
+    expect(s.status).toBe('fail');
+  });
+
+  it('computeOracleRailStatus: partial when deterministic green but CI replay not invoked', () => {
+    const s = computeOracleRailStatus(makeInput({ ciReplay: { invoked: false, reason: 'local' } }));
+    expect(s.status).toBe('partial');
   });
 });

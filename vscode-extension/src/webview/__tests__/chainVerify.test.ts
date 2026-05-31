@@ -50,12 +50,18 @@ function event(kind: string, opts: { signature?: string; emittedBy?: string; epo
 }
 
 describe('chainVerify — WORKFLOW_EMITTABLE_KINDS allowlist', () => {
-  it('contains exactly the post-Bug-V allowlist (mirrors runner skills.ts)', () => {
+  it('contains exactly the post-Bug-V allowlist + rail_decision (mirrors runner skills.ts)', () => {
     expect([...WORKFLOW_EMITTABLE_KINDS].sort()).toEqual([
       'artifact_written',
       'human_gate',
+      'rail_decision',
       'state_transition',
     ]);
+  });
+
+  it('contains rail_decision (Oracle rail verdict — workflow-origin, replayed)', () => {
+    expect(WORKFLOW_EMITTABLE_KINDS.has('rail_decision')).toBe(true);
+    expect(EVENT_KIND_ORIGIN.rail_decision).toBe('workflow');
   });
 
   it('does NOT contain self_review (post-Bug-V — agent-signed only)', () => {
@@ -168,7 +174,7 @@ describe('chainVerify — isEventLegitimate gate for UI metrics', () => {
   });
 
   it('workflow-emittable allowlisted kinds (unsigned, no signer_epoch, workflow-attributed) → legitimate', () => {
-    for (const kind of ['artifact_written', 'state_transition', 'human_gate']) {
+    for (const kind of ['artifact_written', 'state_transition', 'human_gate', 'rail_decision']) {
       expect(isEventLegitimate({ event_kind: kind, payload: { emitted_by: 'workflow' } }), kind).toBe(true);
     }
   });

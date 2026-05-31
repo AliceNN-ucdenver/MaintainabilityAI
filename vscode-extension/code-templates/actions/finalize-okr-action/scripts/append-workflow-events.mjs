@@ -110,6 +110,67 @@ export function checkStateTransitionIdempotency(events, expected) {
   };
 }
 
+/**
+ * Oracle & Privacy Rails (Hatter-side) — build the rail_decision payload from a
+ * durable rail report a phase finalize job already produced + committed. This
+ * action is a generic RECORDER, never a rail runner: it only points the chain
+ * at the report so the rollup can REPLAY it. The payload is fully re-derivable
+ * (report sha + verdict + config sha) and carries NO raw PII/secret value.
+ *
+ * The report must describe THIS run (okr_id / run_id / phase match the finalize
+ * env) — else a wrong report file could be attached to the right chain. The
+ * payload is self-describing (schema_version + okr_id + run_id + phase) so the
+ * rollup replay doesn't have to infer them.
+ */
+export function computeRailReportPayload(reportPath, ctx) {
+  if (!fs.existsSync(reportPath)) {
+    throw new Error(`rail report missing at ${reportPath}`);
+  }
+  const raw = fs.readFileSync(reportPath);
+  const report = JSON.parse(raw.toString('utf8'));
+  for (const [field, want] of [['okr_id', ctx.okrId], ['run_id', ctx.runId], ['phase', ctx.phase]]) {
+    if (report[field] !== want) {
+      throw new Error(`rail report ${field}='${report[field]}' does not match finalize ${field}='${want}' — wrong report for this run; refusing to attach.`);
+    }
+  }
+  return {
+    schema_version: report.schema_version,
+    rail: report.rail || 'pii',
+    verdict: report.verdict,
+    okr_id: report.okr_id,
+    run_id: report.run_id,
+    phase: report.phase,
+    report_path: reportPath,
+    report_sha256: createHash('sha256').update(raw).digest('hex'),
+    config_sha256: report.config_sha256,
+    merge_commit_sha: ctx.mergeSha,
+    pr_number: ctx.prNumber,
+    emitted_by: 'workflow',
+  };
+}
+
+/**
+ * Idempotency for rail_decision, keyed on report_path (mirrors
+ * artifact_written). Match requires the same report sha + verdict + merge SHA —
+ * the event points to evidence as of a specific merge commit, so a re-run
+ * against a different merge/head state must NOT no-op under an old event. Same
+ * path but different sha/verdict/merge → conflict (investigate); none → absent.
+ */
+export function checkRailDecisionIdempotency(events, expected) {
+  const existing = events.find(e => e.event_kind === 'rail_decision' && e.payload?.report_path === expected.report_path);
+  if (!existing) { return { status: 'absent' }; }
+  const p = existing.payload || {};
+  if (p.report_sha256 === expected.report_sha256 && p.verdict === expected.verdict && p.merge_commit_sha === expected.merge_commit_sha) {
+    return { status: 'match', event_id: existing.event_id };
+  }
+  return {
+    status: 'conflict',
+    event_id: existing.event_id,
+    existing: { report_sha256: p.report_sha256, verdict: p.verdict, merge_commit_sha: p.merge_commit_sha },
+    expected: { report_sha256: expected.report_sha256, verdict: expected.verdict, merge_commit_sha: expected.merge_commit_sha },
+  };
+}
+
 function emitEventViaRunner(envelope) {
   const result = spawnSync('npx', ['-y', RUNNER_PKG, 'skill-audit-emit-event'], {
     input: JSON.stringify(envelope),
@@ -258,8 +319,49 @@ async function main() {
     }
   }
 
+  // ── rail_decision: chain-visible pointer to a replayable rail report ────
+  // Oracle & Privacy Rails (Hatter-side, NOT Red Queen). Emitted ONLY when a
+  // phase finalize job (today: WHY) produced a durable rail report and handed
+  // us its path via RAIL_REPORT_PATH. Generic + no-op for phases that run no
+  // rail. Unsigned, workflow-origin, re-derivable — the rollup re-runs the
+  // pinned rail over committed bytes and never trusts this event.
+  let appendedRail = false;
+  const RAIL_REPORT_PATH = process.env.RAIL_REPORT_PATH || '';
+  if (RAIL_REPORT_PATH && fs.existsSync(RAIL_REPORT_PATH)) {
+    let railPayload;
+    try { railPayload = computeRailReportPayload(RAIL_REPORT_PATH, { mergeSha: MERGE_SHA, prNumber: PR_NUMBER, okrId: OKR_ID, runId: RUN_ID, phase: PHASE }); }
+    catch (err) { ghError('rail report unusable', `${RAIL_REPORT_PATH}: ${err.message}`); process.exit(1); }
+    events = readJsonlEvents(jsonlPath); // re-read after artifact/transition appends
+    const rdCheck = checkRailDecisionIdempotency(events, railPayload);
+    if (rdCheck.status === 'match') {
+      ghNotice(`rail_decision already present + matches at event ${rdCheck.event_id} (rail=${railPayload.rail} verdict=${railPayload.verdict} report_sha=${(railPayload.report_sha256 || '').slice(0, 16)}…) — idempotent no-op`);
+    } else if (rdCheck.status === 'conflict') {
+      ghError(
+        'rail_decision CONFLICT',
+        `existing event ${rdCheck.event_id} for ${railPayload.report_path} has report_sha=${(rdCheck.existing.report_sha256 || '').slice(0, 16)}… verdict=${rdCheck.existing.verdict} merge=${(rdCheck.existing.merge_commit_sha || '').slice(0, 12)}, but finalize sees report_sha=${(railPayload.report_sha256 || '').slice(0, 16)}… verdict=${railPayload.verdict} merge=${(railPayload.merge_commit_sha || '').slice(0, 12)}. Refusing to overwrite; investigate chain integrity.`,
+      );
+      process.exit(1);
+    } else {
+      try {
+        emitEventViaRunner({
+          okrId: OKR_ID,
+          runId: RUN_ID,
+          phase: PHASE,
+          intentThreadUuid: ACTION_THREAD,
+          eventKind: 'rail_decision',
+          payload: railPayload,
+        });
+        appendedRail = true;
+        ghNotice(`rail_decision appended (rail=${railPayload.rail} verdict=${railPayload.verdict} report_sha=${(railPayload.report_sha256 || '').slice(0, 16)}…)`);
+      } catch (err) {
+        ghError('rail_decision emit failed', err.message);
+        process.exit(1);
+      }
+    }
+  }
+
   // ── Verify chain integrity post-append ─────────────────────────────────
-  if (appendedArtifact || appendedTransition) {
+  if (appendedArtifact || appendedTransition || appendedRail) {
     const verify = verifyChain(OKR_ID, RUN_ID);
     if (!verify.ok) {
       ghError(

@@ -44,6 +44,7 @@ Net: a correction-PR closes the `artifact_written` gap for the corrected content
 | `artifact_written` | **workflow** | Workflow YAML (deterministic, from `git diff`) | Re-derivable evidence — any third party with read access can recompute the sha + bytes from the PR HEAD and check the payload matches. Unsigned (no signing key available to the workflow). **The workflow's emit step re-derives sha + bytes from the current PR HEAD and compares; mismatch is treated as a forged artifact_written and degrades the verdict** (Bug Y closes the pre-emit hole where an attacker could pre-write a forged event and have the workflow's "skip if exists" check pass it through). |
 | `state_transition` | **workflow** | Workflow YAML (from PR labels) | Re-derivable from canonical PR state. |
 | `human_gate` | **workflow** | Workflow YAML (from PR reviewer state) | Re-derivable from canonical PR state. |
+| `rail_decision` | **workflow** | Workflow YAML (Oracle & Privacy Rails audit step) | Re-derivable evidence — the verifier RE-RUNS the pinned rail (model + revision + config, all hash-pinned) over the committed artifact + source registry and reproduces the verdict. Unsigned. **Tamper-evidence is by REPLAY, not signature**: a signature would only prove "the runner signed this verdict," not that the model + config + inputs + thresholds were identical. Differ → FAIL `rail-replay-mismatch`; model/config unloadable → FAIL `rail-replay-not-invoked` (never PASS). |
 
 ### Enforcement points
 
@@ -167,7 +168,7 @@ Phase 1 of the **Oracle & Privacy Rails** (see [`next-acts-tier-2-and-3.md`](nex
 
 When `verdict` is `quarantined`, the search `result_count` + `results_preview` (above) are **rebuilt from the safe subset** so a quarantined URL/snippet never persists as trusted preview in the signed chain; the raw totals stay in `guardrails.results_in` / `results_quarantined`.
 
-**This is the deterministic, non-authoritative layer.** It blocks input-budget / forbidden-path violations, quarantines unsafe-URL / non-allowlisted-provider / high-confidence-prompt-control-marker results, and annotates weak markers. The **authoritative** injection / PII / groundedness decision is the local Python CI audit step (Phases 2-4), which is **REPLAYED, not signed** — and, if it emits a `rail_decision` event, that event is `origin: workflow`, unsigned, and re-derived from the committed artifact + source registry. `rail_decision` is **not** in the `EVENT_KIND_ORIGIN` map yet; it lands with that phase. Phase 1 introduces **no new event kind**.
+**This is the deterministic, non-authoritative layer.** It blocks input-budget / forbidden-path violations, quarantines unsafe-URL / non-allowlisted-provider / high-confidence-prompt-control-marker results, and annotates weak markers. The **authoritative** injection / PII / groundedness decision is the local Python CI audit step (Phases 2-4), which is **REPLAYED, not signed** — and, if it emits a `rail_decision` event, that event is `origin: workflow`, unsigned, and re-derived from the committed artifact + source registry. `rail_decision` is now wired into `EVENT_KIND_ORIGIN` + `WORKFLOW_EMITTABLE_KINDS` (workflow-origin, unsigned, replayable — see the kind→origin table above). The Phase-1 envelope itself still introduces no new event kind; `rail_decision` is emitted by the Phase-2 audit step.
 
 ### `knowledge-code`
 

@@ -93,6 +93,7 @@ import {
   type ImplementationChainRow,
   type RedqueenDigest,
   type OkrRollupInput,
+  type OracleRailReplayVerdict,
   type PhaseRollupDigest,
   type RunnerVerifyVerdict,
 } from '../services/AuditReportExporter';
@@ -1784,6 +1785,95 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     } catch (err) {
       return `Wrote file but git commit failed: ${toErrorMessage(err)}.`;
     }
+  }
+
+  /**
+   * Oracle & Privacy Rails (Phase 2) — assemble OkrRollupInput.oracleRails
+   * for the rollup export. PURE re-derivation: read the WHY chain's
+   * `rail_decision` event, the committed rail report it points at, and the
+   * input bytes the report cites, so the exporter can re-hash them. The
+   * authoritative MODEL replay verdict is INJECTED from the committed
+   * `*.replay-verdict.json` the CI replay job records — absent → not invoked
+   * (the rollup renders PARTIAL: deterministic checks may be green, but the
+   * model replay only happens in CI). Returns undefined when there's no rail
+   * evidence at all (pre-rail OKR) → the rollup omits the section.
+   *
+   * Reads local mesh bytes — the exporter re-derives whatever is committed.
+   */
+  private assembleOracleRails(
+    meshPath: string,
+    okrId: string,
+    whyRunId: string | null,
+  ): OkrRollupInput['oracleRails'] {
+    if (!whyRunId) { return undefined; }
+
+    // 1. rail_decision event from the WHY chain (local).
+    type RailEvent = NonNullable<OkrRollupInput['oracleRails']>['railEvent'];
+    let railEvent: RailEvent = null;
+    const chainPath = path.join(meshPath, `okrs/${okrId}/audit/events/${whyRunId}.jsonl`);
+    if (fs.existsSync(chainPath)) {
+      try {
+        const events = parseChain(fs.readFileSync(chainPath, 'utf8').split('\n').filter(l => l.trim().length > 0));
+        const rd = events.find(e => e.event_kind === 'rail_decision');
+        if (rd) {
+          const p = (rd.payload ?? {}) as unknown as Record<string, unknown>;
+          railEvent = {
+            schema_version: String(p.schema_version ?? ''),
+            rail: String(p.rail ?? ''),
+            verdict: String(p.verdict ?? ''),
+            okr_id: String(p.okr_id ?? ''),
+            run_id: String(p.run_id ?? ''),
+            phase: String(p.phase ?? ''),
+            config_sha256: String(p.config_sha256 ?? ''),
+            report_path: String(p.report_path ?? ''),
+            report_sha256: String(p.report_sha256 ?? ''),
+            merge_commit_sha: String(p.merge_commit_sha ?? ''),
+            pr_number: typeof p.pr_number === 'number' ? p.pr_number : Number(p.pr_number ?? 0),
+          };
+        }
+      } catch { /* leave railEvent null */ }
+    }
+
+    // 2. committed rail report (event-pointed path, else the conventional one).
+    const reportRel = railEvent?.report_path || `okrs/${okrId}/audit/rails/${whyRunId}.rail-report.json`;
+    let reportRaw: string | null = null;
+    try {
+      const rp = path.join(meshPath, reportRel);
+      if (fs.existsSync(rp)) { reportRaw = fs.readFileSync(rp, 'utf8'); }
+    } catch { /* missing → exporter flags */ }
+
+    // No rail evidence at all → omit the section.
+    if (!railEvent && !reportRaw) { return undefined; }
+
+    // 3. input bytes the report cites (for re-hash). Missing bytes are
+    // verdict-critical in the exporter, so don't fabricate — just omit.
+    const inputContents: Record<string, string> = {};
+    if (reportRaw) {
+      try {
+        const parsedReport = JSON.parse(reportRaw) as { inputs?: Array<{ path?: string }> };
+        for (const inp of parsedReport.inputs ?? []) {
+          if (!inp.path) { continue; }
+          try {
+            const ip = path.join(meshPath, inp.path);
+            if (fs.existsSync(ip)) { inputContents[inp.path] = fs.readFileSync(ip, 'utf8'); }
+          } catch { /* leave missing → exporter re-hash flags it */ }
+        }
+      } catch { /* unparseable → exporter flags */ }
+    }
+
+    // 4. inject the CI replay verdict if the replay job recorded one.
+    let ciReplay: OracleRailReplayVerdict = { invoked: false, reason: 'model replay runs in CI (oracle-rails-replay)' };
+    const verdictRel = reportRel.replace(/\.rail-report\.json$/, '.replay-verdict.json');
+    try {
+      const vp = path.join(meshPath, verdictRel);
+      if (fs.existsSync(vp)) {
+        const v = JSON.parse(fs.readFileSync(vp, 'utf8')) as { invoked?: boolean; ok?: boolean; reason?: string };
+        if (v.invoked === true && v.ok === true) { ciReplay = { invoked: true, ok: true }; }
+        else if (v.invoked === true && v.ok === false) { ciReplay = { invoked: true, ok: false, reason: String(v.reason ?? 'rail-replay-failed') }; }
+      }
+    } catch { /* keep not-invoked */ }
+
+    return { railEvent, reportRaw, inputContents, ciReplay };
   }
 
   /**
@@ -5172,6 +5262,13 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     // implementation-pr-rejected PARTIAL).
     const implChainInput = await this.assembleImplementationChainInput(meshPath, okrId, phaseDigests, okrParsed, chainLadderText);
 
+    // Oracle & Privacy Rails (Phase 2) — the WHY phase owns the rail today.
+    // The exporter re-derives the committed report + input byte hashes and
+    // injects the CI model-replay verdict; mismatch/replay-fail FAILs the
+    // rollup, CI-not-invoked → PARTIAL (see computeOracleRailStatus).
+    const whyRunId = (startedActions.find(s => s.phase === 'why')?.action['runId'] as string | undefined) ?? null;
+    const oracleRails = this.assembleOracleRails(meshPath, okrId, whyRunId);
+
     const rollupInput: OkrRollupInput = {
       okrId,
       objective: okrParsed.objective?.name ?? null,
@@ -5196,6 +5293,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       // when a phase's sources match the OKR-level canonical state.
       repoInfo: repoInfo ?? null,
       implementationChain: implChainInput,
+      oracleRails,
     };
 
     const markdown = buildOkrRollupMarkdown(rollupInput);

@@ -1,0 +1,18 @@
+# Oracle & Privacy Rails — PII rail (Hatter-side evidence boundary).
+#
+# Pinned for REPLAY determinism ("replay, not sign"): the verifier installs
+# THIS file and must retrieve the EXACT same artifacts. The rail report records
+# engine + model versions + a model artifact hash; replay re-runs the same pins
+# over the committed bytes and compares. A pin bump is a deliberate, reviewed
+# change (and shows up as a rail-replay-mismatch until both sides move).
+presidio-analyzer==2.2.362
+spacy==3.8.14
+
+# spaCy NLP model — URL-pinned to an IMMUTABLE GitHub release asset AND
+# hash-pinned via the #sha256 fragment, so pip VERIFIES the wheel digest at
+# install (supply-chain pin) and the verifier retrieves the EXACT same model on
+# replay — not "the compatible one" that `python -m spacy download` resolves.
+# Installed by `pip install -r requirements.txt` (no separate download step).
+# The #sha256 fragment is a per-link check; it does NOT enable global
+# --require-hashes, so the plain version pins above still install normally.
+en_core_web_lg @ https://github.com/explosion/spacy-models/releases/download/en_core_web_lg-3.8.0/en_core_web_lg-3.8.0-py3-none-any.whl#sha256=293e9547a655b25499198ab15a525b05b9407a75f10255e405e8c3854329ab63

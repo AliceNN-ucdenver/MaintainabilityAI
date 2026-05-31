@@ -33,6 +33,7 @@ export const WORKFLOW_EMITTABLE_KINDS = new Set<string>([
   'artifact_written',  // workflow re-derives from `git diff`
   'state_transition',  // workflow infrastructure events (label flips)
   'human_gate',        // workflow gate events (PR reviewer state)
+  'rail_decision',     // Oracle rail verdict — re-derived by re-running the pinned rail (replay)
 ]);
 
 /**
@@ -54,6 +55,7 @@ export const EVENT_KIND_ORIGIN: Record<string, 'runtime' | 'agent' | 'workflow'>
   artifact_written: 'workflow',
   state_transition: 'workflow',
   human_gate: 'workflow',
+  rail_decision: 'workflow',
 };
 
 /** Shape the seal detector reads off each parsed JSONL line. */

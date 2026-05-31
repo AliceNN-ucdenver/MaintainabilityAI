@@ -1,4 +1,5 @@
 import * as YAML from 'yaml';
+import { createHash } from 'node:crypto';
 
 // ============================================================================
 // AuditReportExporter — Phase E E3 (2026-05-25)
@@ -1225,6 +1226,15 @@ export interface OkrRollupInput {
    */
   repoInfo: { owner: string; repo: string } | null;
   /**
+   * Oracle & Privacy Rails (Phase 2) — optional. When set, the rollup renders
+   * the "Oracle rails (evidence boundary)" subsection: the exporter re-derives
+   * the committed report + input byte hashes and renders the injected CI model-
+   * replay verdict. Undefined → section omitted (pre-rail OKRs / phases that ran
+   * no rail). Caller assembles from the chain's rail_decision event + the
+   * committed rail report + input bytes + the CI replay verdict.
+   */
+  oracleRails?: OracleRailRollupInput;
+  /**
    * D-PR8 — per-target-repo implementation rows sourced from
    * design-fan-out.yaml + each impl PR body's YAML frontmatter
    * `implementation_chain` block.
@@ -1558,6 +1568,12 @@ export function computeOkrRollupVerdict(input: OkrRollupInput): {
   verdict: OkrRollupVerdict;
   reason: string;
 } {
+  // Oracle & Privacy Rails (Hatter-side) — computed once; folded into the FAIL
+  // and PARTIAL sections below so the rollup verdict can NEVER contradict the
+  // rendered "Oracle rails" section (same honesty contract as the Red Queen
+  // rollup). Both this and renderOracleRailsSubsection read computeOracleRailStatus.
+  const railStatus = input.oracleRails ? computeOracleRailStatus(input.oracleRails) : null;
+
   // FAIL precedence — check every present phase for any failure signal.
   for (const p of input.phases) {
     if (!p.evidenceComplete) {
@@ -1635,6 +1651,14 @@ export function computeOkrRollupVerdict(input: OkrRollupInput): {
       }
     }
   }
+  // Oracle & Privacy Rails FAIL — a tampered / inconsistent report (report
+  // hash, input hash incl. missing bytes, or event↔report field mismatch) OR a
+  // failed CI model replay must FAIL the rollup, never PASS under a "MISMATCH
+  // ✗" section. Local "replay not invoked" is PARTIAL, handled below.
+  if (railStatus && railStatus.status === 'fail') {
+    return { verdict: 'FAIL', reason: `Oracle rails FAIL — ${railStatus.reasons.join('; ')}` };
+  }
+
   // PARTIAL — at least one expected phase not started yet (or runner not
   // invoked for innocent reasons, e.g. shape-only path). The OKR cannot
   // be PASS because the gold step is missing somewhere.
@@ -1672,6 +1696,12 @@ export function computeOkrRollupVerdict(input: OkrRollupInput): {
       };
     }
   }
+  // Oracle & Privacy Rails PARTIAL — deterministic checks green but the CI
+  // model replay was not invoked (e.g. local export). Honest: not PASS.
+  if (railStatus && railStatus.status === 'partial') {
+    return { verdict: 'PARTIAL', reason: `Oracle rails PARTIAL — ${railStatus.reasons.join('; ')}` };
+  }
+
   // All 3 phases present and no FAIL — but each phase's runner must have
   // actually run and passed for PASS. Anything else (runner not invoked
   // on a present phase) downgrades to PARTIAL.
@@ -2006,6 +2036,219 @@ function renderRedqueenSubsection(rows: ImplementationChainRow[]): string {
   return '\n\n' + lines.join('\n');
 }
 
+/**
+ * Oracle & Privacy Rails (Hatter-side) — authoritative MODEL replay verdict,
+ * INJECTED from CI (where Presidio + the pinned spaCy model install). Mirrors
+ * the RunnerVerifyVerdict pattern: the exporter never runs the model itself.
+ *   `{ invoked: true, ok: true }`            — CI re-ran the pinned rail: match.
+ *   `{ invoked: true, ok: false, reason }`   — rail-replay-mismatch / -not-invoked.
+ *   `{ invoked: false, reason }`             — not run in the exporter (local export).
+ */
+export type OracleRailReplayVerdict =
+  | { invoked: true; ok: true }
+  | { invoked: true; ok: false; reason: string }
+  | { invoked: false; reason: string };
+
+/**
+ * Inputs for the pure Oracle rails rollup subsection. The exporter RE-DERIVES
+ * byte hashes (it is given the committed bytes, not pre-computed hashes) and
+ * checks the chain event ↔ committed report ↔ committed inputs are consistent.
+ * It NEVER runs Presidio — the model replay is CI's job, injected as `ciReplay`.
+ * Honesty line: exporter re-derives bytes; CI replays the model; neither trusts
+ * the stored report's self-asserted verdict by itself.
+ */
+export interface OracleRailRollupInput {
+  /**
+   * The `rail_decision` event parsed from the chain, or null if none present.
+   * Self-describing (point 2): schema_version + rail + okr/run/phase + config +
+   * verdict are compared against the committed report; merge/pr are carried for
+   * display + replay context.
+   */
+  railEvent: {
+    schema_version: string; rail: string; verdict: string;
+    okr_id: string; run_id: string; phase: string; config_sha256: string;
+    report_path: string; report_sha256: string;
+    merge_commit_sha: string; pr_number: number;
+  } | null;
+  /** Raw bytes of the committed rail report the event points at, or null if missing. */
+  reportRaw: string | null;
+  /** Raw bytes of each committed input the report cites, keyed by report `inputs[].path`. */
+  inputContents: Record<string, string>;
+  /** Authoritative model-replay verdict from CI, injected. Default `{invoked:false}`. */
+  ciReplay: OracleRailReplayVerdict;
+}
+
+function sha256Hex(s: string): string {
+  return createHash('sha256').update(s, 'utf8').digest('hex');
+}
+
+interface ParsedRailReport {
+  schema_version?: string; rail?: string;
+  okr_id?: string; run_id?: string; phase?: string; config_sha256?: string;
+  verdict?: string; policy?: string;
+  inputs?: Array<{ path: string; sha256: string }>;
+  counts?: { blocked?: number; needs_review?: number; redacted?: number };
+  allowed_entities?: Array<{ type: string; count: number }>;
+}
+
+/**
+ * Pure Oracle-rail status — the SINGLE source of truth shared by the rollup
+ * verdict (computeOkrRollupVerdict) and the rendered subsection, so the top-
+ * line verdict can NEVER contradict the section (the Red Queen honesty bug
+ * class). `fail` = a deterministic mismatch (report hash / input hash incl.
+ * missing bytes / event↔report field) OR a CI model-replay failure → rollup
+ * FAIL. `partial` = deterministic checks green but CI replay not invoked (e.g.
+ * local export) → rollup PARTIAL, never PASS. `absent` = no rail evidence
+ * (section omitted, no rollup effect).
+ */
+export interface OracleRailStatus {
+  status: 'pass' | 'partial' | 'fail' | 'absent';
+  reasons: string[];
+  reportPresent: boolean;
+  reportParsed: boolean;
+  reportHashOk: boolean | null;
+  reportShaRecomputed: string | null;
+  report: ParsedRailReport | null;
+  inputs: { total: number; ok: number; mismatches: string[] };
+  fieldMismatches: string[];
+  modelReplay: 'pass' | 'fail' | 'not-invoked';
+}
+
+function makeRailStatus(p: Partial<OracleRailStatus> & { status: OracleRailStatus['status'] }): OracleRailStatus {
+  return {
+    status: p.status,
+    reasons: p.reasons ?? [],
+    reportPresent: p.reportPresent ?? false,
+    reportParsed: p.reportParsed ?? false,
+    reportHashOk: p.reportHashOk ?? null,
+    reportShaRecomputed: p.reportShaRecomputed ?? null,
+    report: p.report ?? null,
+    inputs: p.inputs ?? { total: 0, ok: 0, mismatches: [] },
+    fieldMismatches: p.fieldMismatches ?? [],
+    modelReplay: p.modelReplay ?? 'not-invoked',
+  };
+}
+
+export function computeOracleRailStatus(input: OracleRailRollupInput): OracleRailStatus {
+  const { railEvent, reportRaw, inputContents, ciReplay } = input;
+  const modelReplay: OracleRailStatus['modelReplay'] = ciReplay.invoked ? (ciReplay.ok ? 'pass' : 'fail') : 'not-invoked';
+
+  if (!railEvent && !reportRaw) { return makeRailStatus({ status: 'absent', modelReplay }); }
+  if (railEvent && !reportRaw) {
+    return makeRailStatus({ status: 'fail', reasons: [`rail report missing at ${railEvent.report_path} (chain event points at it)`], modelReplay });
+  }
+  if (!railEvent && reportRaw) {
+    return makeRailStatus({ status: 'fail', reasons: ['rail report present but no rail_decision event on the chain'], reportPresent: true, modelReplay });
+  }
+  // Both present (railEvent + reportRaw non-null).
+  const ev = railEvent!;
+  const reportSha = sha256Hex(reportRaw!);
+  const reportHashOk = reportSha === ev.report_sha256;
+
+  let parsed: unknown;
+  try { parsed = JSON.parse(reportRaw!); } catch { parsed = null; }
+  const report: ParsedRailReport | null = (parsed && typeof parsed === 'object') ? parsed as ParsedRailReport : null;
+  if (!report) {
+    return makeRailStatus({ status: 'fail', reasons: ['committed rail report is not valid JSON'], reportPresent: true, reportHashOk, reportShaRecomputed: reportSha, modelReplay });
+  }
+
+  // Input hashes — a cited input the exporter can't re-hash ("bytes not
+  // provided") is verdict-critical, NOT cosmetic: treated as a mismatch.
+  const reportInputs = report.inputs ?? [];
+  let inputsOk = 0;
+  const inputMismatches: string[] = [];
+  for (const inp of reportInputs) {
+    const content = inputContents[inp.path];
+    if (content === undefined) { inputMismatches.push(`${inp.path} (bytes not provided)`); continue; }
+    if (sha256Hex(content) === inp.sha256) { inputsOk++; } else { inputMismatches.push(inp.path); }
+  }
+
+  // Event ↔ report field consistency (self-describing fields from point 2).
+  const fieldChecks: Array<[string, unknown, unknown]> = [
+    ['schema_version', ev.schema_version, report.schema_version],
+    ['rail', ev.rail, report.rail],
+    ['okr_id', ev.okr_id, report.okr_id],
+    ['run_id', ev.run_id, report.run_id],
+    ['phase', ev.phase, report.phase],
+    ['config_sha256', ev.config_sha256, report.config_sha256],
+    ['verdict', ev.verdict, report.verdict],
+  ];
+  const fieldMismatches = fieldChecks.filter(([, a, b]) => a !== b).map(([f]) => f);
+
+  const reasons: string[] = [];
+  if (!reportHashOk) { reasons.push('report-hash mismatch (committed report ≠ chain event)'); }
+  if (inputMismatches.length > 0) { reasons.push(`input-hash mismatch: ${inputMismatches.join(', ')}`); }
+  if (fieldMismatches.length > 0) { reasons.push(`event↔report mismatch: ${fieldMismatches.join(', ')}`); }
+  if (modelReplay === 'fail') {
+    const ciReason = ('reason' in ciReplay) ? ciReplay.reason : '';
+    reasons.push(`CI model replay FAILED: ${ciReason}`.trim());
+  }
+
+  let status: OracleRailStatus['status'];
+  if (reasons.length > 0) { status = 'fail'; }
+  else if (modelReplay === 'not-invoked') { status = 'partial'; reasons.push('CI model replay not invoked (deterministic checks green)'); }
+  else { status = 'pass'; }
+
+  return makeRailStatus({
+    status, reasons, reportPresent: true, reportParsed: true, reportHashOk,
+    reportShaRecomputed: reportSha, report,
+    inputs: { total: reportInputs.length, ok: inputsOk, mismatches: inputMismatches },
+    fieldMismatches, modelReplay,
+  });
+}
+
+export function renderOracleRailsSubsection(input: OracleRailRollupInput): string {
+  const s = computeOracleRailStatus(input);
+  if (s.status === 'absent') { return ''; } // no rail evidence → omit section
+  const { railEvent, reportRaw, ciReplay } = input;
+
+  const badge = s.status === 'pass' ? '✓ PASS' : s.status === 'partial' ? '⚠ PARTIAL' : '❌ FAIL';
+  const lines: string[] = [];
+  lines.push('## Oracle rails (evidence boundary)');
+  lines.push('');
+  lines.push('_Exporter re-derives bytes; CI replays the model; neither trusts the stored report alone._');
+  lines.push('');
+  lines.push(`- status: ${badge}`);
+
+  if (railEvent && !reportRaw) {
+    lines.push(`- ❌ \`rail_decision\` points at \`${railEvent.report_path}\` but the committed report is **missing** — cannot re-derive.`);
+    return '\n\n' + lines.join('\n') + '\n';
+  }
+  if (!railEvent && reportRaw) {
+    lines.push('- ⚠ rail report present on disk but **no `rail_decision` event** on the chain — finalize did not record the pointer.');
+    return '\n\n' + lines.join('\n') + '\n';
+  }
+
+  const ev = railEvent!;
+  lines.push(`- report hash: ${s.reportHashOk ? 'matches chain event ✓' : `MISMATCH ✗ (chain ${shortHash(ev.report_sha256, 12)}, recomputed ${shortHash(s.reportShaRecomputed, 12)})`}`);
+  if (!s.reportParsed) {
+    lines.push('- ❌ committed report is **not valid JSON** — cannot check consistency.');
+    return '\n\n' + lines.join('\n') + '\n';
+  }
+  if (s.inputs.total === 0) {
+    lines.push('- input hashes: _report cites no inputs_');
+  } else {
+    const ok = s.inputs.mismatches.length === 0;
+    lines.push(`- input hashes: ${ok ? `match committed bytes ✓ (${s.inputs.ok}/${s.inputs.total})` : `MISMATCH ✗ — ${s.inputs.mismatches.join(', ')}`}`);
+  }
+  lines.push(`- event ↔ report consistency: ${s.fieldMismatches.length === 0 ? '✓' : `MISMATCH ✗ (${s.fieldMismatches.join(', ')})`}`);
+
+  const ciReason = ('reason' in ciReplay) ? ciReplay.reason : '';
+  const replayLine = s.modelReplay === 'pass' ? 'PASS in CI ✓'
+    : s.modelReplay === 'fail' ? `FAILED ✗ — ${ciReason}`
+      : `not invoked in exporter; see CI rail replay (${ciReason})`;
+  lines.push(`- model replay: ${replayLine}`);
+
+  const r = s.report!;
+  lines.push(`- verdict: ${r.verdict ?? '—'}`);
+  lines.push(`- policy: ${r.policy ?? '—'}`);
+  lines.push(`- rail: ${ev.rail}`);
+  lines.push(`- blocked: ${r.counts?.blocked ?? 0}`);
+  lines.push(`- needs_review: ${r.counts?.needs_review ?? 0}`);
+  lines.push(`- redacted classes: ${(r.allowed_entities ?? []).map(e => e.type).join(', ') || 'none'}`);
+  return '\n\n' + lines.join('\n') + '\n';
+}
+
 export function buildOkrRollupMarkdown(input: OkrRollupInput): string {
   const { verdict, reason } = computeOkrRollupVerdict(input);
   const verdictBadge = verdict === 'PASS'
@@ -2140,6 +2383,10 @@ _Cited check is a textual reference of the SR-NN string in the artifact body —
       )
     : null;
 
+  // Oracle & Privacy Rails (Phase 2) — pure byte re-derivation + injected CI
+  // model-replay verdict; '' when the OKR ran no rail (section omitted).
+  const oracleRailsBlock = input.oracleRails ? renderOracleRailsSubsection(input.oracleRails) : '';
+
   return `# OKR Audit Rollup — ${input.okrId}
 
 > Generated by Looking Glass · ${new Date().toISOString()}
@@ -2171,7 +2418,7 @@ ${ladderBlock}
 _Did each PRD-declared security requirement land in the design? Unioned across all phases._
 
 ${controlBlock}
-${implChainBlock ? `\n## Implementation chain\n\n${implChainBlock}\n` : ''}
+${implChainBlock ? `\n## Implementation chain\n\n${implChainBlock}\n` : ''}${oracleRailsBlock}
 ## Outstanding gaps
 
 ${outstandingGaps}
