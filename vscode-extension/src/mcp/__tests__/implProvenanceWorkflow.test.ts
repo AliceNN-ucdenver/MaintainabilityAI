@@ -102,6 +102,10 @@ describe('Bug-AAE Phase 2/3: standalone impl-provenance.yml gate', () => {
     // a MATCH (both "no log"), not a digest mismatch.
     expect(wf).toMatch(/event_sha is None and log_sha is None/);
     expect(wf).toMatch(/no decision log \(no governed tool calls captured\)/);
+    // Codex r4 — honest-zero requires the digest to MATCH (a true null-vs-null
+    // event). A digest claiming a non-null log_sha256 with no committed log
+    // must fall through to the mismatch branch, not read "no decision log".
+    expect(wf).toMatch(/rqHonestZero = rqDigestPresent && !rqPresent && rqDigestMatch/);
     // Codex finding 1 — honest naming: "digest present" (event exists) is NOT
     // "signed". The output is rq_digest_present, NOT rq_signed.
     expect(wf).toMatch(/rq_digest_present=/);

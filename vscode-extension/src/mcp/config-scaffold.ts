@@ -1319,7 +1319,12 @@ export function generateImplProvenanceWorkflow(): string {
   lines.push(`            // committed decision log (rqPresent=false) is a legitimate "nothing`);
   lines.push(`            // to sign" run, not a verified-governance claim. Report it plainly`);
   lines.push(`            // rather than "signed & verified".`);
-  lines.push(`            const rqHonestZero = rqDigestPresent && !rqPresent;`);
+  lines.push(`            // Codex r4 — but ONLY when the digest actually matches: a true`);
+  lines.push(`            // honest-zero event carries log_sha256=null (rqDigestMatch=true via`);
+  lines.push(`            // null-vs-null). If the event CLAIMS a non-null log_sha256 while the`);
+  lines.push(`            // log is absent, rqDigestMatch is false — that's a MISMATCH, not`);
+  lines.push(`            // honest-zero, so it must fall through to the mismatch branch.`);
+  lines.push(`            const rqHonestZero = rqDigestPresent && !rqPresent && rqDigestMatch;`);
   lines.push(`            const rqVerified = rqDigestPresent && rqPresent && rqDigestMatch && chainOk;`);
   lines.push(`            const rqDetail = rqHonestZero`);
   lines.push(`              ? 'digest event present · no decision log (no governed tool calls captured)'`);
