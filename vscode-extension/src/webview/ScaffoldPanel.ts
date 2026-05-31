@@ -247,51 +247,6 @@ export class ScaffoldPanel extends BasePanel<Record<string, unknown>, Record<str
     }
   }
 
-  /**
-   * Codex-r1 Bug G — best-effort detection of the governance mesh
-   * repo slug for greenfield scaffold seeding. Mirrors
-   * LookingGlassPanel.detectGovernanceRepo's heuristic (portfolio
-   * config first, then git remote in the mesh path) but stays
-   * self-contained here so ScaffoldPanel doesn't depend on
-   * SecretsService. Returns undefined when not detectable -- the
-   * seed file falls back to a placeholder slug + the user can
-   * edit the file later.
-   */
-  private async detectMeshRepoSlug(): Promise<string | undefined> {
-    try {
-      // Codex finding 4 — prefer the mesh path captured in the Looking Glass
-      // window (threaded via okrContext.meshPath) over the ambient
-      // maintainabilityai.mesh.path setting, which resolves wrong/empty in the
-      // greenfield target-repo workspace. Same fix as the design-doc read: a
-      // stale setting here would make the inlined design's source link point at
-      // a wrong/placeholder repo slug.
-      const meshPath = this.okrContext?.meshPath || MeshService.getMeshPath();
-      if (!meshPath) return undefined;
-      // Cheap path 1: read portfolio mesh.yaml for explicit repo field.
-      try {
-        const meshYamlPath = path.join(meshPath, 'mesh.yaml');
-        if (fs.existsSync(meshYamlPath)) {
-          // eslint-disable-next-line @typescript-eslint/no-require-imports
-          const YAML = require('yaml') as { parse(text: string): unknown };
-          const parsed = YAML.parse(fs.readFileSync(meshYamlPath, 'utf8')) as { org?: string; repo?: string };
-          if (parsed?.org && parsed?.repo) {
-            return parsed.repo.includes('/') ? parsed.repo : `${parsed.org}/${parsed.repo}`;
-          }
-        }
-      } catch { /* fall through */ }
-      // Cheap path 2: git remote get-url origin from meshPath.
-      try {
-        const { execFileSync } = await import('child_process');
-        const url = execFileSync('git', ['remote', 'get-url', 'origin'], { cwd: meshPath, encoding: 'utf8' }).toString().trim();
-        const m = url.match(/github\.com[:/]([^/]+\/[^/.]+?)(?:\.git)?$/);
-        if (m) return m[1];
-      } catch { /* git not available */ }
-      return undefined;
-    } catch {
-      return undefined;
-    }
-  }
-
   private async detectStackForFolder(folderPath: string) {
     // Check for existing repo-metadata.yml first
     const metadata = readRepoMetadata(folderPath);
@@ -482,17 +437,12 @@ export class ScaffoldPanel extends BasePanel<Record<string, unknown>, Record<str
           if (barName) {
             const reader = new MeshReader(meshPath);
             const redQueen = new RedQueenService();
-            // Codex-r1 Bug G — thread OKR context through so the
-            // scaffold output includes docs/code-design-spec.md
-            // pointing the impl-agent at its mesh-side artifact.
-            // Greenfield fan-out is the only path that supplies
-            // okrContext; brownfield retrofit passes undefined +
-            // skips the seed file.
-            const meshRepoSlug = await this.detectMeshRepoSlug();
-            const okrCtxArg = this.okrContext
-              ? { okrId: this.okrContext.okrId, repoSlug: this.okrContext.repoSlug, meshRepoSlug }
-              : undefined;
-            const result = scaffoldAgentConfig(reader, barName, redQueen, okrCtxArg);
+            // Scaffolding writes only repo-governability files now. The impl-
+            // agent grounding seed (docs/code-design-spec.md) is committed into
+            // the target repo at FAN-OUT time (LookingGlassPanel.onFanOutInner),
+            // not here — it's OKR/WHAT content, not a property of the repo, and
+            // fan-out delivery keeps it fresh + covers brownfield too.
+            const result = scaffoldAgentConfig(reader, barName, redQueen);
             if (!('error' in result)) {
               const govCreated = writeScaffoldFiles(workspaceRoot, result.files);
               const tier = this.componentContext?.governanceTier || 'unknown';

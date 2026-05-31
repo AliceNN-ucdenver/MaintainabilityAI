@@ -270,6 +270,22 @@ describe('implementation-agent.agent.md template', () => {
     expect(body).toMatch(/git add `?\.redqueen\/audit-log\.jsonl/i);
   });
 
+  it('design delivery: fan-out commits docs/code-design-spec.md at dispatch (NOT scaffold), greenfield + brownfield', () => {
+    // The frozen WHAT design is delivered by the Looking Glass fan-out —
+    // committed into EACH target repo at dispatch — NOT inlined at scaffold
+    // time. Scaffold-coupling went stale on WHAT re-runs and skipped brownfield
+    // (which never greenfield-scaffolds), so a brownfield agent was told to read
+    // a file that didn't exist. Pin the new contract + anti-regress the old.
+    expect(body).toContain('docs/code-design-spec.md');
+    expect(body).toMatch(/fan-out commits the full canonical `code-design\.md`/i);
+    expect(body).toMatch(/greenfield AND brownfield/i);
+    expect(body).toMatch(/no mesh-repo fetch needed/i);
+    expect(body).toMatch(/delivered by the fan-out, NOT by scaffolding/i);
+    // Anti-regress: must NOT claim the greenfield SCAFFOLD inlines the design.
+    expect(body).not.toMatch(/greenfield scaffold inlines/i);
+    expect(body).not.toMatch(/scaffold inlines the full canonical/i);
+  });
+
   it('AA-4: self-review honesty rule forbids scoring controls in unwritten code', () => {
     // The blocked run scored 0.72/0.85 "OWASP controls all present" for
     // code that did not exist. Pin the rule that reviews score what was

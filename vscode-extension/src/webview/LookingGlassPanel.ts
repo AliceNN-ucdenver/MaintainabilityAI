@@ -62,7 +62,7 @@ import { logger } from '../utils/Logger';
 import { toErrorMessage } from '../utils/errors';
 import { MeshReader } from '../core/mesh-reader';
 import { RedQueenService } from '../services/RedQueenService';
-import { computeTier, scaffoldAgentConfig, writeScaffoldFiles } from '../mcp/config-scaffold';
+import { computeTier, scaffoldAgentConfig, writeScaffoldFiles, buildCodeDesignSeed } from '../mcp/config-scaffold';
 import { computeDecayedScore } from '../mcp/utils/score-decay';
 import type { GovernanceTimestamps } from '../types/redqueen';
 
@@ -1366,6 +1366,26 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       return;
     }
 
+    // Phase D grounding (design-delivery moved off scaffold → fan-out).
+    // Read the frozen WHAT-phase design ONCE from the mesh; we commit it into
+    // EACH target repo below so the impl agent grounds against a local file
+    // (its Copilot sandbox has no mesh read token). Fail-closed: if the canonical
+    // design can't be read, we cannot ground any agent — abort before dispatch.
+    let codeDesignMd: string | null = null;
+    try {
+      codeDesignMd = await this.githubService.getRepoFileText(meshRepo.owner, meshRepo.repo, `okrs/${okrId}/what/code-design.md`);
+    } catch {
+      // handled by the empty-check below
+    }
+    if (!codeDesignMd || !codeDesignMd.trim()) {
+      this.postMessage({ type: 'loading', active: false });
+      this.postMessage({
+        type: 'error',
+        message: `Cannot fan out: could not read okrs/${okrId}/what/code-design.md from the mesh (${meshRepoSlug}). The impl agents ground against this design — re-run WHAT or check the mesh artifact before fanning out.`,
+      });
+      return;
+    }
+
     const nowIso = new Date().toISOString();
     const dispatched: string[] = [];
     const failed: Array<{ slug: string; error: string }> = [];
@@ -1392,6 +1412,37 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         continue;
       }
       const [owner, name] = parts;
+
+      // Grounding delivery — commit the frozen WHAT design into THIS target
+      // repo's default branch (docs/code-design-spec.md) BEFORE opening the
+      // landing issue. Greenfield AND brownfield: the impl agent reads it
+      // locally; its sandbox cannot fetch the private mesh. A re-fan-out
+      // overwrites a stale spec with the current design (putRepoFile is
+      // create-or-update). Fail-closed: if the write fails, skip dispatch —
+      // an ungrounded agent is worse than a deferred one.
+      const designSpec = buildCodeDesignSeed(
+        { okrId, repoSlug: entry.slug, meshRepoSlug },
+        codeDesignMd,
+      );
+      try {
+        await this.githubService.putRepoFile(
+          owner,
+          name,
+          'docs/code-design-spec.md',
+          designSpec,
+          `chore(${okrId}): seed code-design-spec.md for impl-agent grounding`,
+        );
+      } catch (seedErr) {
+        const msg = toErrorMessage(seedErr);
+        failed.push({ slug: entry.slug, error: `Grounding write failed (docs/code-design-spec.md) on ${entry.slug}: ${msg}. Skipped dispatch — fix repo write access, then re-fan-out.` });
+        rowsByRepo.set(entry.slug, {
+          repo: entry.slug,
+          status: entry.decision.status,
+          reason: `Grounding write failed: ${msg}`,
+          updatedAt: nowIso,
+        });
+        continue;
+      }
 
       try {
         const issueTitle = `[${okrId}] Implement ${entry.slug} slice`;
@@ -1433,7 +1484,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
             issue.number,
             'implementation-agent',
             {
-              customInstructions: `Read the landing issue body for OKR ${okrId} context, your per-repo extract under \`## 1. Project Structure\` of code-design.md, and sibling-repo coordination. Open a PR with the implementation_chain Hatter Tag continuation block.`,
+              customInstructions: `Read the landing issue body for OKR ${okrId} context, then ground on the frozen design committed to \`docs/code-design-spec.md\` in this repo (your per-repo slices are the H3 sub-blocks naming \`${entry.slug}\`; §2 is your binding API contract). Honour the sibling-repo coordination. Open a PR with the implementation_chain Hatter Tag continuation block.`,
             },
           );
         } catch (dispatchErr) {

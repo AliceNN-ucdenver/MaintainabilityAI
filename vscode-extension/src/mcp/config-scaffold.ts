@@ -1407,24 +1407,27 @@ export interface ScaffoldOkrContextLite {
 }
 
 /**
- * Builds the `docs/code-design-spec.md` seed for a greenfield fan-out scaffold.
+ * Builds the `docs/code-design-spec.md` grounding file the Looking Glass
+ * fan-out commits into EACH target repo at dispatch (greenfield + brownfield).
  *
  * Grounding fix (post-audit of celeb-api PR #8): the impl design is FROZEN at
  * WHAT dispatch, so the implementation agent should ground against a local
  * snapshot — not a live mesh fetch it can't perform (the Copilot cloud sandbox
- * has no read token for the private governance-mesh repo).
+ * has no read token for the private governance-mesh repo). This file is
+ * delivered by the FAN-OUT (LookingGlassPanel.onFanOutInner), not by
+ * scaffolding — so it is always the current design and present in every repo.
  *
- * When the mesh-local canonical `code-design.md` is readable at scaffold time
- * (`codeDesignMd` non-null), its FULL content is INLINED so the agent reads
- * the binding contract locally. The doc is a shared multi-repo artifact: the
- * agent's per-repo slices are the H3 sub-blocks naming its repo across §1
- * (structure), §2 (API contract — binding; the provenance gate diffs the
- * agent's exposed contract against it), §3 (models), §4 (auth); §5–§10 are
- * shared. Sibling sub-blocks are kept for cross-repo contract coordination.
+ * When the canonical `code-design.md` is readable (`codeDesignMd` non-null),
+ * its FULL content is INLINED so the agent reads the binding contract locally.
+ * The doc is a shared multi-repo artifact: the agent's per-repo slices are the
+ * H3 sub-blocks naming its repo across §1 (structure), §2 (API contract —
+ * binding; the provenance gate diffs the agent's exposed contract against it),
+ * §3 (models), §4 (auth); §5–§10 are shared. Sibling sub-blocks are kept for
+ * cross-repo contract coordination.
  *
- * When the mesh file is NOT readable (`codeDesignMd` null — scaffold not
- * launched from a real mesh fan-out, or the artifact is missing), falls back
- * to the pointer + checklist stub so the run is still unblocked.
+ * The pointer/checklist fallback (`codeDesignMd` null) is retained for safety,
+ * but the fan-out aborts BEFORE dispatch when it can't read the canonical
+ * design, so in practice this builder is only called with the full design.
  */
 export function buildCodeDesignSeed(
   okrContext: ScaffoldOkrContextLite,
@@ -1435,7 +1438,7 @@ export function buildCodeDesignSeed(
   const header = [
     `# Code Design Spec — \`${okrContext.repoSlug}\``,
     '',
-    `_Seeded by Cheshire greenfield scaffold for OKR \`${okrContext.okrId}\`._`,
+    `_Committed by the Looking Glass fan-out for OKR \`${okrContext.okrId}\` (delivered at dispatch — greenfield + brownfield)._`,
     '',
     '## Source artifact',
     '',
@@ -1451,8 +1454,8 @@ export function buildCodeDesignSeed(
       '## How to read this',
       '',
       'The **full canonical WHAT-phase design is inlined below** — frozen at WHAT',
-      'dispatch and snapshotted into this repo at scaffold time, so you ground',
-      'against it **locally** (no mesh-repo access required). The design is a',
+      'dispatch and committed into this repo by the fan-out at dispatch time, so',
+      'you ground against it **locally** (no mesh-repo access required). The design is a',
       'shared, multi-repo artifact; **your** per-repo slices are the H3 sub-blocks',
       `naming \`${okrContext.repoSlug}\` (slug in §1; short name + role in §2–§4):`,
       '',
@@ -1512,7 +1515,6 @@ export function scaffoldAgentConfig(
   reader: MeshReader,
   barName: string,
   redQueen?: RedQueenService,
-  okrContext?: ScaffoldOkrContextLite,
 ): ScaffoldResult | { error: string } {
   const bar = reader.getBar(barName);
   if (!bar) {
@@ -1609,28 +1611,14 @@ export function scaffoldAgentConfig(
     '',
   ].join('\n');
 
-  // Grounding fix — seed docs/code-design-spec.md when the scaffold was
-  // launched from a greenfield fan-out (okrContext present). The fan-out
-  // engine has the mesh checked out locally, so we read the canonical
-  // code-design.md from the mesh clone and INLINE it (frozen-design
-  // snapshot) — the impl agent grounds locally without a mesh-repo read
-  // token (the Copilot cloud sandbox has none). Falls back to a pointer
-  // stub if the mesh artifact isn't readable at scaffold time.
-  if (okrContext) {
-    const codeDesignMd = reader.readMeshFile(`okrs/${okrContext.okrId}/what/code-design.md`);
-    // Fail loud: a null/empty read means the canonical design wasn't
-    // grounded, so buildCodeDesignSeed falls back to a POINTER STUB and
-    // the impl agent ships ungrounded. The usual cause is the mesh path
-    // resolving to the wrong workspace (greenfield fan-out runs in the
-    // target-repo workspace — see ScaffoldOkrContext.meshPath). Push a
-    // warning so the caller can surface it; the scaffold still completes.
-    if (!codeDesignMd || codeDesignMd.trim().length === 0) {
-      warnings.push(
-        `Grounding: could not read okrs/${okrContext.okrId}/what/code-design.md from mesh at "${reader.path}" — code-design-spec.md fell back to a pointer stub (impl agent will NOT be grounded). Check the mesh path.`,
-      );
-    }
-    files['docs/code-design-spec.md'] = buildCodeDesignSeed(okrContext, codeDesignMd);
-  }
+  // NOTE: the impl-agent grounding seed (docs/code-design-spec.md) is NO LONGER
+  // written here. It is OKR/WHAT-phase content, not a property of the repo, and
+  // coupling it to scaffold time made it stale on WHAT re-runs and skipped
+  // brownfield entirely. The frozen design is now committed into EACH target
+  // repo at FAN-OUT time (LookingGlassPanel.onFanOutInner → githubService
+  // .putRepoFile), greenfield and brownfield alike, so it's always the current
+  // design and the delivery path is symmetric. buildCodeDesignSeed remains
+  // exported as the shared builder the fan-out calls.
 
   // Read mesh portfolio config for the org/repo reference
   const portfolio = reader.readPortfolioConfig();

@@ -967,6 +967,57 @@ export class GitHubService {
   }
 
   /**
+   * Phase D fan-out grounding — create-or-update a single file in a target
+   * repo's branch via the GitHub contents API.
+   *
+   * The fan-out uses this to commit the frozen WHAT-phase design
+   * (`docs/code-design-spec.md`) into EACH target repo at dispatch — greenfield
+   * AND brownfield — so the impl agent grounds against a local file. Its
+   * Copilot cloud sandbox has no read token for the private mesh repo, so the
+   * design cannot be fetched at runtime; it must be pre-placed.
+   *
+   * Create + update are unified: `createOrUpdateFileContents` REQUIRES the
+   * existing blob `sha` when the path already exists and REJECTS it when the
+   * path is new, so we probe `getContent` first to pick the right shape. A
+   * re-fan-out therefore overwrites a stale spec with the current design
+   * (idempotent + always-fresh).
+   *
+   * Throws on any API error — the caller decides fail-closed vs best-effort.
+   */
+  async putRepoFile(
+    owner: string,
+    repo: string,
+    path: string,
+    content: string,
+    message: string,
+    branch?: string,
+  ): Promise<{ commitSha: string }> {
+    const client = await this.getClient();
+    // Probe for an existing blob sha (update path). 404 → create path.
+    let sha: string | undefined;
+    try {
+      const { data } = await client.rest.repos.getContent({ owner, repo, path, ...(branch ? { ref: branch } : {}) });
+      if (!Array.isArray(data) && data.type === 'file' && typeof data.sha === 'string') {
+        sha = data.sha;
+      }
+    } catch (err) {
+      const status = (err as { status?: number })?.status;
+      if (status !== 404) { throw err; }
+      // 404 → file does not exist yet → create (sha stays undefined).
+    }
+    const { data } = await client.rest.repos.createOrUpdateFileContents({
+      owner,
+      repo,
+      path,
+      message,
+      content: Buffer.from(content, 'utf8').toString('base64'),
+      ...(sha ? { sha } : {}),
+      ...(branch ? { branch } : {}),
+    });
+    return { commitSha: data.commit?.sha ?? '' };
+  }
+
+  /**
    * D-PR4 sub-PR 2 — repo-existence + emptiness probe.
    *
    * Returns the discriminated existence state for a target repo slug.
