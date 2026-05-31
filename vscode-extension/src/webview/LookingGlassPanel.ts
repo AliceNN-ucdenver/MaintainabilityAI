@@ -1915,7 +1915,11 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       denied: num(payload.denied),
       overrides: num(payload.overrides),
       logSha256: typeof payload.log_sha256 === 'string' ? payload.log_sha256 : null,
-      signed: typeof digestEvent.signature === 'string' && digestEvent.signature.length > 0,
+      // "Digest event present" — the event carries a signature string, but
+      // this is NOT cryptographic verification (that's audit-verify-chain's
+      // job). A hand-written line could set this; the rollup labels it
+      // "digest event present", not "signed", to avoid overstating provenance.
+      digestPresent: typeof digestEvent.signature === 'string' && digestEvent.signature.length > 0,
       denials,
     };
   }

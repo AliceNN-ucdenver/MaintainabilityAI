@@ -1263,8 +1263,15 @@ export interface RedqueenDigest {
   overrides: number;
   /** sha256 of the committed `.redqueen/audit-log.jsonl` (null = no log). */
   logSha256: string | null;
-  /** True when the digest event was found in the (verified) impl chain. */
-  signed: boolean;
+  /**
+   * True when a `redqueen_decisions` digest event carrying a signature was
+   * FOUND in the impl events JSONL. This is NOT proof of cryptographic
+   * verification — the chain verifier (audit-verify-chain) is what proves the
+   * signature + origin/kind are valid. "Present" ≠ "verified": a hand-written
+   * line could set this true. The rollup labels it "digest event present"
+   * accordingly; a stronger "signed & verified" label requires the verifier.
+   */
+  digestPresent: boolean;
   /** Bounded list of deny decisions, if any. */
   denials?: Array<{ tool?: string; filePath?: string; ruleId?: string; reason?: string }>;
 }
@@ -1887,11 +1894,16 @@ ${tableRows.join('\n')}`;
 /**
  * Tier 2.5a — per-repo Red Queen enforcement digest sub-block for the OKR
  * rollup. Returns '' when no row carries a digest (back-compat). Shows the
- * signed allow/deny/override counts plus a bounded denials list when any deny
- * decisions were recorded. Verifiability note: the counts are signed onto the
- * IMPL chain via the `redqueen_decisions` event (its signature is validated by
- * the chain verify), and `logSha256` lets a reader re-hash the committed
- * `.redqueen/audit-log.jsonl` and confirm it matches.
+ * allow/deny/override counts plus a bounded denials list when any deny
+ * decisions were recorded.
+ *
+ * Honesty note (Codex finding 1): the column reads "Digest event" — it
+ * reflects only that a `redqueen_decisions` event was PRESENT in the impl
+ * events JSONL, NOT that its signature was cryptographically verified.
+ * Verification is the chain verifier's job (audit-verify-chain, runner-side);
+ * until that lands for the Red Queen event (Tier 2.5 follow-up) we must not
+ * label a mere present event as "signed". `logSha256` lets a reader re-hash
+ * the committed `.redqueen/audit-log.jsonl` to confirm the digest matches.
  */
 function renderRedqueenSubsection(rows: ImplementationChainRow[]): string {
   const rqRows = rows.filter((r) => r.redqueenDigest);
@@ -1900,13 +1912,13 @@ function renderRedqueenSubsection(rows: ImplementationChainRow[]): string {
   lines.push('');
   lines.push('## Implementation chain (Red Queen)');
   lines.push('');
-  lines.push('| Repo | Signed | Allowed | Denied | Overrides | Log sha256 |');
+  lines.push('| Repo | Digest event | Allowed | Denied | Overrides | Log sha256 |');
   lines.push('|---|:---:|---:|---:|---:|---|');
   for (const row of rqRows) {
     const d = row.redqueenDigest!;
-    const signedIcon = d.signed ? '✓' : '—';
+    const presentIcon = d.digestPresent ? 'present' : '—';
     const sha = d.logSha256 ? `\`${d.logSha256.slice(0, 12)}…\`` : '—';
-    lines.push(`| \`${row.repoSlug}\` | ${signedIcon} | ${d.allowed} | ${d.denied} | ${d.overrides} | ${sha} |`);
+    lines.push(`| \`${row.repoSlug}\` | ${presentIcon} | ${d.allowed} | ${d.denied} | ${d.overrides} | ${sha} |`);
   }
   // Denials detail (only when present).
   for (const row of rqRows) {

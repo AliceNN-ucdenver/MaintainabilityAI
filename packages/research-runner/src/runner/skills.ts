@@ -2874,14 +2874,17 @@ const handleAuditSignRedqueenDecisions: SkillHandler = async (input) => {
   const logPath = parsed.data.logPath ?? path.join(repoPath(), '.redqueen', 'audit-log.jsonl');
 
   // Honest-zero: never crash when the hook hasn't fired (missing/empty log).
-  let raw = '';
+  // Read the EXACT bytes on disk (a Buffer, not a UTF-8 round-trip) so the
+  // digest is over the file verbatim — a verifier re-hashes those same bytes.
+  let rawBuf = Buffer.alloc(0);
   if (fs.existsSync(logPath)) {
     try {
-      raw = fs.readFileSync(logPath, 'utf8');
+      rawBuf = fs.readFileSync(logPath);
     } catch (err) {
       return { ok: false, reason: `redqueen-log-read-failed: ${(err as Error).message}` };
     }
   }
+  const raw = rawBuf.toString('utf8');
   const trimmed = raw.trim();
   if (trimmed.length === 0) {
     const emit = await emitAuditEvent({
@@ -2916,10 +2919,11 @@ const handleAuditSignRedqueenDecisions: SkillHandler = async (input) => {
     };
   }
 
-  // Digest the RAW file bytes (NOT a canonical re-stringify) so a verifier
-  // re-hashes the committed file verbatim. The hook appends plain JSON lines;
-  // we count + classify them but sign over the exact bytes on disk.
-  const log_sha256 = createHash('sha256').update(Buffer.from(raw, 'utf8')).digest('hex');
+  // Digest the EXACT file bytes (the Buffer read above, NOT a UTF-8
+  // round-trip or canonical re-stringify) so a verifier re-hashes the
+  // committed file verbatim. The hook appends plain JSON lines; we count +
+  // classify them for the payload but sign over the byte-identical content.
+  const log_sha256 = createHash('sha256').update(rawBuf).digest('hex');
 
   let count = 0;
   let allowed = 0;

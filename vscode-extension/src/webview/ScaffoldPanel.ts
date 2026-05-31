@@ -259,7 +259,13 @@ export class ScaffoldPanel extends BasePanel<Record<string, unknown>, Record<str
    */
   private async detectMeshRepoSlug(): Promise<string | undefined> {
     try {
-      const meshPath = MeshService.getMeshPath();
+      // Codex finding 4 — prefer the mesh path captured in the Looking Glass
+      // window (threaded via okrContext.meshPath) over the ambient
+      // maintainabilityai.mesh.path setting, which resolves wrong/empty in the
+      // greenfield target-repo workspace. Same fix as the design-doc read: a
+      // stale setting here would make the inlined design's source link point at
+      // a wrong/placeholder repo slug.
+      const meshPath = this.okrContext?.meshPath || MeshService.getMeshPath();
       if (!meshPath) return undefined;
       // Cheap path 1: read portfolio mesh.yaml for explicit repo field.
       try {

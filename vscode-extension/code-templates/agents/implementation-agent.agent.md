@@ -112,7 +112,14 @@ Every run MUST produce successful `skill_call` events for these skills, invoked 
 | `self-review-impl-architect` | ≥1 per round | Tier echo + persona-switch entry into the Architect critique. Pass `tier` from the landing issue's `<!-- governance_tier: ... -->` HTML comment (REQUIRED — see Codex-r4 Bug 2 + Codex-r5 Bug 1). |
 | `self-review-impl-security` | ≥1 per round | Same shape, Security persona. |
 | `audit-emit-event` | ≥1 per round per persona | `self_review` event with `{ persona, round, score, severity, summary }`. Must pair `phase: 'implementation'` with your `IMPL-*` `runId` — the runner enforces this pairing (Codex-r4 Bug 3). |
-| `audit-sign-redqueen-decisions` | ≥1 (when runner supports it) | _advisory / soft_ — Tier 2.5a Red Queen chain digest; signs `.redqueen/audit-log.jsonl` onto the IMPL chain. **Not a hard gate yet**: older runners lack this skill, so its absence does not fail the audit. |
+
+> **Note — `audit-sign-redqueen-decisions` is NOT in this `skill_call` manifest.** Unlike the skills above, the runner suppresses its `skill_call` auto-emission (it's in `NO_AUTO_EMIT_SKILLS`): instead of a `skill_call` event it emits a single **`redqueen_decisions`** digest event onto your IMPL chain. So it does not produce — and the gate does not look for — a `skill_call` for it. See the final-digest step below.
+
+### Final digest event (advisory, Tier 2.5a)
+
+| Skill | Emits | Notes |
+|---|---|---|
+| `audit-sign-redqueen-decisions` | one signed `redqueen_decisions` event (NOT a `skill_call`) | _advisory / soft_ — signs the digest of `.redqueen/audit-log.jsonl` onto the IMPL chain. **Not a hard gate**: older runners lack this skill (`unknown-skill`), so its absence does not fail the audit. Run it as your FINAL governed action — see the completion sequence. |
 
 ## Tweedles persona-switch self-critique loop
 

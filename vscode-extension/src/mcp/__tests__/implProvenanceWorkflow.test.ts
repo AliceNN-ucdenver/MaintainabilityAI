@@ -86,20 +86,26 @@ describe('Bug-AAE Phase 2/3: standalone impl-provenance.yml gate', () => {
     expect(wf).toMatch(/import json, os/);
   });
 
-  it('Tier 2.5a: emits rq_signed + rq_digest_match outputs (advisory, still not gated)', () => {
+  it('Tier 2.5a: emits rq_digest_present + rq_digest_match outputs (advisory, honest about strength)', () => {
     // The step recomputes the committed decision log's sha256 over RAW bytes
-    // and scans the signed IMPL events JSONL for the redqueen_decisions digest
-    // event the runner emits as the agent's final governed action.
+    // and scans the IMPL events JSONL for the redqueen_decisions digest event.
     expect(wf).toMatch(/import json, os, glob, hashlib/);
     expect(wf).toMatch(/hashlib\.sha256\(bf\.read\(\)\)\.hexdigest\(\)/);
     expect(wf).toMatch(/\.maintainability\/audit\/events\/\*\.jsonl/);
     expect(wf).toMatch(/event_kind'\) != 'redqueen_decisions'/);
-    expect(wf).toMatch(/rq_signed=/);
+    // Codex finding 1 — honest naming: "digest present" (event exists) is NOT
+    // "signed". The output is rq_digest_present, NOT rq_signed.
+    expect(wf).toMatch(/rq_digest_present=/);
+    expect(wf).not.toMatch(/rq_signed=/);
     expect(wf).toMatch(/rq_digest_match=/);
-    // Consumer side: the verdict comment reads both new outputs and renders
-    // the signed/digest status, but the gate stays advisory.
-    expect(wf).toMatch(/steps\.redqueen\.outputs\.rq_signed/);
+    // Consumer side: the verdict comment reads the new outputs. "signed &
+    // verified" only when the chain step verified the signature AND the digest
+    // matches; a bare present event reads "digest event present".
+    expect(wf).toMatch(/steps\.redqueen\.outputs\.rq_digest_present/);
     expect(wf).toMatch(/steps\.redqueen\.outputs\.rq_digest_match/);
+    expect(wf).toMatch(/rqVerified = rqDigestPresent && rqDigestMatch && chainOk/);
+    expect(wf).toMatch(/digest event present/);
+    expect(wf).toMatch(/signed & verified/);
     expect(wf).toMatch(/unsigned \(runner upgrade pending\)/);
     // Still advisory — pass must remain chain+manifest+hatter only.
     expect(wf).toMatch(/const pass = chainOk && manifestOk && hatterOk;/);

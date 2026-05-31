@@ -2093,7 +2093,7 @@ describe('buildOkrRollupMarkdown — implementation chain section', () => {
             denied: 2,
             overrides: 1,
             logSha256: 'deadbeef'.repeat(8),
-            signed: true,
+            digestPresent: true,
             denials: [
               { tool: 'Write', filePath: 'secrets.env', ruleId: 'no-secrets', reason: 'blocked write to secret' },
               { tool: 'Bash', reason: 'network egress denied' },
@@ -2105,8 +2105,10 @@ describe('buildOkrRollupMarkdown — implementation chain section', () => {
       },
     });
     expect(md).toContain('## Implementation chain (Red Queen)');
-    // Signed icon + allow/deny/override counts in the table row.
-    expect(md).toMatch(/\| `acme\/celeb-api` \| ✓ \| 5 \| 2 \| 1 \|/);
+    // Codex finding 1 — column reads "present" (digest event found), NOT a
+    // "signed" checkmark; present ≠ cryptographically verified.
+    expect(md).toContain('| Repo | Digest event |');
+    expect(md).toMatch(/\| `acme\/celeb-api` \| present \| 5 \| 2 \| 1 \|/);
     // Truncated log sha256 surfaced for re-hash verification.
     expect(md).toContain('`deadbeefdead…`');
     // Denials detail block.
