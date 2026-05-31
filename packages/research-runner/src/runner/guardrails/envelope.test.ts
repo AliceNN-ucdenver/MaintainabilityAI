@@ -164,6 +164,12 @@ describe('screenResults', () => {
     assert.equal(safe.length, 0);
     assert.equal(findings.some(f => f.rule === 'provider-not-allowlisted' && f.disposition === 'quarantine'), true);
   });
+  it('sanitizes a non-allowlisted provider value in the finding detail', () => {
+    const { findings } = screenResults([mkResult({ provider: 'evil rm -rf /' as ProviderResult['provider'], url: 'https://example.com' })], CONFIG);
+    const f = findings.find(x => x.rule === 'provider-not-allowlisted');
+    assert.ok(f);
+    assert.equal(f.detail.includes('rm -rf'), false); // raw free-form value never echoed
+  });
   it('quarantines a malformed URL', () => {
     const { safe } = screenResults([mkResult({ url: 'not a url' })], CONFIG);
     assert.equal(safe.length, 0);
@@ -209,12 +215,43 @@ describe('withGuardrails — search mode', () => {
 
   it('passes a clean search call through unchanged with a pass verdict', async () => {
     const results = [mkResult({ url: 'https://example.com/a' })];
-    const handler = withGuardrails('arxiv-search', async () => ({ ok: true, results, auditMetadata: {} }));
+    const preview = [{ provider: 'arxiv', query: 'clean query', title: 'title', url: 'https://example.com/a' }];
+    const handler = withGuardrails('arxiv-search', async () => ({ ok: true, results, auditMetadata: { result_count: 1, results_preview: preview } }));
     const r = await handler({ queries: ['clean query'] });
-    const out = r as SkillResult & { results?: ProviderResult[]; auditMetadata?: { guardrails?: { verdict: string; envelope_version: string } } };
+    const out = r as SkillResult & { results?: ProviderResult[]; auditMetadata?: { result_count?: number; results_preview?: unknown[]; guardrails?: { verdict: string; envelope_version: string } } };
     assert.equal(out.results?.length, 1);
+    // safe path: handler's auditMetadata is untouched (only guardrails added)
+    assert.equal(out.auditMetadata?.result_count, 1);
+    assert.deepEqual(out.auditMetadata?.results_preview, preview);
     assert.equal(out.auditMetadata?.guardrails?.verdict, 'pass');
     assert.equal(out.auditMetadata?.guardrails?.envelope_version, ORACLE_GUARDRAIL_ENVELOPE_VERSION);
+  });
+
+  it('rebuilds result_count + results_preview from the safe subset on quarantine', async () => {
+    const handler = withGuardrails('tavily-search', async () => ({
+      ok: true,
+      results: [
+        mkResult({ url: 'https://arxiv.org/abs/x', content: 'safe paper' }),
+        mkResult({ url: 'http://169.254.169.254/latest', content: 'ssrf metadata snippet' }),
+      ],
+      auditMetadata: {
+        queries: ['x'],
+        result_count: 2,
+        results_preview: [
+          { provider: 'tavily', query: 'x', title: 'a', url: 'https://arxiv.org/abs/x', snippet: 'safe paper' },
+          { provider: 'tavily', query: 'x', title: 'b', url: 'http://169.254.169.254/latest', snippet: 'ssrf metadata snippet' },
+        ],
+      },
+    }));
+    const r = await handler({ queries: ['x'] });
+    const out = r as SkillResult & { auditMetadata?: { result_count?: number; results_preview?: { url: string }[]; guardrails?: { results_in: number; results_quarantined: number } } };
+    // the quarantined unsafe URL/snippet is gone from the trusted preview
+    assert.equal(out.auditMetadata?.results_preview?.some(p => p.url.includes('169.254.169.254')), false);
+    assert.equal(out.auditMetadata?.results_preview?.length, 1);
+    assert.equal(out.auditMetadata?.result_count, 1);
+    // raw totals preserved in the verdict
+    assert.equal(out.auditMetadata?.guardrails?.results_in, 2);
+    assert.equal(out.auditMetadata?.guardrails?.results_quarantined, 1);
   });
 });
 

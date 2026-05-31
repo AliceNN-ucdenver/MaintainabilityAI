@@ -165,6 +165,8 @@ Phase 1 of the **Oracle & Privacy Rails** (see [`next-acts-tier-2-and-3.md`](nex
 | `results_safe` | number | Results that passed through to synthesis / the source registry. |
 | `results_quarantined` | number | `results_in − results_safe` (counts every quarantine, even when `findings` is truncated). |
 
+When `verdict` is `quarantined`, the search `result_count` + `results_preview` (above) are **rebuilt from the safe subset** so a quarantined URL/snippet never persists as trusted preview in the signed chain; the raw totals stay in `guardrails.results_in` / `results_quarantined`.
+
 **This is the deterministic, non-authoritative layer.** It blocks input-budget / forbidden-path violations, quarantines unsafe-URL / non-allowlisted-provider / high-confidence-prompt-control-marker results, and annotates weak markers. The **authoritative** injection / PII / groundedness decision is the local Python CI audit step (Phases 2-4), which is **REPLAYED, not signed** — and, if it emits a `rail_decision` event, that event is `origin: workflow`, unsigned, and re-derived from the committed artifact + source registry. `rail_decision` is **not** in the `EVENT_KIND_ORIGIN` map yet; it lands with that phase. Phase 1 introduces **no new event kind**.
 
 ### `knowledge-code`

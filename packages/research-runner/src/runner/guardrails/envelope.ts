@@ -34,6 +34,7 @@
  * pinned config hash is meaningful end-to-end).
  */
 import type { ProviderResult } from '../../search/provider-result';
+import { buildSearchAuditMetadata } from '../../search/audit-preview';
 import type { SkillHandler, SkillResult } from '../skills';
 
 /** Pins the deterministic-checks revision so the audit (and a future replay
@@ -172,6 +173,17 @@ export const MAX_FINDINGS = 100;
 // ─────────────────────────────────────────────────────────────────────
 // Pure check primitives (unit-tested in isolation)
 // ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Bound + sanitize free-form external text before it lands in a finding
+ * `detail` (which persists into signed audit metadata). Agent- and
+ * provider-supplied strings must never be echoed raw — replace anything
+ * outside a conservative safe set and truncate.
+ */
+function sanitizeForDetail(value: unknown, max = 32): string {
+  const s = String(value).replace(/[^\w.:/-]/g, '·');
+  return s.length > max ? `${s.slice(0, max)}…` : s;
+}
 
 /**
  * Parse + normalize a URL. Rejects anything that is not http(s) or that
@@ -319,7 +331,7 @@ export function screenResults(
         rule: 'provider-not-allowlisted',
         boundary: 'result',
         disposition: 'quarantine',
-        detail: `provider '${String(res.provider)}' not in allowlist`,
+        detail: `provider '${sanitizeForDetail(res.provider)}' not in allowlist`,
         ref,
       });
       quarantine = true;
@@ -460,13 +472,27 @@ function guardSearch(handler: SkillHandler, config: OracleGuardrailConfig): Skil
     if (result.ok && Array.isArray(rawResults)) {
       const screened = screenResults(rawResults as ProviderResult[], config);
       findings.push(...screened.findings);
+      const quarantined = rawResults.length - screened.safe.length;
       counts = {
         queriesChecked: queries?.length ?? 0,
         resultsIn: rawResults.length,
         resultsSafe: screened.safe.length,
-        resultsQuarantined: rawResults.length - screened.safe.length,
+        resultsQuarantined: quarantined,
       };
-      outResult = { ...result, results: screened.safe };
+      if (quarantined > 0) {
+        // Quarantined hits must not survive as trusted audit preview either:
+        // the handler built result_count + results_preview from the RAW
+        // results before screening, so rebuild both from the SAFE subset. The
+        // raw totals are preserved in guardrails.results_in / _quarantined.
+        const existingMeta = (result as { auditMetadata?: Record<string, unknown> }).auditMetadata ?? {};
+        const rebuilt = buildSearchAuditMetadata(queries ?? [], screened.safe);
+        outResult = {
+          ...result,
+          results: screened.safe,
+          auditMetadata: { ...existingMeta, result_count: rebuilt.result_count, results_preview: rebuilt.results_preview },
+        };
+      }
+      // quarantined === 0 → leave result (and its auditMetadata) untouched.
     }
 
     return foldVerdict(outResult, summarizeVerdict(findings, counts));
