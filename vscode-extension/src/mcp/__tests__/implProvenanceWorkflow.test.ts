@@ -88,22 +88,31 @@ describe('Bug-AAE Phase 2/3: standalone impl-provenance.yml gate', () => {
 
   it('Tier 2.5a: emits rq_digest_present + rq_digest_match outputs (advisory, honest about strength)', () => {
     // The step recomputes the committed decision log's sha256 over RAW bytes
-    // and scans the IMPL events JSONL for the redqueen_decisions digest event.
-    expect(wf).toMatch(/import json, os, glob, hashlib/);
+    // and scans the redqueen_decisions digest event.
     expect(wf).toMatch(/hashlib\.sha256\(bf\.read\(\)\)\.hexdigest\(\)/);
-    expect(wf).toMatch(/\.maintainability\/audit\/events\/\*\.jsonl/);
     expect(wf).toMatch(/event_kind'\) != 'redqueen_decisions'/);
+    // Codex r3 finding 1 — scan ONLY the chain-verified events file (env
+    // EVENTS_FILE = steps.chain.outputs.events_file), NOT a glob over every
+    // IMPL JSONL. Otherwise file A could be verified while file B supplies the
+    // digest event.
+    expect(wf).toMatch(/EVENTS_FILE: \$\{\{ steps\.chain\.outputs\.events_file \}\}/);
+    expect(wf).toMatch(/if EVENTS_FILE and os\.path\.exists\(EVENTS_FILE\)/);
+    expect(wf).not.toMatch(/glob\.glob\('\.maintainability\/audit\/events\/\*\.jsonl'\)/);
+    // Codex r3 finding 2 — honest-zero: a null event_sha vs a null log_sha is
+    // a MATCH (both "no log"), not a digest mismatch.
+    expect(wf).toMatch(/event_sha is None and log_sha is None/);
+    expect(wf).toMatch(/no decision log \(no governed tool calls captured\)/);
     // Codex finding 1 — honest naming: "digest present" (event exists) is NOT
     // "signed". The output is rq_digest_present, NOT rq_signed.
     expect(wf).toMatch(/rq_digest_present=/);
     expect(wf).not.toMatch(/rq_signed=/);
     expect(wf).toMatch(/rq_digest_match=/);
-    // Consumer side: the verdict comment reads the new outputs. "signed &
-    // verified" only when the chain step verified the signature AND the digest
-    // matches; a bare present event reads "digest event present".
+    // Consumer side: "signed & verified" only when the chain step verified the
+    // signature AND a real log's digest matches; a bare present event reads
+    // "digest event present".
     expect(wf).toMatch(/steps\.redqueen\.outputs\.rq_digest_present/);
     expect(wf).toMatch(/steps\.redqueen\.outputs\.rq_digest_match/);
-    expect(wf).toMatch(/rqVerified = rqDigestPresent && rqDigestMatch && chainOk/);
+    expect(wf).toMatch(/rqVerified = rqDigestPresent && rqPresent && rqDigestMatch && chainOk/);
     expect(wf).toMatch(/digest event present/);
     expect(wf).toMatch(/signed & verified/);
     expect(wf).toMatch(/unsigned \(runner upgrade pending\)/);

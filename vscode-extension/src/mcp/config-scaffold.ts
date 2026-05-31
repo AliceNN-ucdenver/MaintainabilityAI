@@ -1202,9 +1202,18 @@ export function generateImplProvenanceWorkflow(): string {
   lines.push(`      - name: Summarize Red Queen decision log`);
   lines.push(`        id: redqueen`);
   lines.push(`        if: always()`);
+  lines.push(`        env:`);
+  // Codex r3 finding 1 — scan ONLY the exact IMPL events file the 'chain'
+  // step verified (steps.chain.outputs.events_file), NOT a glob over every
+  // IMPL-*.jsonl. Otherwise file A could be chain-verified while file B
+  // supplies the matching redqueen_decisions event, and the comment could
+  // still say "signed & verified" from mismatched evidence. Empty when the
+  // chain step found no events file.
+  lines.push(`          EVENTS_FILE: \${{ steps.chain.outputs.events_file }}`);
   lines.push(`        run: |`);
   lines.push(`          python3 <<'PYEOF'`);
-  lines.push(`          import json, os, glob, hashlib`);
+  lines.push(`          import json, os, hashlib`);
+  lines.push(`          EVENTS_FILE = os.environ.get('EVENTS_FILE', '')`);
   lines.push(`          path = '.redqueen/audit-log.jsonl'`);
   lines.push(`          present = os.path.exists(path)`);
   lines.push(`          allowed = denied = 0`);
@@ -1240,9 +1249,12 @@ export function generateImplProvenanceWorkflow(): string {
   lines.push(`          digest_present = False`);
   lines.push(`          digest_match = False`);
   lines.push(`          event_sha = None`);
-  lines.push(`          for ev_path in glob.glob('.maintainability/audit/events/*.jsonl'):`);
+  lines.push(`          event_sha_seen = False`);
+  lines.push(`          # Scan ONLY the chain-verified events file (env EVENTS_FILE) so the`);
+  lines.push(`          # digest event we credit is in the SAME file the chain step verified.`);
+  lines.push(`          if EVENTS_FILE and os.path.exists(EVENTS_FILE):`);
   lines.push(`              try:`);
-  lines.push(`                  with open(ev_path, 'r', encoding='utf-8') as ef:`);
+  lines.push(`                  with open(EVENTS_FILE, 'r', encoding='utf-8') as ef:`);
   lines.push(`                      for line in ef:`);
   lines.push(`                          line = line.strip()`);
   lines.push(`                          if not line: continue`);
@@ -1253,10 +1265,18 @@ export function generateImplProvenanceWorkflow(): string {
   lines.push(`                          if ev.get('event_kind') != 'redqueen_decisions': continue`);
   lines.push(`                          digest_present = True`);
   lines.push(`                          event_sha = (ev.get('payload') or {}).get('log_sha256')`);
+  lines.push(`                          event_sha_seen = True`);
   lines.push(`              except Exception:`);
-  lines.push(`                  continue`);
-  lines.push(`          if digest_present and event_sha is not None and log_sha is not None:`);
-  lines.push(`              digest_match = (event_sha == log_sha)`);
+  lines.push(`                  pass`);
+  lines.push(`          # Codex r3 finding 2 — honest-zero: the runner emits a digest event`);
+  lines.push(`          # with log_sha256=null when no decision log was committed. A null`);
+  lines.push(`          # event_sha against a null log_sha is a MATCH (both say "no log"),`);
+  lines.push(`          # not a mismatch. Otherwise an honest-zero run reads "digest ✗".`);
+  lines.push(`          if digest_present and event_sha_seen:`);
+  lines.push(`              if event_sha is None and log_sha is None:`);
+  lines.push(`                  digest_match = True`);
+  lines.push(`              elif event_sha is not None and log_sha is not None:`);
+  lines.push(`                  digest_match = (event_sha == log_sha)`);
   lines.push(`          out = os.environ['GITHUB_OUTPUT']`);
   lines.push(`          with open(out, 'a', encoding='utf-8') as gh:`);
   lines.push(`              gh.write('rq_present=' + ('true' if present else 'false') + '\\n')`);
@@ -1295,12 +1315,19 @@ export function generateImplProvenanceWorkflow(): string {
   lines.push(`            // "verified" = chainOk AND digest matches the committed log. A present`);
   lines.push(`            // event whose signature is NOT chain-verified (or whose digest doesn't`);
   lines.push(`            // match) is reported as "digest event present" only — never "signed".`);
-  lines.push(`            const rqVerified = rqDigestPresent && rqDigestMatch && chainOk;`);
-  lines.push(`            const rqDetail = rqVerified`);
-  lines.push(`              ? ('signed & verified · digest ✓ · ' + rqAllowed + ' allowed / ' + rqDenied + ' denied')`);
-  lines.push(`              : rqDigestPresent`);
-  lines.push(`                ? ('digest event present · ' + (rqDigestMatch ? 'digest ✓' : 'digest ✗ (mismatch)') + (chainOk ? '' : ' · chain unverified') + ' · ' + rqAllowed + ' allowed / ' + rqDenied + ' denied')`);
-  lines.push(`                : (rqPresent ? (rqAllowed + ' allowed / ' + rqDenied + ' denied · unsigned (runner upgrade pending)') : 'no .redqueen/audit-log.jsonl committed (advisory — not gated)');`);
+  lines.push(`            // Codex r3 finding 2 — honest-zero: a digest event present with NO`);
+  lines.push(`            // committed decision log (rqPresent=false) is a legitimate "nothing`);
+  lines.push(`            // to sign" run, not a verified-governance claim. Report it plainly`);
+  lines.push(`            // rather than "signed & verified".`);
+  lines.push(`            const rqHonestZero = rqDigestPresent && !rqPresent;`);
+  lines.push(`            const rqVerified = rqDigestPresent && rqPresent && rqDigestMatch && chainOk;`);
+  lines.push(`            const rqDetail = rqHonestZero`);
+  lines.push(`              ? 'digest event present · no decision log (no governed tool calls captured)'`);
+  lines.push(`              : rqVerified`);
+  lines.push(`                ? ('signed & verified · digest ✓ · ' + rqAllowed + ' allowed / ' + rqDenied + ' denied')`);
+  lines.push(`                : rqDigestPresent`);
+  lines.push(`                  ? ('digest event present · ' + (rqDigestMatch ? 'digest ✓' : 'digest ✗ (mismatch)') + (chainOk ? '' : ' · chain unverified') + ' · ' + rqAllowed + ' allowed / ' + rqDenied + ' denied')`);
+  lines.push(`                  : (rqPresent ? (rqAllowed + ' allowed / ' + rqDenied + ' denied · unsigned (runner upgrade pending)') : 'no .redqueen/audit-log.jsonl committed (advisory — not gated)');`);
   lines.push(`            bodyMd += \`| \${rqPresent ? 'ℹ️' : '➖'} | Red Queen decisions (advisory) | \${rqDetail} |\\n\`;`);
   lines.push(`            bodyMd += '\\n---\\n🔴 Generated by [The Red Queen](https://maintainability.ai) — implementation provenance gate';`);
   lines.push(`            await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number, body: bodyMd });`);
