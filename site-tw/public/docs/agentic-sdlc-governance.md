@@ -1540,7 +1540,7 @@ STRIDE alone doesn't cover agent-specific failure modes like goal drift, evidenc
       <p class="docs-proof-title">AEGIS Pre-Execution Firewall</p>
       <p class="docs-proof-body"><strong>Executive question:</strong> can the agent act before policy sees it? Skill calls are recorded by the runtime, file changes are re-derived by the workflow, review judgments are signed by the agent, and Red Queen records hook / MCP decisions before the side effect proceeds.</p>
     </div>
-    <div class="docs-proof-evidence"><strong>Proof:</strong> Hatter events are hash-chained and signed today; Red Queen logs are durable JSONL today and join the signed chain in Queen's Next Act. <br><a href="https://arxiv.org/abs/2603.12621">arXiv 2603.12621</a></div>
+    <div class="docs-proof-evidence"><strong>Proof:</strong> Hatter events are hash-chained and signed today. The Red Queen's decision log is durable JSONL today; a finalize-time signing step now folds it onto the implementation chain as a signed digest (in progress — advisory in the provenance gate, pending a live cert run before it gates). <br><a href="https://arxiv.org/abs/2603.12621">arXiv 2603.12621</a></div>
   </div>
   <div class="docs-proof-row">
     <span class="docs-proof-status docs-proof-status-partial">🛠 Partial</span>

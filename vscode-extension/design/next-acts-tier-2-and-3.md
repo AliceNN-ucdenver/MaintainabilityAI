@@ -9,7 +9,7 @@
 > From here, the tracks:
 >
 > - **Tier 2 -- BUILD fan-out -- ✅ SHIPPED.** The cross-repo hand-off from WHAT (mesh-side code-design merge) to implementation PRs in target code repos is complete. All seven work items landed: D-PR3 (reference-repos Skill), D-PR4-prep (coordination contract in code-design), D-PR4 (app-side fan-out engine), D-PR5 (Stage 5 card), D-PR6 (E2E smoke), D-PR7 (implementation-agent template), D-PR8 (implementation chain in rollup). Post-cert hardening (six fixes found during cert testing 2026-05-30) is captured at the end of the Tier 2 section.
-> - **Tier 2.5 -- Queen's Next Act (complete the Red Queen enforcement chain) -- 🚧 NEXT.** Everything that finishes the Red Queen's evidence story, in three slices: **(a)** sign the enforcement chain -- the impl-provenance gate Tier 2 shipped already READS the Red Queen decision log (`rq_present`/`rq_allowed`/`rq_denied`), but that log is unsigned plain JSONL; fold those action-time allow/deny/override decisions into the same per-event Ed25519 chain a Hatter rollup verifies; **(b)** the `redqueen-action` standalone hard gate (AST semantic diff + contract diffs); **(c)** cross-chain inclusion proofs + SIEM/CloudEvents export. Slice (a) is the MVP and rides the seam Tier 2 built (promoted from the old T3-2). See the Tier 2.5 section below.
+> - **Tier 2.5 -- Queen's Next Act (complete the Red Queen enforcement chain + guard the evidence boundary) -- 🚧 NEXT.** Everything that finishes the Red Queen's evidence story, in four slices: **(a)** sign the enforcement chain -- the impl-provenance gate Tier 2 shipped already READS the Red Queen decision log (`rq_present`/`rq_allowed`/`rq_denied`), but that log is unsigned plain JSONL; fold those action-time allow/deny/override decisions into the same per-event Ed25519 chain a Hatter rollup verifies; **(b)** the `redqueen-action` standalone hard gate (AST semantic diff + contract diffs); **(c)** cross-chain inclusion proofs + SIEM/CloudEvents export; **(d)** Oracle Guardrails + Privacy Rails for skills and audit evidence. Slice (a) is the MVP and rides the seam Tier 2 built (promoted from the old T3-2); slice (d) is the next protection layer for STRIDE EoP / information-disclosure risks at the skill boundary. See the Tier 2.5 section below.
 > - **Tier 3 -- auditor hardening.** Pure trust-posture / chief-auditor work from the seven Codex review rounds during Phase E: cosign-anchored signing (Knight's Seal v2), redacted external bundles, prompt-pack signature verification, org-separation on dual signature. No Red Queen enforcement work lives here -- that all moved up to Tier 2.5 (Queen's Next Act).
 >
 > Tier 1 is closed: live cert-run + onboarding pack. Tier 2 is shipped. This doc enumerates the Tier 2 record, the Tier 2.5 next act, and Tier 3.
@@ -22,7 +22,7 @@
 |---|---|---|
 | **Tier 1** | ✅ shipped | Live whole-OKR cert run on `OKR-2026Q2-IMDB-001-celeb-api` returns `VERDICT: ✅ PASS`; onboarding pack live at [`/docs/onboarding/`](../site-tw/public/docs/onboarding/index.md); marketing page strengthened with the actual PASS rollup specifics. |
 | **Tier 2** | ✅ shipped | The fan-out pipeline D-PR3..D-PR8 all landed; the cert run exists. IMDB-Celebs sample OKR walks the whole way: WHY → HOW → WHAT → fan-out (with `depends_on` topological ordering) → implementation PRs landing in dependency waves → whole-OKR rollup `VERDICT: ✅ PASS` with the implementation chain rollup section populated. Three target repos cover the matrix: one brownfield-with-harness, one brownfield-needing-retrofit (manual prompt), one greenfield (auto-scaffold via Cheshire). Post-cert hardening (2026-05-30) captured at the end of the Tier 2 section. |
-| **Tier 2.5 -- Queen's Next Act** | 🚧 next | Complete the Red Queen enforcement chain: **(a)** sign the action-time allow/deny/override decision log into the same per-event Ed25519 chain a Hatter rollup verifies (MVP); **(b)** the `redqueen-action` standalone hard gate (AST + contract diffs); **(c)** cross-chain inclusion proofs + SIEM/CloudEvents export. |
+| **Tier 2.5 -- Queen's Next Act** | 🚧 next | Complete the Red Queen enforcement chain and evidence-boundary controls: **(a)** sign the action-time allow/deny/override decision log into the same per-event Ed25519 chain a Hatter rollup verifies (MVP); **(b)** the `redqueen-action` standalone hard gate (AST + contract diffs); **(c)** cross-chain inclusion proofs + SIEM/CloudEvents export; **(d)** Oracle Guardrails + Privacy Rails for skill inputs, retrieved evidence, and audit retention. |
 | **Tier 3 -- auditor hardening** | 🚧 queued | (a) Knight's Seal v2 third-party verifiable via cosign; (b) one-button redacted export bundle for regulators; (c) prompt-pack signature verification on load; (d) org-separation enforced on dual-signature override. Pure trust-posture; no Red Queen enforcement work. |
 
 The single canonical reference is [`agentic-sdlc.md`](agentic-sdlc.md). Everything below should be read alongside it.
@@ -38,9 +38,10 @@ Single source of truth for what's open. When an item ships, flip it here AND in 
 | **Signed Red Queen enforcement chain** | Tier 2.5 · slice (a, MVP) | STRIDE row `🛠` line ~1595 + card line ~1543 | Gap 1 (SIEM) + Gap 13 (`redqueen-action`) | CLAUDE.md "Planned 🚧"; marketing `red-queens-court.md` "Queen's Next Act" |
 | **`redqueen-action` standalone hard gate (AST diff / contract diffs)** | Tier 2.5 · slice (b) | — | Gap 13 / "Phase 9" | CLAUDE.md "Planned 🚧" |
 | **Cross-chain inclusion proofs + SIEM/CloudEvents export** | Tier 2.5 · slice (c) | — | Gap 1 | CLAUDE.md "Planned 🚧" |
+| **Oracle Guardrails + Privacy Rails for skills/audit** | Tier 2.5 · slice (d) | EoP + Info Disclosure rows; ASTRIDE prompt-injection / memory-poisoning controls | Gap (harness) + privacy/audit-retention hardening | Marketing pages should explain "Red Queen governs actions; Oracle Rails govern evidence entering the chain" once shipped |
 | **Knight's Seal v2 (cosign/sigstore)** | Tier 3 · T3-1 | "Repudiate" row (persistent verifiability "next act") line ~1505 | Gap 8 | — |
 | **Redacted external bundle** | Tier 3 · T3-3 | Info-disclosure `⚠` line ~1508 + proof card ~1457 | Gap 11 | — |
-| **Prompt injection / sanitization** | (not in this doc) | EoP `⚠` line ~1513; ASTRIDE | Gap (harness) | — |
+| **Prompt injection / sanitization** | Tier 2.5 · slice (d) | EoP `⚠` line ~1513; ASTRIDE | Gap (harness) | — |
 
 ---
 
@@ -568,13 +569,14 @@ Six fixes that landed after the Tier 2 cert run while exercising the fan-out mat
 
 ---
 
-## Tier 2.5 · Queen's Next Act — complete the Red Queen enforcement chain
+## Tier 2.5 · Queen's Next Act — complete the Red Queen chain and guard the evidence boundary
 
-The Red Queen's evidence story, finished. The Hatter side (planning + implementation) already signs every event; the Red Queen's own action-time decisions do not yet join that signed chain. Tier 2.5 is the whole Queen's Next Act, in three sequenced slices:
+The Red Queen's evidence story, finished. The Hatter side (planning + implementation) already signs every event; the Red Queen's own action-time decisions do not yet join that signed chain. The next testing wave also showed a second boundary: Red Queen governs what the agent may do, but oracle/search skills still need their own rails so untrusted evidence cannot become an instruction, leak PII, or poison the audit record. Tier 2.5 is the whole Queen's Next Act, in four sequenced slices:
 
 - **(a) Sign the enforcement chain — MVP (T2.5a below).** The impl-provenance gate Tier 2 shipped already READS the Red Queen decision log (`rq_present` / `rq_allowed` / `rq_denied`), but that log is **unsigned plain JSONL** (confirmed by the celeb-api PR #8 audit). Hash-chain + per-epoch Ed25519 it via the same `audit-emit-event` / `audit-verify-chain` contract the planning side uses, and have the gate/rollup **verify** it (not just count). Rides the seam Tier 2 built — smallest first slice.
 - **(b) `redqueen-action` standalone hard gate (T2.5b).** AST semantic diff + per-file import/layer-graph enforcement + contract diffs as a dedicated required status check (roadmap Gap 13 / "Phase 9"). Sketched, needs design.
 - **(c) Cross-chain inclusion proofs + SIEM/CloudEvents export (T2.5c).** Tie the signed enforcement chain to the planning-intent chain and emit unified Hatter ↔ Red Queen evidence to a SIEM (roadmap Gap 1). Sketched, needs design.
+- **(d) Oracle Guardrails + Privacy Rails (T2.5d).** Guard the skill boundary: query inputs, provider results, dedupe/source registry, synthesis, Red Queen logs, and audit/export retention. Deterministic checks enforce the hard contract; optional NeMo Guardrails-style rails add semantic classification for prompt injection, topic drift, hostile retrieval chunks, and PII.
 
 Auditor-hardening work (cosign, redacted bundle, prompt-pack signing, org-separation) is **Tier 3**, not here.
 
@@ -606,6 +608,43 @@ Auditor-hardening work (cosign, redacted bundle, prompt-pack signing, org-separa
 
 - **Goal.** Tie the (now-signed) Red Queen enforcement chain to the planning-intent chain via inclusion proofs, and emit unified Hatter ↔ Red Queen evidence as CloudEvents to a SIEM. Roadmap Gap 1.
 - **Status.** Sketched; needs design. Sequenced last.
+
+### T2.5d · Oracle Guardrails + Privacy Rails for skills and audit evidence
+
+- **Goal.** Add a guardrail envelope around governed skills and audit persistence so untrusted oracle/search content is never treated as an instruction, PII is not retained accidentally, and every guardrail decision is visible in the audit record. This is the STRIDE protection layer that sits beside Red Queen: **Red Queen governs actions; Oracle Rails govern evidence entering the chain; Privacy Rails govern what evidence may be retained.**
+- **Why.** The WHY/HOW/WHAT agents depend on external oracles (`tavily-search`, `arxiv-search`, `uspto-search`, `hackernews-search`) and mesh/code skills. Those results can carry prompt injection, poisoned snippets, malformed URLs, PII, secret-like strings, or source text that tries to steer the agent. The current deterministic source-registry hardening proves "this source existed and was cited"; T2.5d adds "this source was safe enough to enter the chain, and sensitive data was redacted or refused before retention."
+- **Correctness stance.**
+  - Deterministic checks are the hard gate. They run first, are testable offline, and produce stable verdicts.
+  - NeMo Guardrails-style rails are optional semantic classifiers at first. They can return `PASS | WARN | BLOCK | NEEDS_REVIEW`, but a model-based verdict must be recorded with config hash, model/version, input hash, output hash, and reason. Do not make an unpinned model rail the only source of truth for a hard gate.
+  - All rails are evidence, not magic. A blocked query/result/export names the rule, the input class, the remediation, and the audit event id.
+- **Guardrail envelope.**
+  1. **Skill input rail.** Before the provider call: validate query length/count, provider allowlist, URL/domain constraints, secret-like strings, internal repo paths, PII patterns, and prompt-injection phrasing ("ignore instructions", "exfiltrate", "act as system", etc.). Hard-fail deterministic violations; annotate semantic risk.
+  2. **Retrieval/result rail.** After provider results: normalize URLs, strip HTML/scripts, reject malformed or private-network URLs, classify snippets/abstracts as untrusted, detect prompt-injection text inside titles/snippets, hash-pin raw provider response when retained, and mark provider-degraded cases honestly.
+  3. **Source-registry rail.** Before dedupe and synthesis: every retained source gets `source_id`, normalized URL, provider, title, raw/result hash, guardrail verdict, and redaction summary. Dedupe never drops the guardrail provenance.
+  4. **Synthesis/output rail.** Before artifact write: every formal conclusion cites source ids; every cited source exists in the registry; no oracle text appears as instructions; no private PII/secret value leaks into the artifact.
+  5. **Audit-retention rail.** Before `skill_call` payloads, Red Queen logs, source registries, and exports are persisted: scan for PII/secrets; store class/count/hash/redacted preview instead of raw sensitive values; keep enough hash material for replay without retaining the sensitive string.
+- **STRIDE mapping.**
+  - **Spoofing:** source identity checks, canonical URL/domain normalization, provider allowlist.
+  - **Tampering:** raw result hashes, source-registry hashes, guardrail verdict hashes.
+  - **Repudiation:** every rail decision is attached to a `skill_call` or guardrail block with rule id + event id.
+  - **Information Disclosure:** PII/secret detection and redaction before audit persistence/export.
+  - **Denial of Service:** query budgets, provider result caps, fan-out/search-rate caps, timeout/degraded states.
+  - **Elevation of Privilege:** external search text cannot become instructions; execution rails validate tool inputs/outputs before the agent acts on them.
+- **Implementation shape.**
+  - Add a pure `SkillGuardrailEnvelope` in the runner and call it around oracle skills first: `tavily-search`, `arxiv-search`, `uspto-search`, `hackernews-search`, then `dedupe-and-rank`.
+  - Store rail output inside existing `skill_call.payload.guardrails` first. Avoid inventing a new event kind until the data model proves stable.
+  - Add a shared redaction helper used by audit JSONL, source registry, Red Queen log summary, and audit export.
+  - Add optional NeMo config under a versioned path (for example `.caterpillar/guardrails/oracle/`) with a config hash recorded in each verdict. If NeMo is unavailable, deterministic rails still run and the semantic rail reports `not-invoked`, not `pass`.
+- **Acceptance.**
+  - Fixture tests for malicious query strings, prompt-injection snippets, malformed/private URLs, PII in provider snippets, secret-like tokens, oversized result sets, and safe happy paths.
+  - A WHY run with hostile fixture provider results passes only when unsafe text is quarantined/redacted and the artifact cites only registry-safe sources.
+  - Audit export shows a compact guardrail summary: inputs blocked/warned, result chunks blocked/warned, PII classes redacted, and exact rule ids.
+  - No raw PII/secret fixture value appears in audit JSONL, source registry, report export, or PR comment.
+- **Design docs to read first.**
+  - [`agentic-sdlc-marketresearcher.md`](agentic-sdlc-marketresearcher.md) -- oracle/search skill protocol and source-registry expectations.
+  - [`audit-event-shape.md`](audit-event-shape.md) -- event-kind/origin contract; start with `skill_call.payload.guardrails` rather than new event kinds.
+  - [`governance-redqueen.md`](governance-redqueen.md) -- Red Queen action gate; T2.5d complements it rather than replacing it.
+- **Sequencing.** Build deterministic rails first, prove them with fixtures, then add optional NeMo semantic rails. Start with WHY oracle skills; extend to implementation/code skills only after the source-registry and audit-retention contracts are stable.
 
 ---
 
@@ -718,6 +757,7 @@ Every Tier 2 + Tier 3 work-item should apply these.
 | **D-PR8** implementation chain in rollup | **[`agentic-sdlc.md`](agentic-sdlc.md) §11.6 + §11.7** | T2.5 spec (downstream hardening) |
 | **T3-1** Knight's Seal v2 | **[`agentic-sdlc-futurethoughts.md`](agentic-sdlc-futurethoughts.md) §2** | [`agentic-sdlc.md`](agentic-sdlc.md) §11.5; cosign docs |
 | **T2.5** Red Queen signed enforcement chain | **[`governance-redqueen.md`](governance-redqueen.md) §2 + §4.5 + §4.5.1** | D-PR8 (builds on); [`agentic-sdlc.md`](agentic-sdlc.md) §11.6, [`audit-event-shape.md`](audit-event-shape.md) |
+| **T2.5d** Oracle Guardrails + Privacy Rails | **This doc's T2.5d section** + [`agentic-sdlc-marketresearcher.md`](agentic-sdlc-marketresearcher.md) | [`audit-event-shape.md`](audit-event-shape.md), [`governance-redqueen.md`](governance-redqueen.md), source-registry hardening from WHY cert runs |
 | **T3-3** Redacted external bundle | **[`agentic-sdlc.md`](agentic-sdlc.md) §11.7** | [`agentic-sdlc-futurethoughts.md`](agentic-sdlc-futurethoughts.md) §4, [`governance-prompt-packs.md`](governance-prompt-packs.md) |
 | **T3-4** Org-separation override | **[`agentic-sdlc.md`](agentic-sdlc.md) §10.9** | [`governance-redqueen.md`](governance-redqueen.md) §4.5, [`agentic-sdlc.md`](agentic-sdlc.md) §13 line 1779 |
 | **T3-5** Prompt-pack signature | **[`governance-prompt-packs.md`](governance-prompt-packs.md) + [`agentic-sdlc-futurethoughts.md`](agentic-sdlc-futurethoughts.md) §2** | [`agentic-sdlc.md`](agentic-sdlc.md) §6 |
@@ -747,11 +787,12 @@ Every Tier 2 + Tier 3 work-item should apply these.
 **Track B -- Tier 3 (parallel-able after Tier 2; T3-1 first):**
 
 1. **T3-1** (Knight's Seal v2) -- prerequisites for T3-5; valuable on its own. ~1 week with sigstore integration testing.
-2. **T2.5** (Red Queen signed chain) -- depends on Tier 2's D-PR8 cross-repo threading. ~1-2 weeks.
-3. **T3-5** (prompt-pack signing) -- after T3-1 ships. ~3-5 days.
-4. **T3-3** (redacted bundle) -- depends on T2.5. ~1 week.
-5. **T3-4** (org-separation override) -- independent; ~3-5 days.
-6. **T3-6** + **T3-7** -- research/non-goal capture.
+2. **T2.5a** (Red Queen signed chain) -- depends on Tier 2's D-PR8 cross-repo threading. ~1-2 weeks.
+3. **T2.5d** (Oracle Guardrails + Privacy Rails) -- can run alongside Queen's Next Act testing after T2.5a is stable; deterministic runner envelope first, optional NeMo rails second. ~1 week for oracle-skill MVP.
+4. **T3-5** (prompt-pack signing) -- after T3-1 ships. ~3-5 days.
+5. **T3-3** (redacted bundle) -- depends on T2.5. ~1 week.
+6. **T3-4** (org-separation override) -- independent; ~3-5 days.
+7. **T3-6** + **T3-7** -- research/non-goal capture.
 
 **Don't sequence the Codex review rounds.** Treat them as continuous -- each PR gets a chief-auditor read before merge, same posture as Phase E.
 
@@ -776,6 +817,7 @@ Every Tier 2 + Tier 3 work-item should apply these.
 - [ ] T2.5a shipped: Red Queen decision log is hash-chained + per-epoch Ed25519-signed via the same contract the planning side uses; whole-OKR rollup includes a runner-verified per-target-repo `## Implementation chain (Red Queen)` section (extends D-PR8); cross-repo verify-chain walks across repos.
 - [ ] T2.5b shipped/captured: `redqueen-action` standalone hard gate (AST + contract diffs) as a required status check.
 - [ ] T2.5c shipped/captured: cross-chain inclusion proofs + SIEM/CloudEvents export.
+- [ ] T2.5d shipped/captured: Oracle Guardrails + Privacy Rails wrap oracle skills and audit/export retention. Deterministic rails enforce query/result/source-registry/synthesis/privacy checks; optional NeMo semantic rails are recorded with config/model hashes and never become the only hard gate. No raw PII/secret fixture values persist in audit JSONL, source registry, rollup, or PR comments.
 
 ### Tier 3 done-done (auditor hardening)
 

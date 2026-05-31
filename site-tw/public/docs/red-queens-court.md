@@ -253,7 +253,7 @@ The two modalities cross paths at the hand-off from design to implementation. Th
 
 The Hatter evidence chain now continues into implementation. The impl PR carries a continuation block in its body; on merge, Looking Glass fetches the impl chain's events file and public key from the target repo at the merge commit SHA, verifies they exist at that exact SHA, and stamps a row on the mesh's `chain-ladder.yaml`. The planning story and the implementation story are stitched at the commit hash — one signed evidence trail, two rooms.
 
-What is **not** yet stitched: the Red Queen's own decision log. Today, the impl agent's signed events live in the same trust model as the Hatter's; the Red Queen's per-decision audit records of allow / warn / deny / override sit alongside but are not yet folded into that same per-event Ed25519 chain. Folding them in is Queen's Next Act.
+Being stitched now: the Red Queen's own decision log. The impl agent's signed events already live in the same trust model as the Hatter's; the Red Queen's per-decision audit records of allow / warn / deny / override sat alongside but outside that chain. A finalize-time signing step now folds them in — it signs a digest of the decision log onto the same per-event Ed25519 implementation chain. It runs **advisory** in the provenance gate today and is **pending a live cert run** before it becomes a hard check. Promoting it to gating, plus the standalone hard merge gate, is the rest of Queen's Next Act.
 
 
 
@@ -273,11 +273,11 @@ Today the Red Queen makes deterministic policy decisions at the repo boundary an
     </div>
   </div>
   <div class="docs-gap-row">
-    <div class="docs-gap-status docs-gap-status-queued">Queued</div>
+    <div class="docs-gap-status docs-gap-status-progress">In progress</div>
     <div>
       <div class="docs-gap-title">Signed enforcement chain</div>
-      <p class="docs-gap-body">The implementation agent's events are already signed under the Hatter trust model, written into the target repo's <code>.maintainability/audit/</code>, and stitched back to the mesh ladder at the merge commit SHA. The remaining gap: Red Queen allow, warn, deny, and override <em>decision</em> events still live in a local decision log. They need to move into the same per-event Ed25519 chain, signed by their legitimate author at the moment of decision.</p>
-      <p class="docs-gap-next"><strong>Next:</strong> sign enforcement events by their legitimate author: runtime for observed tool attempts, workflow for GitHub state, agent or human session for judgments and overrides.</p>
+      <p class="docs-gap-body">The implementation agent's events are already signed under the Hatter trust model, written into the target repo's <code>.maintainability/audit/</code>, and stitched back to the mesh ladder at the merge commit SHA. A finalize-time signing step now folds the Red Queen's allow / warn / deny / override <em>decision</em> log into that same per-event Ed25519 chain — it signs a digest of the decision log as the implementation agent's last governed action and the provenance gate cross-checks it. It is <strong>advisory</strong> today (it reports, it does not block) and <strong>pending a live cert run</strong> before it gates.</p>
+      <p class="docs-gap-next"><strong>Next:</strong> validate it on a live fan-out run, then promote the gate's Red Queen digest check from advisory to a required status.</p>
     </div>
   </div>
   <div class="docs-gap-row">
