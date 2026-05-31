@@ -2010,6 +2010,10 @@ const AuditEmitInput = z.object({
     'redqueen_decisions',
     // Workflow-emitted (unsigned, re-derivable from canonical sources):
     'artifact_written', 'state_transition', 'human_gate',
+    // Oracle & Privacy Rails (Phase 2) — audit-time rail verdict. REPLAYED,
+    // not signed: re-derivable by re-running the pinned rail over the committed
+    // artifact + source registry. Workflow-origin, unsigned.
+    'rail_decision',
   ]),
   payload: z.record(z.string(), z.unknown()),
   // Codex-r3 Bug 1 — `'implementation'` is the Tier 2 hand-off phase. Run
@@ -2041,6 +2045,8 @@ const InternalAuditEmitInput = z.object({
     'redqueen_decisions',
     // Workflow (unsigned, allowlisted):
     'artifact_written', 'state_transition', 'human_gate',
+    // Oracle & Privacy Rails (Phase 2) — audit-time rail verdict, replayed.
+    'rail_decision',
   ]),
   payload: z.record(z.string(), z.unknown()),
   // Codex-r3 Bug 1 — match AuditEmitInput. Runtime auto-emission for
@@ -2098,6 +2104,10 @@ const EVENT_KIND_ORIGIN: Record<string, 'runtime' | 'agent' | 'workflow'> = {
   artifact_written: 'workflow',
   state_transition: 'workflow',
   human_gate: 'workflow',
+  // Oracle & Privacy Rails (Phase 2) — audit-time rail verdict. Unsigned and
+  // re-derivable: the verifier RE-RUNS the pinned rail over the committed
+  // artifact + source registry and compares (replay, not signature).
+  rail_decision: 'workflow',
 };
 
 /**
@@ -2134,6 +2144,7 @@ const WORKFLOW_EMITTABLE_KINDS = new Set<string>([
   'artifact_written',  // workflow re-derives from `git diff`
   'state_transition',  // workflow infrastructure events (label flips)
   'human_gate',        // workflow gate events (PR reviewer state)
+  'rail_decision',     // Oracle rail verdict — re-derived by re-running the pinned rail (replay)
 ]);
 
 /**

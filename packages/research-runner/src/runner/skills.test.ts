@@ -814,6 +814,32 @@ test('audit-verify-chain accepts a runner-authored chain', async () => {
   } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
 });
 
+test('audit-verify-chain accepts a workflow-emitted rail_decision (Oracle rail — unsigned, replayable)', async () => {
+  const mesh = tmpMesh();
+  try {
+    await withMeshPath(mesh, async () => {
+      const base = { okrId: 'OKR-RAIL', runId: 'WHY-RAIL-1', phase: 'why' as const, intentThreadUuid: '55555555-5555-5555-5555-555555555555' };
+      await emitRuntimeKnowledgeOkrForTest(base);
+      const emit = await runSkill('audit-emit-event', {
+        ...base,
+        eventKind: 'rail_decision',
+        payload: { rail: 'pii', verdict: 'pass', report_path: 'okrs/OKR-RAIL/audit/rails/WHY-RAIL-1.rail-report.json', report_sha256: 'a'.repeat(64) },
+      });
+      assert.equal(emit.ok, true, 'rail_decision is workflow-emittable via the CLI');
+      const verify = await runSkill('audit-verify-chain', { okrId: 'OKR-RAIL', runId: 'WHY-RAIL-1' });
+      assert.equal(verify.ok, true, 'chain carrying a workflow rail_decision verifies');
+      const lines = fs.readFileSync(path.join(mesh, 'okrs', 'OKR-RAIL', 'audit', 'events', 'WHY-RAIL-1.jsonl'), 'utf8')
+        .split('\n').filter(Boolean).map(l => JSON.parse(l));
+      const rail = lines.find(e => e.event_kind === 'rail_decision');
+      assert.ok(rail, 'rail_decision event written to the chain');
+      assert.equal(rail.payload.emitted_by, 'workflow', 'runner stamps workflow origin from the kind map');
+      assert.equal(rail.signature, '', 'workflow rail_decision is unsigned — empty signature (replayed, not signed)');
+      assert.equal(rail.signer_epoch ?? null, null, 'workflow rail_decision carries no signer_epoch');
+      assert.equal(rail.public_key ?? null, null, 'workflow rail_decision embeds no public key');
+    });
+  } finally { fs.rmSync(mesh, { recursive: true, force: true }); }
+});
+
 test('audit-verify-chain rejects a fabricated chain (PR #105 scenario)', async () => {
   const mesh = tmpMesh();
   try {
