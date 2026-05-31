@@ -40,6 +40,7 @@ import { dedupeAndRank } from './nodes/dedupe-and-rank';
 import type { ProviderResult } from '../search/provider-result';
 import type { RankedSource } from '../schemas';
 import { readSessionContext, type SessionContext } from './session-context';
+import { withGuardrails } from './guardrails/envelope';
 
 /**
  * Shape every skill returns. Tagged union so the agent can branch on `ok`.
@@ -3059,11 +3060,16 @@ export const SKILLS: Record<string, SkillHandler> = {
   // round 2 / B1: agent was hallucinating brownfield file paths
   // because the substrate was structural metadata only).
   'knowledge-code-read': handleKnowledgeCodeRead,
-  'tavily-search': handleTavilySearch,
-  'arxiv-search': handleArxivSearch,
-  'uspto-search': handleUsptoSearch,
-  'hackernews-search': handleHackerNewsSearch,
-  'dedupe-and-rank': handleDedupeAndRank,
+  // Oracle & Privacy Rails (Phase 1) — wrap the evidence-boundary skills
+  // in the Layer-1 deterministic guardrail envelope. Verdicts fold into the
+  // signed `skill_call.payload.guardrails` via runSkill's auditMetadata
+  // merge (no new event kind). The authoritative injection/PII/groundedness
+  // gate is the local Python CI replay step (Phases 2-4), not this layer.
+  'tavily-search': withGuardrails('tavily-search', handleTavilySearch),
+  'arxiv-search': withGuardrails('arxiv-search', handleArxivSearch),
+  'uspto-search': withGuardrails('uspto-search', handleUsptoSearch),
+  'hackernews-search': withGuardrails('hackernews-search', handleHackerNewsSearch),
+  'dedupe-and-rank': withGuardrails('dedupe-and-rank', handleDedupeAndRank),
   'format-research-issue-update': handleFormatResearchIssueUpdate,
   'audit-emit-event': handleAuditEmitEvent,
   'audit-verify-chain': handleAuditVerifyChain,

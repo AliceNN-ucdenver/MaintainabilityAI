@@ -150,6 +150,23 @@ Always merged flat (handler-declared via `result.auditMetadata` — per-skill ty
 
 The registry is a bounded audit support artifact, not a raw provider cache. It stores the same post-dedupe surface the synthesis agent is allowed to cite: `S[N]`, provider, queries, title, canonical URL, retrieved timestamp, salience score, excerpt, publication date, and authors where available. New WHY audits verify source tables against the hash-checked registry first and fall back to search `results_preview[]` for legacy runs.
 
+### `guardrails` (Oracle & Privacy Rails — present on every oracle `skill_call`)
+
+Phase 1 of the **Oracle & Privacy Rails** (see [`next-acts-tier-2-and-3.md`](next-acts-tier-2-and-3.md) § Oracle & Privacy Rails) wraps the four search skills + `dedupe-and-rank` in a pure Node `withGuardrails` envelope. Its verdict is merged into the `skill_call` payload as a single structured sub-object, `payload.guardrails` (the scalar metadata above is still flat — read `payload.guardrails.verdict`, not `payload.audit_metadata`). Because it rides the runtime `skill_call`, it is **signed** under the active per-epoch key like every other skill_call field.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `envelope_version` | string | Pins the deterministic-checks revision (`oracle-guardrails.det.v1`). |
+| `verdict` | string | `pass` \| `block` (call refused before the provider, e.g. budget / forbidden-path) \| `quarantined` (some results dropped before synthesis). |
+| `checks` | string[] | Which deterministic checks ran — provenance for replay. |
+| `findings` | object[] | Capped at 100 (incl. a `findings-truncated` marker). Per-finding: `rule` (string id), `boundary` (`input` \| `result`), `disposition` (`block` \| `quarantine` \| `annotate`), `detail` (bounded hint — **never a raw secret/PII value**; names the rule + a safe locator only), `ref?` (safe locator, e.g. `q#2` / `#5`). |
+| `queries_checked` | number | Queries the input rail screened. |
+| `results_in` | number | Provider/agent results the result rail saw. |
+| `results_safe` | number | Results that passed through to synthesis / the source registry. |
+| `results_quarantined` | number | `results_in − results_safe` (counts every quarantine, even when `findings` is truncated). |
+
+**This is the deterministic, non-authoritative layer.** It blocks input-budget / forbidden-path violations, quarantines unsafe-URL / non-allowlisted-provider / high-confidence-prompt-control-marker results, and annotates weak markers. The **authoritative** injection / PII / groundedness decision is the local Python CI audit step (Phases 2-4), which is **REPLAYED, not signed** — and, if it emits a `rail_decision` event, that event is `origin: workflow`, unsigned, and re-derived from the committed artifact + source registry. `rail_decision` is **not** in the `EVENT_KIND_ORIGIN` map yet; it lands with that phase. Phase 1 introduces **no new event kind**.
+
 ### `knowledge-code`
 
 | Field | Type | Meaning |
