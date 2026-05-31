@@ -106,8 +106,16 @@ describe('Bug-AAE Phase 2/3: standalone impl-provenance.yml gate', () => {
     // commit-time decisions — allow-only is benign, deny/override/unknown blocks.
     expect(wf).toMatch(/tail_bytes = len\(log_bytes\) - covered_bytes/);
     expect(wf).toMatch(/tail_clean = \(tail_other == 0\)/);
-    // honest-zero seal: covered_bytes/covered_sha both None → match (nothing read).
-    expect(wf).toMatch(/covered_bytes is None and covered_sha is None/);
+    // honest-zero seal: the runner emits covered_bytes=0 (the int, NOT null),
+    // so the gate must test `== 0`, never `is None`. Codex finding #1 — the
+    // old `is None` test sent a legitimate no-log seal into mismatch.
+    expect(wf).toMatch(/isinstance\(covered_bytes, int\) and covered_bytes == 0/);
+    // No 'or True' escape hatch — a malformed/forged seal must FAIL to match.
+    expect(wf).not.toMatch(/or True/);
+    // Codex finding #2 — a post-seal override (verdict 'allow' but a deny was
+    // bypassed) is routed to the flagged tail, not counted benign.
+    expect(wf).toMatch(/to = \(tp\.get\('override'\) is True\)/);
+    expect(wf).toMatch(/if tv == 'allow' and not to: tail_allowed \+= 1/);
     // Honest naming: "present" (event exists) is NOT "signed". No rq_signed.
     expect(wf).toMatch(/rq_digest_present=/);
     expect(wf).not.toMatch(/rq_signed=/);

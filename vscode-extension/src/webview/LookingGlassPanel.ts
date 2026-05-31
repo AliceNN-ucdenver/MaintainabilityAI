@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { execFileSync, spawn as childSpawn } from 'child_process';
+import { createHash } from 'crypto';
 import type {
   AbsolemCommand,
   ArchitectureDsl,
@@ -1867,8 +1868,15 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
    * read at `ref` when known). Returns undefined on any miss (file absent, no
    * digest event, fetch error) so the rollup omits the Red Queen subsection
    * cleanly. The digest event's SIGNATURE is validated by the runner's chain
-   * verifier elsewhere; here we only surface the (signed) counts + the
-   * log_sha256 so a reader can re-hash the committed log and confirm.
+   * verifier elsewhere; here we surface the (signed) counts + the sealed
+   * prefix's `covered_bytes`/`covered_sha256`.
+   *
+   * Codex finding #4 — the rollup now INDEPENDENTLY re-verifies the seal: it
+   * also fetches `.redqueen/audit-log.jsonl` at the same `ref`, re-hashes its
+   * first `covered_bytes`, compares to `covered_sha256`, and classifies the
+   * uncovered tail (decisions the agent's own post-seal commit appended). This
+   * is the auditor-grade move — the export does not merely trust the signed
+   * counts; it reproduces the gate's prefix re-hash client-side.
    */
   private async fetchRedqueenDigest(
     owner: string,
@@ -1909,18 +1917,78 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         reason: typeof o.reason === 'string' ? o.reason : undefined,
       };
     });
+    const coveredBytes = typeof payload.covered_bytes === 'number' ? payload.covered_bytes : null;
+    const coveredSha256 = typeof payload.covered_sha256 === 'string' ? payload.covered_sha256 : null;
+
+    // Codex finding #4 — independently re-verify the sealed prefix. Fetch the
+    // committed decision log at the same ref and re-hash its first
+    // `coveredBytes`; classify anything after as the uncovered tail. The
+    // committed JSONL is valid UTF-8, so Buffer.from(text,'utf8') reproduces
+    // the on-disk bytes the runner hashed — a byte-exact re-hash. Best-effort:
+    // any fetch miss leaves sealMatch null (unverified ≠ failed).
+    let sealMatch: boolean | null = null;
+    let tailCount = 0;
+    let tailOther = 0;
+    let tailClean = true;
+    try {
+      const logText = await this.githubService.getRepoFileText(owner, repo, '.redqueen/audit-log.jsonl', ref);
+      if (logText !== null) {
+        const logBuf = Buffer.from(logText, 'utf8');
+        const classifyTail = (from: number): void => {
+          const tail = logBuf.subarray(from).toString('utf8');
+          for (const ln of tail.split('\n')) {
+            const t = ln.trim();
+            if (!t) continue;
+            tailCount++;
+            let te: Record<string, unknown>;
+            try { te = JSON.parse(t) as Record<string, unknown>; }
+            catch { tailOther++; continue; }
+            const tp = (te.payload && typeof te.payload === 'object') ? te.payload as Record<string, unknown> : {};
+            const tv = typeof tp.verdict === 'string' ? tp.verdict
+              : (typeof te.verdict === 'string' ? te.verdict : undefined);
+            const to = tp.override === true || te.override === true;
+            // An override (verdict 'allow' but a deny was bypassed) is NOT a
+            // benign allow — route it to the flagged tail, same as the gate.
+            if (!(tv === 'allow' && !to)) { tailOther++; }
+          }
+          tailClean = tailOther === 0;
+        };
+        if (coveredBytes === 0) {
+          // honest-zero seal (runner read no log at sign time): a zero-byte
+          // prefix is vacuously sealed; the whole committed log is the tail.
+          sealMatch = true;
+          classifyTail(0);
+        } else if (coveredBytes !== null && coveredSha256 && coveredBytes <= logBuf.length) {
+          const prefixSha = createHash('sha256').update(logBuf.subarray(0, coveredBytes)).digest('hex');
+          sealMatch = prefixSha === coveredSha256;
+          if (sealMatch) { classifyTail(coveredBytes); }
+        } else {
+          // covered_bytes claims MORE than the committed log holds, or the
+          // seal is malformed — a real mismatch, never a benign tail.
+          sealMatch = false;
+        }
+      }
+    } catch {
+      sealMatch = null;
+    }
+
     return {
       coveredCount: num(payload.covered_count),
       allowed: num(payload.allowed),
       denied: num(payload.denied),
       overrides: num(payload.overrides),
-      coveredBytes: typeof payload.covered_bytes === 'number' ? payload.covered_bytes : null,
-      coveredSha256: typeof payload.covered_sha256 === 'string' ? payload.covered_sha256 : null,
+      coveredBytes,
+      coveredSha256,
       // "Seal present" — the event carries a signature string, but this is NOT
       // cryptographic verification (that's audit-verify-chain + the gate's
       // prefix re-hash). A hand-written line could set this; the rollup labels
       // it "seal present", not "signed", to avoid overstating provenance.
       digestPresent: typeof digestEvent.signature === 'string' && digestEvent.signature.length > 0,
+      // Codex finding #4 — the rollup's OWN prefix re-hash result.
+      sealMatch,
+      tailCount,
+      tailOther,
+      tailClean,
       denials,
     };
   }

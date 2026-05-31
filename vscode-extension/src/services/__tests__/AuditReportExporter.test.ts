@@ -2106,16 +2106,49 @@ describe('buildOkrRollupMarkdown — implementation chain section', () => {
       },
     });
     expect(md).toContain('## Implementation chain (Red Queen)');
-    // Seal column reads "present" (event found), NOT "signed"; present ≠
-    // cryptographically verified (that's the gate's prefix re-hash).
-    expect(md).toContain('| Repo | Seal | Sealed decisions |');
-    // coveredCount (7) renders in the Sealed-decisions column.
-    expect(md).toMatch(/\| `acme\/celeb-api` \| present \| 7 \| 5 \| 2 \| 1 \|/);
+    // Header gained a Tail column (Codex finding #4).
+    expect(md).toContain('| Repo | Seal | Sealed decisions | Allowed | Denied | Overrides | Tail | Prefix sha256 |');
+    // No sealMatch in the fixture (log not fetchable at this ref) → Seal reads
+    // "present" (event found), NOT "verified" — present ≠ re-hashed. Tail reads
+    // "clean" when no tailCount was computed.
+    expect(md).toMatch(/\| `acme\/celeb-api` \| present \| 7 \| 5 \| 2 \| 1 \| clean \|/);
     // Truncated covered-prefix sha256 surfaced for re-hash verification.
     expect(md).toContain('`deadbeefdead…`');
     // Denials detail block.
     expect(md).toContain('Red Queen denials (2)');
     expect(md).toContain('Write `secrets.env` [no-secrets] — blocked write to secret');
     expect(md).toContain('network egress denied');
+  });
+
+  it('Codex finding #4 — Seal column reflects the rollup\'s OWN prefix re-hash + tail classification', () => {
+    const mk = (rq: Partial<import('../AuditReportExporter').RedqueenDigest>) => buildOkrRollupMarkdown({
+      ...baseInput,
+      implementationChain: {
+        rows: [{
+          repoSlug: 'acme/celeb-api',
+          status: 'pr-merged',
+          prUrl: 'https://github.com/acme/celeb-api/pull/42',
+          chain: { ...FULL_CHAIN },
+          redqueenDigest: {
+            coveredCount: 18, allowed: 18, denied: 0, overrides: 0,
+            coveredBytes: 4096, coveredSha256: 'b881ff860f51'.padEnd(64, '0'),
+            digestPresent: true, denials: [],
+            ...rq,
+          },
+        }],
+        expectedIntentThread: FULL_CHAIN.parent_intent_thread,
+        expectedWhatChainRoot: FULL_CHAIN.parent_chain_root,
+      },
+    });
+    // Verified seal + an allow-only post-seal tail (the celeb-api #12 scenario:
+    // the agent's own commit appended 3 more allow decisions).
+    const verified = mk({ sealMatch: true, tailCount: 3, tailOther: 0, tailClean: true });
+    expect(verified).toMatch(/\| `acme\/celeb-api` \| verified ✓ \| 18 \|.*\| 3 \(allow-only\) \|/);
+    // Mismatch (tamper / wrong bytes) → Seal reads MISMATCH ✗.
+    const mismatch = mk({ sealMatch: false, tailCount: 0, tailOther: 0, tailClean: true });
+    expect(mismatch).toContain('MISMATCH ✗');
+    // A flagged tail (deny/override after the seal) → ⚠ marker with the count.
+    const dirty = mk({ sealMatch: true, tailCount: 2, tailOther: 1, tailClean: false });
+    expect(dirty).toMatch(/⚠ 2 \(1 flagged\)/);
   });
 });

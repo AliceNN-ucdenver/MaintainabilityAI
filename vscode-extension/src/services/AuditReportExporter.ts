@@ -1262,11 +1262,29 @@ export interface RedqueenDigest {
   allowed: number;
   denied: number;
   overrides: number;
-  /** Byte length of the sealed prefix (null = honest-zero, no log at seal). */
+  /** Byte length of the sealed prefix. The runner emits `0` for honest-zero
+   *  (no log read at sign time); `null` here means the field was absent/
+   *  malformed in the event. */
   coveredBytes: number | null;
   /** sha256 of the sealed prefix bytes (null = honest-zero). A reader re-hashes
    *  the first coveredBytes of the committed log to confirm. */
   coveredSha256: string | null;
+  /**
+   * Codex finding #4 — the rollup's OWN re-verification of the sealed prefix,
+   * computed by re-fetching `.redqueen/audit-log.jsonl` at the merge SHA and
+   * re-hashing its first `coveredBytes`. Independent of the gate.
+   *   - true  → committed prefix re-hashes to coveredSha256 (verified)
+   *   - false → mismatch (tamper / corruption / wrong byte count)
+   *   - null  → not checkable (decision log not fetched at this ref)
+   */
+  sealMatch?: boolean | null;
+  /** Decisions AFTER the sealed prefix — the agent's own post-seal commit-time
+   *  calls (the uncovered tail). 0 when the seal covered the whole log. */
+  tailCount?: number;
+  /** Flagged tail lines: deny / override / non-allow / unparseable. */
+  tailOther?: number;
+  /** True when the tail is allow-only (or empty) — benign post-seal housekeeping. */
+  tailClean?: boolean;
   /**
    * True when a `redqueen_decisions` event carrying a signature was FOUND in
    * the impl events JSONL. This is NOT proof of cryptographic verification —
@@ -1901,15 +1919,17 @@ ${tableRows.join('\n')}`;
  * allow/deny/override counts plus a bounded denials list when any deny
  * decisions were recorded.
  *
- * Honesty note: the column reads "Seal present" — it reflects only that a
- * `redqueen_decisions` event was PRESENT in the impl events JSONL, NOT that
- * its signature was cryptographically verified or its sealed prefix matched.
- * That verification is the impl-provenance gate's job (chain verify +
- * re-hash the first `coveredBytes` of the committed log). The Red Queen log
- * is a live append-only sidecar, so the seal covers the PREFIX the runner
- * read; `coveredSha256` lets a reader re-hash that prefix to confirm, and any
- * decisions after `coveredBytes` are the agent's own post-seal commit-time
- * tool calls (an uncovered tail the gate names separately).
+ * Codex finding #4 — the Seal column now reflects the rollup's OWN prefix
+ * re-hash (`sealMatch`), not merely event presence:
+ *   - `verified ✓`  — the committed log's first coveredBytes re-hash to
+ *                     coveredSha256 (the export reproduced the gate's check).
+ *   - `MISMATCH ✗`  — re-hash differed (tamper / corruption / wrong bytes).
+ *   - `present`     — event found but the decision log wasn't fetchable at
+ *                     this ref, so the prefix couldn't be re-hashed here.
+ *   - `—`           — no signed event.
+ * Anything after the sealed prefix is the agent's own post-seal commit-time
+ * tool calls (the uncovered tail): allow-only is benign, deny/override/
+ * non-allow is flagged in the Tail column.
  */
 function renderRedqueenSubsection(rows: ImplementationChainRow[]): string {
   const rqRows = rows.filter((r) => r.redqueenDigest);
@@ -1918,13 +1938,21 @@ function renderRedqueenSubsection(rows: ImplementationChainRow[]): string {
   lines.push('');
   lines.push('## Implementation chain (Red Queen)');
   lines.push('');
-  lines.push('| Repo | Seal | Sealed decisions | Allowed | Denied | Overrides | Prefix sha256 |');
-  lines.push('|---|:---:|---:|---:|---:|---:|---|');
+  lines.push('| Repo | Seal | Sealed decisions | Allowed | Denied | Overrides | Tail | Prefix sha256 |');
+  lines.push('|---|:---:|---:|---:|---:|---:|:---:|---|');
   for (const row of rqRows) {
     const d = row.redqueenDigest!;
-    const presentIcon = d.digestPresent ? 'present' : '—';
+    // Seal cell: prefer the rollup's own re-hash result; fall back to bare
+    // presence when the log wasn't fetchable (sealMatch null/undefined).
+    let seal: string;
+    if (d.sealMatch === true) { seal = 'verified ✓'; }
+    else if (d.sealMatch === false) { seal = 'MISMATCH ✗'; }
+    else { seal = d.digestPresent ? 'present' : '—'; }
+    // Tail cell: N decisions appended after the seal, flagged if non-allow.
+    const tailN = d.tailCount ?? 0;
+    const tail = tailN === 0 ? 'clean' : (d.tailClean ? `${tailN} (allow-only)` : `⚠ ${tailN} (${d.tailOther ?? 0} flagged)`);
     const sha = d.coveredSha256 ? `\`${d.coveredSha256.slice(0, 12)}…\`` : '—';
-    lines.push(`| \`${row.repoSlug}\` | ${presentIcon} | ${d.coveredCount} | ${d.allowed} | ${d.denied} | ${d.overrides} | ${sha} |`);
+    lines.push(`| \`${row.repoSlug}\` | ${seal} | ${d.coveredCount} | ${d.allowed} | ${d.denied} | ${d.overrides} | ${tail} | ${sha} |`);
   }
   // Denials detail (only when present).
   for (const row of rqRows) {
