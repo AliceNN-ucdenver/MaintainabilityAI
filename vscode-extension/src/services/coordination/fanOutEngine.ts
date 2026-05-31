@@ -154,6 +154,9 @@ export interface FanOutRepoEntry {
    * persisted design-fan-out row so the UI can gate "Mark PR ready".
    */
   implPrIsDraft?: boolean;
+  /** Held workflow runs awaiting approval on the impl PR (threaded from the
+   *  persisted row). Drives the "⏳ N workflows awaiting approval" hint. */
+  workflowsAwaitingApproval?: number;
 }
 
 /**

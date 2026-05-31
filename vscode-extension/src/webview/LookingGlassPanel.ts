@@ -994,6 +994,9 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
             // Thread the draft flag onto the engine entry so the row
             // render can gate the "Mark PR ready" button (D-PR5).
             entry.implPrIsDraft = fanOutRow.implPrIsDraft;
+            // ⏳ Held-workflow count so the row can surface "N workflows
+            // awaiting approval" (GitHub holds Copilot-bot PR workflows).
+            entry.workflowsAwaitingApproval = fanOutRow.workflowsAwaitingApproval;
           }
         }
       }
@@ -2191,8 +2194,24 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         else if (observed.state === 'open') newStatus = 'pr-opened';
         else newStatus = 'pr-rejected';
 
-        // Skip if nothing actually changed AND we're not in retry-append mode.
-        if (row.status === newStatus && row.implPrUrl === observed.url && !isRetryAppend) continue;
+        // ⏳ For an OPEN impl PR, count workflow runs GitHub is HOLDING at
+        // action_required (Copilot-bot PRs trip this — the Implementation
+        // Provenance gate physically can't run until approved). Surfaced on the
+        // row so the hold is visible instead of looking like nothing happened.
+        const awaiting = newStatus === 'pr-opened'
+          ? await this.githubService.countWorkflowRunsAwaitingApproval(owner, repo, observed.headSha)
+          : 0;
+
+        // Skip if nothing material changed AND we're not retry-append — but
+        // still refresh the held-count (it drops to 0 once the user approves,
+        // and we want the affordance to clear without a status change).
+        if (row.status === newStatus && row.implPrUrl === observed.url && !isRetryAppend) {
+          if ((row.workflowsAwaitingApproval ?? 0) !== awaiting) {
+            updatedRows[i] = { ...row, workflowsAwaitingApproval: awaiting, updatedAt: nowIso };
+            anyChanged = true;
+          }
+          continue;
+        }
 
         // For retry-append: keep the row at pr-merged + preserve fields,
         // just clear the error marker for now (we'll re-set it if the
@@ -2214,6 +2233,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
             // its value on merged/rejected rows is inert. (Assigned without a
             // ternary to keep this method under its complexity budget.)
             implPrIsDraft: observed.draft,
+            workflowsAwaitingApproval: awaiting,
             updatedAt: nowIso,
           };
           anyChanged = true;
@@ -2447,7 +2467,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
      *  exists matches the newest CLOSED prior-run PR and falsely marks the row
      *  pr-rejected. Pass undefined to disable the filter. */
     sinceIso?: string,
-  ): Promise<{ number: number; url: string; state: 'open' | 'closed' | 'merged'; merged: boolean; draft: boolean } | null> {
+  ): Promise<{ number: number; url: string; state: 'open' | 'closed' | 'merged'; merged: boolean; draft: boolean; headSha: string } | null> {
     try {
       const client = await this.githubService.getClient();
       // Mirror the existing pulls.list pattern in GitHubService.ts:790.
@@ -2495,6 +2515,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         state: merged ? 'merged' : (chosen.state === 'open' ? 'open' : 'closed'),
         merged,
         draft: chosen.draft === true,
+        headSha: chosen.head?.sha ?? '',
       };
     } catch {
       return null;

@@ -664,6 +664,36 @@ export class GitHubService {
     }
   }
 
+  /**
+   * Count workflow runs on a commit that GitHub is HOLDING pending maintainer
+   * approval. GitHub gates workflow runs on PRs authored by bots / outside /
+   * first-time contributors at `action_required` — the Copilot Coding Agent's
+   * impl PRs trip this, so the Implementation Provenance gate never executes
+   * until someone clicks "Approve and run". Surfaced on the fan-out row so the
+   * hold is visible (it otherwise looks like nothing happened).
+   *
+   * A held run shows `status: 'waiting'`/`'action_required'` or
+   * `conclusion: 'action_required'`. Scoped to the PR's head SHA so stale runs
+   * from earlier commits on the same branch don't inflate the count.
+   * Soft-fails to 0.
+   */
+  async countWorkflowRunsAwaitingApproval(owner: string, repo: string, headSha: string): Promise<number> {
+    if (!headSha) { return 0; }
+    try {
+      const client = await this.getClient();
+      const { data } = await client.rest.actions.listWorkflowRunsForRepo({
+        owner, repo, head_sha: headSha, per_page: 100,
+      });
+      return (data.workflow_runs ?? []).filter(r =>
+        r.status === 'waiting' ||
+        r.status === 'action_required' ||
+        r.conclusion === 'action_required',
+      ).length;
+    } catch {
+      return 0;
+    }
+  }
+
   async listAssignees(owner: string, repo: string): Promise<{ login: string; type: string }[]> {
     try {
       const client = await this.getClient();

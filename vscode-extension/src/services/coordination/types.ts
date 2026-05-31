@@ -229,6 +229,15 @@ export interface DesignFanOutRow {
    * affordance (only drafts need promotion to ready-for-review).
    */
   implPrIsDraft?: boolean;
+  /**
+   * Count of workflow runs on the impl PR's head SHA that GitHub is HOLDING
+   * at `action_required` (awaiting maintainer approval to run). Copilot-bot
+   * PRs trigger this hold, so the Implementation Provenance gate never runs
+   * until approved. Set by the Stage-5 poll on `pr-opened` rows; drives the
+   * "⏳ N workflows awaiting approval" affordance + deep-link to the PR's
+   * Checks tab. 0/undefined = nothing held.
+   */
+  workflowsAwaitingApproval?: number;
   /** IMPL-<date>-<slug>-<nonce> per the D-PR7 storage contract. */
   implementation_run_id?: string;
   /** ISO 8601 timestamp of the latest state change. */

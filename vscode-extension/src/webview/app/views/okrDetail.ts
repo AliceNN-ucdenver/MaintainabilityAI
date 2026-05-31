@@ -213,6 +213,10 @@ export interface FanOutRepoEntryUi {
   implPrNumber?: number;
   /** Whether the impl PR is a DRAFT (D-PR5) — gates "Mark PR ready". */
   implPrIsDraft?: boolean;
+  /** Count of workflow runs GitHub is HOLDING at action_required on the impl
+   *  PR (Copilot-bot PRs trigger this). Drives the "⏳ N workflows awaiting
+   *  approval" affordance + Checks deep-link. */
+  workflowsAwaitingApproval?: number;
 }
 
 export type FanOutPreflightReportUi =
@@ -1823,11 +1827,26 @@ function renderFanOutEntryRow(entry: FanOutRepoEntryUi, okr: OkrCard, availableB
   // "Mark PR ready" button: flips the Copilot agent's draft impl PR (on
   // the target code repo) to ready-for-review, which re-fires the
   // Implementation Provenance gate.
+  // ⏳ Held-workflow affordance — when GitHub is holding this Copilot-bot PR's
+  // workflow runs at action_required, the gate can't run and the PR looks
+  // "stuck" with no checks. Surface the count + a deep-link to the PR's Checks
+  // tab (where the "Approve and run" button lives) so the hold is actionable.
+  const awaitingCount = entry.workflowsAwaitingApproval ?? 0;
+  const awaitingApproval = (awaitingCount > 0 && entry.implPrUrl)
+    ? `<a class="okr-link-button" href="${escapeAttr(entry.implPrUrl)}/checks" target="_blank" rel="noopener" title="GitHub is holding ${awaitingCount} workflow run(s) on this Copilot-bot PR at 'action_required'. The Implementation Provenance gate can't run until you click 'Approve and run' in the PR's Checks tab.">⏳ ${awaitingCount} workflow${awaitingCount === 1 ? '' : 's'} awaiting approval — Approve in Checks ↗</a>`
+    : '';
+
+  // Mark-PR-ready affordance — surfaced only while the impl PR is in
+  // flight (`pr-opened`) and we know its URL. Mirrors the WHY/HOW/WHAT
+  // "Mark PR ready" button: flips the Copilot agent's draft impl PR (on
+  // the target code repo) to ready-for-review, which re-fires the
+  // Implementation Provenance gate.
   const prReadyActions = (entry.decision.status === 'pr-opened' && entry.implPrUrl)
     ? `
       <div class="okr-fanout-entry-actions">
         <a class="okr-link-button" href="${escapeAttr(entry.implPrUrl)}" target="_blank" rel="noopener">#${entry.implPrNumber ?? ''} Impl PR ↗</a>
         ${entry.implPrNumber != null && entry.implPrIsDraft !== false ? `<button class="okr-button-small okr-button-primary" data-action="fanout-mark-pr-ready" data-okr-id="${escapeAttr(okr.meta.id)}" data-repo-slug="${escapeAttr(entry.slug)}" data-pr-number="${entry.implPrNumber}" title="Flip the Copilot agent's draft impl PR to ready-for-review so the Implementation Provenance gate fires. (If GitHub is also holding the run for approval, you'll still click Approve on the PR.)">✅ Mark PR ready</button>` : ''}
+        ${awaitingApproval}
       </div>`
     : '';
 
