@@ -1540,7 +1540,7 @@ STRIDE alone doesn't cover agent-specific failure modes like goal drift, evidenc
       <p class="docs-proof-title">AEGIS Pre-Execution Firewall</p>
       <p class="docs-proof-body"><strong>Executive question:</strong> can the agent act before policy sees it? Skill calls are recorded by the runtime, file changes are re-derived by the workflow, review judgments are signed by the agent, and Red Queen records hook / MCP decisions before the side effect proceeds.</p>
     </div>
-    <div class="docs-proof-evidence"><strong>Proof:</strong> Hatter events are hash-chained and signed today. The Red Queen's decision log is durable JSONL today; a finalize-time signing step now folds it onto the implementation chain as a signed digest (in progress — advisory in the provenance gate, pending a live cert run before it gates). <br><a href="https://arxiv.org/abs/2603.12621">arXiv 2603.12621</a></div>
+    <div class="docs-proof-evidence"><strong>Proof:</strong> Hatter events are hash-chained and signed today. The Red Queen's decision log is durable JSONL today; a finalize-time signing step now <strong>seals the prefix it read</strong> onto the implementation chain, and the provenance gate <strong>re-hashes that prefix at the merge SHA</strong> to verify it — validated end-to-end on a live cert run (celeb-api PR #14). A seal mismatch fails the PR; the post-seal commit-time tail stays advisory. <br><a href="https://arxiv.org/abs/2603.12621">arXiv 2603.12621</a></div>
   </div>
   <div class="docs-proof-row">
     <span class="docs-proof-status docs-proof-status-partial">🛠 Partial</span>
@@ -1703,11 +1703,11 @@ We publish this list because honest design beats marketing claims. Every status 
     </div>
   </div>
   <div class="docs-gap-row">
-    <span class="docs-gap-status docs-gap-status-queued">🛠 Queued</span>
+    <span class="docs-gap-status docs-gap-status-shipped">✓ Shipped</span>
     <div>
-      <p class="docs-gap-title">Red Queen signed enforcement chain</p>
-      <p class="docs-gap-body">Red Queen already writes a per-decision JSON log for every hook + <code>validate_action</code> call: verdict, rule ID, target, override attribution. Reviewable today. The remaining gap is cryptographic: those decision logs aren't yet folded into the same signed chain the Hatter side uses.</p>
-      <p class="docs-gap-next"><strong>Next:</strong> signed <code>redqueen-action</code> events + a required status check + cross-chain inclusion proofs from OKR intent down to per-repo action.</p>
+      <p class="docs-gap-title">Shipped: Red Queen signed enforcement chain</p>
+      <p class="docs-gap-body">Red Queen writes a per-decision JSON log for every hook + <code>validate_action</code> call: verdict, rule ID, target, override attribution. That log is now folded into the same signed chain the Hatter side uses. Because it is a live append-only sidecar (the hook fires on the agent's own final commit), the implementation agent's last governed action <strong>seals the prefix it read</strong> (covered bytes + sha256) onto the per-event Ed25519 implementation chain, and the provenance gate <strong>re-hashes that exact prefix at the merge SHA</strong> to verify it. A seal mismatch fails the PR; the agent's own post-seal commit-time decisions are reported as an honest, named tail. <strong>Verified end-to-end on a live cert run</strong> (celeb-api PR #14: <em>signed &amp; verified · 32 decisions sealed · 3 post-seal, allow-only</em>).</p>
+      <p class="docs-gap-next"><strong>Remaining (Queen's Next Act):</strong> the standalone <code>redqueen-action</code> hard merge gate (AST + contract diffs), cross-chain inclusion proofs, and SIEM / CloudEvents export.</p>
     </div>
   </div>
   <div class="docs-gap-row">

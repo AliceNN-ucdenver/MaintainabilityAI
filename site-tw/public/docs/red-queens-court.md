@@ -253,7 +253,7 @@ The two modalities cross paths at the hand-off from design to implementation. Th
 
 The Hatter evidence chain now continues into implementation. The impl PR carries a continuation block in its body; on merge, Looking Glass fetches the impl chain's events file and public key from the target repo at the merge commit SHA, verifies they exist at that exact SHA, and stamps a row on the mesh's `chain-ladder.yaml`. The planning story and the implementation story are stitched at the commit hash — one signed evidence trail, two rooms.
 
-Being stitched now: the Red Queen's own decision log. The impl agent's signed events already live in the same trust model as the Hatter's; the Red Queen's per-decision audit records of allow / warn / deny / override sat alongside but outside that chain. A finalize-time signing step now folds them in — it signs a digest of the decision log onto the same per-event Ed25519 implementation chain. It runs **advisory** in the provenance gate today and is **pending a live cert run** before it becomes a hard check. Promoting it to gating, plus the standalone hard merge gate, is the rest of Queen's Next Act.
+Stitched and verified: the Red Queen's own decision log. The impl agent's signed events already live in the same trust model as the Hatter's; the Red Queen's per-decision audit records of allow / warn / deny / override sat alongside but outside that chain. A finalize-time signing step now folds them in — the decision log is a live append-only sidecar (the hook fires on the agent's own final commit), so the step **seals the prefix it read** — the exact byte count and sha256 — onto the same per-event Ed25519 implementation chain as the agent's last governed action. The provenance gate re-hashes that exact prefix at the merge commit SHA to confirm it. **Validated end-to-end on a live cert run** (celeb-api PR #14: *signed & verified · 32 decisions sealed · 3 post-seal commit decisions, allow-only*). A **seal mismatch now fails the PR**; the uncovered tail of the agent's own post-seal commit-time decisions is reported honestly but stays advisory. The standalone hard merge gate is the rest of Queen's Next Act.
 
 
 
@@ -273,11 +273,11 @@ Today the Red Queen makes deterministic policy decisions at the repo boundary an
     </div>
   </div>
   <div class="docs-gap-row">
-    <div class="docs-gap-status docs-gap-status-progress">In progress</div>
+    <div class="docs-gap-status docs-gap-status-shipped">Shipped</div>
     <div>
       <div class="docs-gap-title">Signed enforcement chain</div>
-      <p class="docs-gap-body">The implementation agent's events are already signed under the Hatter trust model, written into the target repo's <code>.maintainability/audit/</code>, and stitched back to the mesh ladder at the merge commit SHA. A finalize-time signing step now folds the Red Queen's allow / warn / deny / override <em>decision</em> log into that same per-event Ed25519 chain — it signs a digest of the decision log as the implementation agent's last governed action and the provenance gate cross-checks it. It is <strong>advisory</strong> today (it reports, it does not block) and <strong>pending a live cert run</strong> before it gates.</p>
-      <p class="docs-gap-next"><strong>Next:</strong> validate it on a live fan-out run, then promote the gate's Red Queen digest check from advisory to a required status.</p>
+      <p class="docs-gap-body">The implementation agent's events are already signed under the Hatter trust model, written into the target repo's <code>.maintainability/audit/</code>, and stitched back to the mesh ladder at the merge commit SHA. A finalize-time signing step now folds the Red Queen's allow / warn / deny / override <em>decision</em> log into that same per-event Ed25519 chain. Because that log is a live append-only sidecar, the step <strong>seals the prefix it read</strong> (covered bytes + sha256) as the agent's last governed action, and the provenance gate <strong>re-hashes that exact prefix at the merge SHA</strong> to verify it. <strong>Verified end-to-end on a live cert run</strong> (celeb-api PR #14). A <strong>seal mismatch fails the PR</strong>; the agent's own post-seal commit-time decisions are reported as an honest, named tail.</p>
+      <p class="docs-gap-next"><strong>Next:</strong> the rest of Queen's Next Act — the standalone hard merge gate (AST + contract diffs), cross-chain inclusion proofs, and SIEM / CloudEvents export.</p>
     </div>
   </div>
   <div class="docs-gap-row">

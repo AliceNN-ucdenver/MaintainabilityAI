@@ -344,10 +344,11 @@ See detailed walkthrough in [README.md](README.md#-example-remediate-injection-a
 - VS Code extension: Looking Glass governance panel + Cheshire Cat scaffold panel
 - Red Queen MCP server (25 tools, 13 calm:// resources, PreToolUse hooks, generated review workflows, scaffold doctor)
 - Knight's Seal v1 (per-event, per-epoch Ed25519 signing of the planning-side audit chain, verifier-enforced)
+- Signed Red Queen enforcement chain (T2.5a, Queen's Next Act slice (a) — cert-verified celeb-api PR #14): the finalize-time signer seals the PREFIX of the Red Queen decision log (`covered_bytes` + `covered_sha256`) onto the per-event Ed25519 implementation chain; the impl-provenance gate re-hashes that prefix at the merge SHA, **gates on a mismatch**, and names the post-seal commit-time tail as advisory; the OKR rollup re-verifies independently
 - CI/CD with CodeQL + Snyk
 - Custom domain setup (CNAME)
 
-**Planned** 🚧 (Queen's Next Act):
+**Planned** 🚧 (Queen's Next Act — slice (a) shipped above; (b)(c)(d) below):
 - `redqueen-action` standalone hard gate
 - AST semantic diff + per-file import/layer graph enforcement
 - Contract diffs + break-glass budgets + signed override events
