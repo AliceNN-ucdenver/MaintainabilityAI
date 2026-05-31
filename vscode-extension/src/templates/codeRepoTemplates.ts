@@ -511,6 +511,26 @@ export function generateVerifySourceTableScript(extensionPath: string): string {
 }
 
 /**
+ * Oracle & Privacy Rails (Phase 2) — trusted PII-rail helpers fetched by
+ * market-research-agent.yml (PR gate) + the WHY finalize job, and replayed by
+ * oracle-rails-replay.yml. The rail fails CLOSED if these aren't on the default
+ * branch, so they MUST be in the canonical deploy set (this is the file set the
+ * "redeploy mesh workflows" gap missed). Read verbatim — no substitution.
+ */
+export function generateOracleRailsReplayWorkflow(extensionPath: string): string {
+  return readScaffoldFile(extensionPath, 'workflows', 'oracle-rails-replay.yml');
+}
+export function generateOracleRailScript(extensionPath: string): string {
+  return readScaffoldFile(extensionPath, 'workflows', 'scripts', 'oracle-rails', 'oracle_rail.py');
+}
+export function generateOracleRailConfig(extensionPath: string): string {
+  return readScaffoldFile(extensionPath, 'workflows', 'scripts', 'oracle-rails', 'pii.json');
+}
+export function generateOracleRailRequirements(extensionPath: string): string {
+  return readScaffoldFile(extensionPath, 'workflows', 'scripts', 'oracle-rails', 'requirements.txt');
+}
+
+/**
  * Canonical list of every workflow Looking Glass writes into the mesh repo's
  * .github/workflows/ directory. Order is deterministic — used for both write
  * and existence checks so the UI's deployed/not-deployed state is consistent.
@@ -551,6 +571,16 @@ export const MESH_WORKFLOWS: MeshWorkflowSpec[] = [
   // Bug Z/2 — WHY-phase source-claim integrity check (S[N] title+url vs
   // chain results_preview[]). Invoked by market-research-agent.yml audit.
   { relativePath: '.github/workflows/scripts/verify-source-table.mjs', generate: generateVerifySourceTableScript },
+
+  // ── Oracle & Privacy Rails (Phase 2) — PII rail (Hatter-side) ────────
+  // The rail helpers are fetched from the default branch by the PR gate +
+  // WHY finalize, and the rail FAILS CLOSED when absent — so they MUST be in
+  // the canonical deploy set. (Redeploy gap: these were missing, so the gate
+  // reported "Oracle PII rail helpers not deployed".)
+  { relativePath: '.github/workflows/oracle-rails-replay.yml',                  generate: generateOracleRailsReplayWorkflow },
+  { relativePath: '.github/workflows/scripts/oracle-rails/oracle_rail.py',      generate: generateOracleRailScript },
+  { relativePath: '.github/workflows/scripts/oracle-rails/pii.json',            generate: generateOracleRailConfig },
+  { relativePath: '.github/workflows/scripts/oracle-rails/requirements.txt',    generate: generateOracleRailRequirements },
 
   // No transitional workflows remain. WHY + HOW + WHAT are owned end-
   // to-end by per-agent workflows above. The prior bus / state-machine
