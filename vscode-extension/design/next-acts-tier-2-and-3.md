@@ -571,12 +571,12 @@ Six fixes that landed after the Tier 2 cert run while exercising the fan-out mat
 
 ## Tier 2.5 · Queen's Next Act — complete the Red Queen chain and guard the evidence boundary
 
-The Red Queen's evidence story, finished. The Hatter side (planning + implementation) already signs every event; the Red Queen's own action-time decisions do not yet join that signed chain. The next testing wave also showed a second boundary: Red Queen governs what the agent may do, but oracle/search skills still need their own rails so untrusted evidence cannot become an instruction, leak PII, or poison the audit record. Tier 2.5 is the whole Queen's Next Act, in four sequenced slices:
+The Red Queen's evidence story, finished. The Hatter side (planning + implementation) already signs every event; the Red Queen's own action-time decisions do not yet join that signed chain. The next testing wave also showed a second boundary: Red Queen governs what the agent may do, but oracle/search skills still need their own rails so untrusted evidence cannot become an instruction, leak PII, or poison the audit record. Tier 2.5 is the whole wave — three slices that finish **Queen's Next Act** (the Red Queen action chain) plus a fourth, **Hatter-side** slice that guards the evidence boundary:
 
 - **(a) Sign the enforcement chain — MVP (T2.5a below). ✅ SHIPPED + cert-verified (celeb-api PR #14).** The Red Queen decision log is a live append-only sidecar (the hook fires on the agent's own final commit), so rather than per-decision chaining, the finalize-time signer **seals the prefix it read** (covered bytes + sha256) onto the per-event Ed25519 implementation chain as the agent's last governed action. The impl-provenance gate re-hashes that exact prefix at the merge SHA, **gates on a mismatch**, names the post-seal commit-time tail as advisory; the whole-OKR rollup independently re-verifies the prefix. Cert verdict: *signed & verified · 32 decisions sealed · 3 post-seal, allow-only*.
 - **(b) `redqueen-action` standalone hard gate (T2.5b).** AST semantic diff + per-file import/layer-graph enforcement + contract diffs as a dedicated required status check (roadmap Gap 13 / "Phase 9"). Sketched, needs design.
 - **(c) Cross-chain inclusion proofs + SIEM/CloudEvents export (T2.5c).** Tie the signed enforcement chain to the planning-intent chain and emit unified Hatter ↔ Red Queen evidence to a SIEM (roadmap Gap 1). Sketched, needs design.
-- **(d) Oracle Guardrails + Privacy Rails (T2.5d).** Guard the skill boundary: query inputs, provider results, dedupe/source registry, synthesis, Red Queen logs, and audit/export retention. Deterministic checks enforce the hard contract; optional NeMo Guardrails-style rails add semantic classification for prompt injection, topic drift, hostile retrieval chunks, and PII.
+- **(d) Oracle & Privacy Rails — the Hatter-side evidence boundary (full section below; supersedes the earlier "T2.5d" sketch, closes T3-6).** Guard the oracle/search skill boundary so untrusted evidence never becomes an instruction or leaks PII: a deterministic `withGuardrails` envelope in the pure Node runner enforces the hard contract (schema, provider allowlist, URL safety, budgets/caps, a coarse injection tripwire, source-registry hash-pinning), and a **local Python CI audit step** — Llama Prompt Guard 2 (injection), Microsoft Presidio (PII), local embeddings + NLI (groundedness) — is the authoritative hard gate, **replayed not signed.** Beside Red Queen, not part of it: Red Queen governs actions, these rails govern evidence.
 
 Auditor-hardening work (cosign, redacted bundle, prompt-pack signing, org-separation) is **Tier 3**, not here.
 
@@ -611,15 +611,22 @@ Auditor-hardening work (cosign, redacted bundle, prompt-pack signing, org-separa
 - **Goal.** Tie the (now-signed) Red Queen enforcement chain to the planning-intent chain via inclusion proofs, and emit unified Hatter ↔ Red Queen evidence as CloudEvents to a SIEM. Roadmap Gap 1.
 - **Status.** Sketched; needs design. Sequenced last.
 
-### T2.5d · Oracle Guardrails + Privacy Rails for skills and audit evidence
+### Oracle & Privacy Rails — Hatter-side evidence boundary
 
-- **Goal.** Add a guardrail envelope around governed skills and audit persistence so untrusted oracle/search content is never treated as an instruction, PII is not retained accidentally, and every guardrail decision is visible in the audit record. This is the STRIDE protection layer that sits beside Red Queen: **Red Queen governs actions; Oracle Rails govern evidence entering the chain; Privacy Rails govern what evidence may be retained.**
-- **Why.** The WHY/HOW/WHAT agents depend on external oracles (`tavily-search`, `arxiv-search`, `uspto-search`, `hackernews-search`) and mesh/code skills. Those results can carry prompt injection, poisoned snippets, malformed URLs, PII, secret-like strings, or source text that tries to steer the agent. The current deterministic source-registry hardening proves "this source existed and was cited"; T2.5d adds "this source was safe enough to enter the chain, and sensitive data was redacted or refused before retention."
+> **Reframed + researched 2026-05-31.** This is a **Hatter-side** capability, NOT Queen's Next Act. The Red Queen governs **actions** (tool use at the repo boundary); these rails govern **evidence entering the planning chain** — the WHY/HOW/WHAT oracle skills and the artifacts they produce. It supersedes the earlier "T2.5d" sketch and closes the previously-deferred **T3-6** (prompt injection from external research).
+>
+> **Decided architecture (researched, sources at end of section):** *local Python audit rails — **Llama Prompt Guard 2** for prompt injection, **Microsoft Presidio** for PII — no NeMo, no hosted API, no sidecar. The Node runner stays deterministic. Audit-time rail verdicts are **REPLAYED, not signed.***
+>
+> **The architectural line:** **agent/runtime events are SIGNED** (Knight's Seal); **audit-time rail verdicts are REPLAYED** — re-derived from the committed bytes. Replay is stronger than attestation here: a signature would only prove "the runner signed this verdict," not that the model + config + inputs + thresholds were identical. The verifier re-runs the pinned rail over the committed evidence and compares.
+
+- **Goal.** Guard the evidence boundary so untrusted oracle/search content is never treated as an instruction, the search is accurate (terms faithful to intent, conclusions grounded in cited sources), PII never leaks into the output docs or the audit record, and every rail decision is a reproducible part of the audit. **Hard-gated:** a tripped rail fails the PR. Sits beside Red Queen: **Red Queen governs actions; Oracle Rails govern evidence entering the chain; Privacy Rails govern what evidence may be retained.**
+- **Why.** The WHY/HOW/WHAT agents depend on external oracles (`tavily-search`, `arxiv-search`, `uspto-search`, `hackernews-search`) and mesh/code skills. Those results can carry prompt injection, poisoned snippets, malformed URLs, PII, secret-like strings, or source text that tries to steer the agent. The current deterministic source-registry hardening proves "this source existed and was cited"; these rails add "this source was safe enough to enter the chain, and sensitive data was redacted or refused before retention."
 - **Correctness stance.**
-  - Deterministic checks are the hard gate. They run first, are testable offline, and produce stable verdicts.
-  - NeMo Guardrails-style rails are optional semantic classifiers at first. They can return `PASS | WARN | BLOCK | NEEDS_REVIEW`, but a model-based verdict must be recorded with config hash, model/version, input hash, output hash, and reason. Do not make an unpinned model rail the only source of truth for a hard gate.
+  - **Two layers, one boundary.** The pure Node runner does **deterministic checks only** — schema validation, provider allowlist, URL normalization + reject private/loopback/metadata URLs, query budgets/max-lengths/result caps, forbidden internal repo paths, a **coarse (non-authoritative) prompt-control-marker tripwire**, and source-registry hash-pinning. No ML in Node. Its verdicts fold into the already-signed `skill_call.payload.guardrails` and quarantine bad results before synthesis.
+  - **The authoritative hard gate is a local Python CI audit step** running pinned local models — Llama Prompt Guard 2 (prompt injection, direct + indirect), Microsoft Presidio (PII), and a local groundedness rail (embeddings + NLI). No hosted API, no sidecar — every model runs locally in CI. A tripped rail **FAILS the PR.**
+  - **Trust comes from replay, not signing.** The audit writes an untrusted `*.rail-report.json` (input/source hashes, model name + revision + file-hash, config hash, thresholds, findings, scores, verdict). The verifier **re-runs the pinned rail** over the committed artifact + source registry and compares: match → PASS; differ → FAIL `rail-replay-mismatch`; model/config unloadable → FAIL `rail-replay-not-invoked` (**never PASS**). A signature would only prove "the runner signed this verdict," not that the model + config + inputs + thresholds were identical.
   - All rails are evidence, not magic. A blocked query/result/export names the rule, the input class, the remediation, and the audit event id.
-- **Guardrail envelope.**
+- **Guardrail envelope.** *In the Node runner these are deterministic tripwires only — pattern/shape checks that quarantine, not classify. Prompt Guard 2 (injection) and Presidio (PII) are authoritative in the Python replay gate (Phases 2–3); the rails below name the boundary each check guards, not the layer that owns it.*
   1. **Skill input rail.** Before the provider call: validate query length/count, provider allowlist, URL/domain constraints, secret-like strings, internal repo paths, PII patterns, and prompt-injection phrasing ("ignore instructions", "exfiltrate", "act as system", etc.). Hard-fail deterministic violations; annotate semantic risk.
   2. **Retrieval/result rail.** After provider results: normalize URLs, strip HTML/scripts, reject malformed or private-network URLs, classify snippets/abstracts as untrusted, detect prompt-injection text inside titles/snippets, hash-pin raw provider response when retained, and mark provider-degraded cases honestly.
   3. **Source-registry rail.** Before dedupe and synthesis: every retained source gets `source_id`, normalized URL, provider, title, raw/result hash, guardrail verdict, and redaction summary. Dedupe never drops the guardrail provenance.
@@ -633,10 +640,10 @@ Auditor-hardening work (cosign, redacted bundle, prompt-pack signing, org-separa
   - **Denial of Service:** query budgets, provider result caps, fan-out/search-rate caps, timeout/degraded states.
   - **Elevation of Privilege:** external search text cannot become instructions; execution rails validate tool inputs/outputs before the agent acts on them.
 - **Implementation shape.**
-  - Add a pure `SkillGuardrailEnvelope` in the runner and call it around oracle skills first: `tavily-search`, `arxiv-search`, `uspto-search`, `hackernews-search`, then `dedupe-and-rank`.
-  - Store rail output inside existing `skill_call.payload.guardrails` first. Avoid inventing a new event kind until the data model proves stable.
-  - Add a shared redaction helper used by audit JSONL, source registry, Red Queen log summary, and audit export.
-  - Add optional NeMo config under a versioned path (for example `.caterpillar/guardrails/oracle/`) with a config hash recorded in each verdict. If NeMo is unavailable, deterministic rails still run and the semantic rail reports `not-invoked`, not `pass`.
+  - Add a pure `withGuardrails` skill envelope in the runner and wrap the oracle skills first: `tavily-search`, `arxiv-search`, `uspto-search`, `hackernews-search`, then `dedupe-and-rank`. Deterministic checks only; verdicts fold into the existing signed `skill_call.payload.guardrails` — **no new event kind** at this layer.
+  - The Python rails live in a CI audit step, not the runner. They write a derived `okrs/<id>/audit/rails/<runId>.rail-report.json`; if a `rail_decision` event is emitted it is `origin: workflow`, **unsigned**, and replayable. Pinned model + config under `.caterpillar/guardrails/oracle/` (hash-pinned: entity lists, thresholds, allowlists).
+  - Add a shared redaction helper used by audit JSONL, source registry, Red Queen log summary, and audit export — store class/count/hash/redacted preview, never the raw sensitive value.
+  - The verifier re-runs the pinned rail and compares against the committed report (replay). It never trusts the stored verdict; an unloadable model/config FAILs as `rail-replay-not-invoked` rather than passing.
 - **Acceptance.**
   - Fixture tests for malicious query strings, prompt-injection snippets, malformed/private URLs, PII in provider snippets, secret-like tokens, oversized result sets, and safe happy paths.
   - A WHY run with hostile fixture provider results passes only when unsafe text is quarantined/redacted and the artifact cites only registry-safe sources.
@@ -645,8 +652,18 @@ Auditor-hardening work (cosign, redacted bundle, prompt-pack signing, org-separa
 - **Design docs to read first.**
   - [`agentic-sdlc-marketresearcher.md`](agentic-sdlc-marketresearcher.md) -- oracle/search skill protocol and source-registry expectations.
   - [`audit-event-shape.md`](audit-event-shape.md) -- event-kind/origin contract; start with `skill_call.payload.guardrails` rather than new event kinds.
-  - [`governance-redqueen.md`](governance-redqueen.md) -- Red Queen action gate; T2.5d complements it rather than replacing it.
-- **Sequencing.** Build deterministic rails first, prove them with fixtures, then add optional NeMo semantic rails. Start with WHY oracle skills; extend to implementation/code skills only after the source-registry and audit-retention contracts are stable.
+  - [`governance-redqueen.md`](governance-redqueen.md) -- Red Queen action gate; the Oracle & Privacy Rails complement it (the evidence boundary) rather than replacing it.
+- **Phasing.** (1) **L1 deterministic envelope** (runner TS) over the 4 search skills + dedupe, with fixtures (malicious queries, private URLs, oversized sets). (2) **PII rail** (Python/Presidio on the output docs) — highest value, lowest ambiguity; audit-gated + replay-verified. (3) **Injection rail** (Prompt Guard 2) — adversarial snippet corpus; **this is the T3-6 closure.** (4) **Accuracy/groundedness rail** (local embeddings + NLI) — conclusion ⊨ cited source; model choice finalized here. (5) **Promote to a required gate + a live cert run** — prove green on a WHY run with a hostile fixture before it gates (mirror the T2.5a arc). Start with WHY oracle skills; extend to HOW/WHAT + code skills after the contract is stable.
+- **Files (anticipated).**
+  - `packages/research-runner/src/runner/guardrails/envelope.ts` (NEW) — Layer 1 `withGuardrails` + deterministic checks; applied in the `SKILLS` registry for oracle skills + unit fixtures.
+  - `tools/oracle-rails/` (NEW, Python) — `inject_check.py` (Prompt Guard 2), `pii_check.py` (Presidio), `groundedness.py` (embeddings + NLI), `rails_report.py` (writes the pinned report) + `requirements.txt` with pinned revisions.
+  - generated audit workflow (or new `oracle-rails.yml`) — cached pip install, run rails, write report, FAIL on BLOCK, then the **replay-verify** step.
+  - `.caterpillar/guardrails/oracle/` — hash-pinned config (entity lists, thresholds, allowlists).
+  - [`audit-event-shape.md`](audit-event-shape.md) — document `rail_decision` (origin: workflow, replayable) + `skill_call.payload.guardrails`.
+  - `AuditReportExporter.ts` — "Oracle rails" rollup subsection (re-derived at export, never trusting the stored report).
+- **Open sub-decisions (finalize at build).** Groundedness model: AlignScore (RoBERTa-large class — accurate, heavier) vs a small NLI cross-encoder (lighter) — decide at Phase 4. PII policy: refuse (stronger default) vs redact-and-name for low-severity classes on the output doc.
+- **Research sources (2026-05-31).** [Llama Prompt Guard 2 (22M)](https://huggingface.co/meta-llama/Llama-Prompt-Guard-2-22M) (direct + indirect prompt-injection classifier, local HF); [Microsoft Presidio](https://microsoft.github.io/presidio/analyzer/) (NER-based PII detection/anonymization, not pure regex); [AlignScore (ACL 2023)](https://arxiv.org/abs/2305.16739) (local alignment model for groundedness/entailment — conclusion ⊨ cited source; candidate for the Phase-4 rail, not yet final).
+- **Sequencing vs the rest of the roadmap.** Independent of Red Queen's remaining slices (`redqueen-action`, SIEM/cross-chain). Can proceed in parallel; it is the Hatter's evidence-boundary counterpart to the Queen's action-boundary work.
 
 ---
 
@@ -713,10 +730,11 @@ The trust-posture work that fell out of the seven Codex chief-auditor rounds dur
   - **Bottom-up walker for pack-set verification.**
   - **No fallback to unsigned on missing-pack-key.**
 
-### T3-6 (open research) · Prompt injection from external research
+### T3-6 → folded into Oracle & Privacy Rails (Phase 3) ✅ closed
 
-- **Goal.** During WHY phase, `market-research-agent` calls `web-search` Skills that return external content. An attacker who controls a search result can inject prompt-injection payloads. Today the agent's prompt boundary + persona-switch self-critique are the only defenses.
-- **Open research, not a build.** Candidates: sandboxed content classifier, structured-output-only agent pattern, red-team adversarial corpus. **Don't build any of these yet.** Reserve here.
+> **No longer open research.** Prompt injection from external research is closed by the **injection rail** (Llama Prompt Guard 2, direct + indirect) in **Phase 3** of the **Oracle & Privacy Rails** section above — backed by the deterministic coarse-tripwire envelope (Phase 1) and an adversarial-snippet fixture corpus, all replay-verified. That section carries the build plan; this entry remains only as a pointer.
+
+- **Original framing (for reference).** During WHY phase, `market-research-agent` calls `web-search`/oracle Skills that return external content; an attacker who controls a search result can inject prompt-injection payloads. The old plan reserved this as open research (sandboxed classifier / structured-output-only pattern / red-team corpus). The local Prompt Guard 2 rail + replay verification is the chosen mechanism.
 
 ### T3-7 (out of scope) · LLM-provider audit blind spot
 
@@ -759,11 +777,11 @@ Every Tier 2 + Tier 3 work-item should apply these.
 | **D-PR8** implementation chain in rollup | **[`agentic-sdlc.md`](agentic-sdlc.md) §11.6 + §11.7** | T2.5 spec (downstream hardening) |
 | **T3-1** Knight's Seal v2 | **[`agentic-sdlc-futurethoughts.md`](agentic-sdlc-futurethoughts.md) §2** | [`agentic-sdlc.md`](agentic-sdlc.md) §11.5; cosign docs |
 | **T2.5** Red Queen signed enforcement chain | **[`governance-redqueen.md`](governance-redqueen.md) §2 + §4.5 + §4.5.1** | D-PR8 (builds on); [`agentic-sdlc.md`](agentic-sdlc.md) §11.6, [`audit-event-shape.md`](audit-event-shape.md) |
-| **T2.5d** Oracle Guardrails + Privacy Rails | **This doc's T2.5d section** + [`agentic-sdlc-marketresearcher.md`](agentic-sdlc-marketresearcher.md) | [`audit-event-shape.md`](audit-event-shape.md), [`governance-redqueen.md`](governance-redqueen.md), source-registry hardening from WHY cert runs |
+| **Oracle & Privacy Rails** (Tier 2.5 · slice d) | **This doc's Oracle & Privacy Rails section** + [`agentic-sdlc-marketresearcher.md`](agentic-sdlc-marketresearcher.md) | [`audit-event-shape.md`](audit-event-shape.md), [`governance-redqueen.md`](governance-redqueen.md), source-registry hardening from WHY cert runs |
 | **T3-3** Redacted external bundle | **[`agentic-sdlc.md`](agentic-sdlc.md) §11.7** | [`agentic-sdlc-futurethoughts.md`](agentic-sdlc-futurethoughts.md) §4, [`governance-prompt-packs.md`](governance-prompt-packs.md) |
 | **T3-4** Org-separation override | **[`agentic-sdlc.md`](agentic-sdlc.md) §10.9** | [`governance-redqueen.md`](governance-redqueen.md) §4.5, [`agentic-sdlc.md`](agentic-sdlc.md) §13 line 1779 |
 | **T3-5** Prompt-pack signature | **[`governance-prompt-packs.md`](governance-prompt-packs.md) + [`agentic-sdlc-futurethoughts.md`](agentic-sdlc-futurethoughts.md) §2** | [`agentic-sdlc.md`](agentic-sdlc.md) §6 |
-| **T3-6** Prompt injection from external | **[`agentic-sdlc-marketresearcher.md`](agentic-sdlc-marketresearcher.md)** | [`agentic-sdlc.md`](agentic-sdlc.md) §11 threat model |
+| **T3-6** Prompt injection from external → **folded into Oracle & Privacy Rails (Phase 3)** | **This doc's Oracle & Privacy Rails section** + [`agentic-sdlc-marketresearcher.md`](agentic-sdlc-marketresearcher.md) | [`agentic-sdlc.md`](agentic-sdlc.md) §11 threat model |
 | **T3-7** LLM-provider blind spot | n/a (out-of-scope capture) | [`agentic-sdlc-futurethoughts.md`](agentic-sdlc-futurethoughts.md) §7 |
 
 ---
@@ -790,11 +808,11 @@ Every Tier 2 + Tier 3 work-item should apply these.
 
 1. **T3-1** (Knight's Seal v2) -- prerequisites for T3-5; valuable on its own. ~1 week with sigstore integration testing.
 2. **T2.5a** (Red Queen signed chain) -- depends on Tier 2's D-PR8 cross-repo threading. ~1-2 weeks.
-3. **T2.5d** (Oracle Guardrails + Privacy Rails) -- can run alongside Queen's Next Act testing after T2.5a is stable; deterministic runner envelope first, optional NeMo rails second. ~1 week for oracle-skill MVP.
+3. **Oracle & Privacy Rails** (Tier 2.5 · slice d; Hatter-side) -- independent of Red Queen's remaining slices; can run alongside Queen's Next Act testing. Order: deterministic `withGuardrails` envelope (Phase 1) → PII rail / Presidio (Phase 2) → injection rail / Prompt Guard 2 = T3-6 closure (Phase 3) → groundedness rail / embeddings + NLI (Phase 4) → required gate + live cert run (Phase 5). ~1 week for the oracle-skill envelope MVP.
 4. **T3-5** (prompt-pack signing) -- after T3-1 ships. ~3-5 days.
 5. **T3-3** (redacted bundle) -- depends on T2.5. ~1 week.
 6. **T3-4** (org-separation override) -- independent; ~3-5 days.
-7. **T3-6** + **T3-7** -- research/non-goal capture.
+7. **T3-6** -- closed; folded into Oracle & Privacy Rails Phase 3 (see slice d above), not separate research. **T3-7** -- non-goal capture only.
 
 **Don't sequence the Codex review rounds.** Treat them as continuous -- each PR gets a chief-auditor read before merge, same posture as Phase E.
 
@@ -819,7 +837,7 @@ Every Tier 2 + Tier 3 work-item should apply these.
 - [x] **T2.5a shipped + cert-verified (celeb-api PR #14).** Shipped as a **signed-prefix seal** (not per-decision chaining — the log is a live append-only sidecar): the finalize-time signer seals the prefix it read (`covered_bytes` + `covered_sha256`) into one signed `redqueen_decisions` event on the IMPL chain; the impl-provenance gate re-hashes that prefix at the merge SHA and **gates on a mismatch**, naming the post-seal tail as advisory; the whole-OKR rollup re-verifies independently + renders the per-target-repo `## Implementation chain (Red Queen)` section. Cert verdict: *signed & verified · 32 decisions sealed · 3 post-seal, allow-only*.
 - [ ] T2.5b shipped/captured: `redqueen-action` standalone hard gate (AST + contract diffs) as a required status check.
 - [ ] T2.5c shipped/captured: cross-chain inclusion proofs + SIEM/CloudEvents export.
-- [ ] T2.5d shipped/captured: Oracle Guardrails + Privacy Rails wrap oracle skills and audit/export retention. Deterministic rails enforce query/result/source-registry/synthesis/privacy checks; optional NeMo semantic rails are recorded with config/model hashes and never become the only hard gate. No raw PII/secret fixture values persist in audit JSONL, source registry, rollup, or PR comments.
+- [ ] Oracle & Privacy Rails shipped/captured (slice d, Hatter-side): a deterministic `withGuardrails` envelope wraps the oracle skills (verdicts fold into the signed `skill_call.payload.guardrails`), and a local Python CI audit step — Llama Prompt Guard 2 (injection), Presidio (PII), local groundedness — is the authoritative hard gate that **fails the PR** on a tripped rail. Rail verdicts are **replayed, not signed**: the verifier re-runs the pinned model/config over the committed artifact + source registry and FAILs on `rail-replay-mismatch` or `rail-replay-not-invoked` (never PASS). No raw PII/secret fixture values persist in audit JSONL, source registry, rollup, or PR comments. (Closes T3-6 at Phase 3.)
 
 ### Tier 3 done-done (auditor hardening)
 
@@ -827,7 +845,7 @@ Every Tier 2 + Tier 3 work-item should apply these.
 - [ ] T3-3 shipped: `Export Redacted Bundle` produces a regulator-ready zip with documented redaction policy + verify.sh + audit event.
 - [ ] T3-4 shipped: Dual-signature override enforces org-separation with discriminated rejection reasons.
 - [ ] T3-5 shipped: Mesh refuses unsigned packs; dispatch emits `pack_signature_verified`.
-- [ ] T3-6 captured as open research with documented status.
+- [x] T3-6 closed: folded into Oracle & Privacy Rails Phase 3 (injection rail, Prompt Guard 2 + replay); the standalone T3-6 entry now points to that section instead of reserving open research.
 - [ ] T3-7 captured as out-of-scope.
 
 ---
