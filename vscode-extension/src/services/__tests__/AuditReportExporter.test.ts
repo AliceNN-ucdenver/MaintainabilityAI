@@ -2088,11 +2088,12 @@ describe('buildOkrRollupMarkdown — implementation chain section', () => {
           prUrl: 'https://github.com/acme/celeb-api/pull/42',
           chain: { ...FULL_CHAIN },
           redqueenDigest: {
-            count: 7,
+            coveredCount: 7,
             allowed: 5,
             denied: 2,
             overrides: 1,
-            logSha256: 'deadbeef'.repeat(8),
+            coveredBytes: 1234,
+            coveredSha256: 'deadbeef'.repeat(8),
             digestPresent: true,
             denials: [
               { tool: 'Write', filePath: 'secrets.env', ruleId: 'no-secrets', reason: 'blocked write to secret' },
@@ -2105,11 +2106,12 @@ describe('buildOkrRollupMarkdown — implementation chain section', () => {
       },
     });
     expect(md).toContain('## Implementation chain (Red Queen)');
-    // Codex finding 1 — column reads "present" (digest event found), NOT a
-    // "signed" checkmark; present ≠ cryptographically verified.
-    expect(md).toContain('| Repo | Digest event |');
-    expect(md).toMatch(/\| `acme\/celeb-api` \| present \| 5 \| 2 \| 1 \|/);
-    // Truncated log sha256 surfaced for re-hash verification.
+    // Seal column reads "present" (event found), NOT "signed"; present ≠
+    // cryptographically verified (that's the gate's prefix re-hash).
+    expect(md).toContain('| Repo | Seal | Sealed decisions |');
+    // coveredCount (7) renders in the Sealed-decisions column.
+    expect(md).toMatch(/\| `acme\/celeb-api` \| present \| 7 \| 5 \| 2 \| 1 \|/);
+    // Truncated covered-prefix sha256 surfaced for re-hash verification.
     expect(md).toContain('`deadbeefdead…`');
     // Denials detail block.
     expect(md).toContain('Red Queen denials (2)');

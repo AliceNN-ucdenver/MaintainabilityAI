@@ -81,7 +81,7 @@ test('Tier 2.5a — signs a redqueen_decisions digest event under epoch-1 (agent
     const res = await runSkill('audit-sign-redqueen-decisions', {}) as Record<string, unknown>;
     assert.equal(res.ok, true);
     assert.equal(res.sealed, true);
-    assert.equal(res.count, 3);
+    assert.equal(res.coveredCount, 3);
     assert.equal(res.allowed, 2);
     assert.equal(res.denied, 1);
     assert.equal(res.overrides, 1);
@@ -93,10 +93,10 @@ test('Tier 2.5a — signs a redqueen_decisions digest event under epoch-1 (agent
     assert.notEqual(ev.signature, '');
     assert.equal(typeof ev.signer_epoch, 'number');
     assert.equal(ev.signer_epoch, 1);
-    assert.equal(payload.count, 3);
+    assert.equal(payload.covered_count, 3);
     assert.equal((payload.denials as unknown[]).length, 1);
     assert.equal(payload.first_ts, '2026-05-30T00:00:00Z');
-    assert.equal(payload.last_ts, '2026-05-30T00:00:02Z');
+    assert.equal(payload.covered_through_ts, '2026-05-30T00:00:02Z');
   });
 });
 
@@ -119,32 +119,47 @@ test('Tier 2.5a — produces a chain that audit-verify-chain accepts', async () 
   });
 });
 
-// (c) log_sha256 matches a hand-computed sha256 of the fixture bytes.
-test('Tier 2.5a — log_sha256 equals sha256 of the raw log bytes', async () => {
+// (c) covered_sha256 = sha256 of the sealed prefix bytes; covered_bytes = byte length.
+test('Tier 2.5a — covered_sha256 + covered_bytes seal the exact bytes read', async () => {
   await withImplRepo(async ({ eventsFile, rqLog }) => {
     const body = writeRqLog(rqLog, [
       { ts: '2026-05-30T00:00:00Z', verdict: 'allow', tool: 'Read' },
       { ts: '2026-05-30T00:00:01Z', verdict: 'deny', tool: 'Write', ruleId: 'r1', reason: 'x' },
     ]);
-    const expected = createHash('sha256').update(Buffer.from(body, 'utf8')).digest('hex');
+    const bytes = Buffer.from(body, 'utf8');
+    const expected = createHash('sha256').update(bytes).digest('hex');
     const res = await runSkill('audit-sign-redqueen-decisions', {}) as Record<string, unknown>;
     assert.equal(res.ok, true);
-    assert.equal(res.log_sha256, expected);
-    const ev = lastEvent(eventsFile);
-    assert.equal((ev.payload as Record<string, unknown>).log_sha256, expected);
+    assert.equal(res.coveredSha256, expected);
+    assert.equal(res.coveredBytes, bytes.length);
+    const payload = lastEvent(eventsFile).payload as Record<string, unknown>;
+    assert.equal(payload.covered_sha256, expected);
+    assert.equal(payload.covered_bytes, bytes.length);
   });
 });
 
-// (d) tampering the log AFTER signing → digest mismatch is detectable.
-test('Tier 2.5a — digest mismatch is detectable when the log is tampered post-sign', async () => {
+// (c2) THE KEY CONTRACT: when the log grows AFTER sealing (the agent's own
+// commit-time decisions), re-hashing the first covered_bytes still matches the
+// seal — and the appended tail is outside the seal. This is the celeb-api PR
+// #12 scenario (sealed 18, committed 21).
+test('Tier 2.5a — sealed prefix still verifies after the log grows post-seal', async () => {
   await withImplRepo(async ({ rqLog }) => {
-    writeRqLog(rqLog, [{ ts: '2026-05-30T00:00:00Z', verdict: 'allow', tool: 'Read' }]);
+    const prefixBody = writeRqLog(rqLog, [
+      { ts: '2026-05-30T00:00:00Z', verdict: 'allow', tool: 'Read' },
+      { ts: '2026-05-30T00:00:01Z', verdict: 'allow', tool: 'Edit' },
+    ]);
     const res = await runSkill('audit-sign-redqueen-decisions', {}) as Record<string, unknown>;
-    const signedSha = res.log_sha256 as string;
-    // Tamper the committed log; re-hash; it must differ from the signed sha.
-    writeRqLog(rqLog, [{ ts: '2026-05-30T00:00:00Z', verdict: 'deny', tool: 'Read' }]);
-    const tamperedSha = createHash('sha256').update(fs.readFileSync(rqLog)).digest('hex');
-    assert.notEqual(tamperedSha, signedSha);
+    const coveredBytes = res.coveredBytes as number;
+    const coveredSha = res.coveredSha256 as string;
+    assert.equal(coveredBytes, Buffer.from(prefixBody, 'utf8').length);
+    // Simulate the agent's git add/commit generating 1 more allow decision,
+    // APPENDED to the existing log.
+    fs.appendFileSync(rqLog, JSON.stringify({ ts: '2026-05-30T00:00:02Z', payload: { verdict: 'allow', tool: 'Bash' } }) + '\n');
+    const committed = fs.readFileSync(rqLog);
+    // The gate's check: re-hash the first coveredBytes of the committed log.
+    const prefixHash = createHash('sha256').update(committed.subarray(0, coveredBytes)).digest('hex');
+    assert.equal(prefixHash, coveredSha, 'sealed prefix must verify against the grown log');
+    assert.ok(committed.length > coveredBytes, 'committed log has an uncovered tail');
   });
 });
 
@@ -164,13 +179,14 @@ test('Tier 2.5a — emits an honest-zero event when the decision log is absent',
     // No .redqueen/audit-log.jsonl written at all.
     const res = await runSkill('audit-sign-redqueen-decisions', {}) as Record<string, unknown>;
     assert.equal(res.ok, true);
-    assert.equal(res.count, 0);
-    assert.equal(res.log_sha256, null);
+    assert.equal(res.coveredCount, 0);
+    assert.equal(res.coveredSha256, null);
     const ev = lastEvent(eventsFile);
     assert.equal(ev.event_kind, 'redqueen_decisions');
     const payload = ev.payload as Record<string, unknown>;
-    assert.equal(payload.count, 0);
-    assert.equal(payload.log_sha256, null);
+    assert.equal(payload.covered_count, 0);
+    assert.equal(payload.covered_sha256, null);
+    assert.equal(payload.covered_bytes, 0);
     assert.equal(payload.note, 'no decision log present');
     assert.equal(payload.emitted_by, 'agent');
     assert.notEqual(ev.signature, '');

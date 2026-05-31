@@ -1257,19 +1257,23 @@ export interface OkrRollupInput {
  * agent's finalize-time `audit-sign-redqueen-decisions` skill emits it).
  */
 export interface RedqueenDigest {
-  count: number;
+  /** Number of decisions in the SEALED prefix the runner read at sign time. */
+  coveredCount: number;
   allowed: number;
   denied: number;
   overrides: number;
-  /** sha256 of the committed `.redqueen/audit-log.jsonl` (null = no log). */
-  logSha256: string | null;
+  /** Byte length of the sealed prefix (null = honest-zero, no log at seal). */
+  coveredBytes: number | null;
+  /** sha256 of the sealed prefix bytes (null = honest-zero). A reader re-hashes
+   *  the first coveredBytes of the committed log to confirm. */
+  coveredSha256: string | null;
   /**
-   * True when a `redqueen_decisions` digest event carrying a signature was
-   * FOUND in the impl events JSONL. This is NOT proof of cryptographic
-   * verification — the chain verifier (audit-verify-chain) is what proves the
-   * signature + origin/kind are valid. "Present" ≠ "verified": a hand-written
-   * line could set this true. The rollup labels it "digest event present"
-   * accordingly; a stronger "signed & verified" label requires the verifier.
+   * True when a `redqueen_decisions` event carrying a signature was FOUND in
+   * the impl events JSONL. This is NOT proof of cryptographic verification —
+   * the chain verifier (audit-verify-chain) is what proves the signature +
+   * origin/kind are valid, and the gate re-hashes the sealed prefix. "Present"
+   * ≠ "verified": a hand-written line could set this true. The rollup labels it
+   * "seal present" accordingly; "signed & verified" requires the gate.
    */
   digestPresent: boolean;
   /** Bounded list of deny decisions, if any. */
@@ -1897,13 +1901,15 @@ ${tableRows.join('\n')}`;
  * allow/deny/override counts plus a bounded denials list when any deny
  * decisions were recorded.
  *
- * Honesty note (Codex finding 1): the column reads "Digest event" — it
- * reflects only that a `redqueen_decisions` event was PRESENT in the impl
- * events JSONL, NOT that its signature was cryptographically verified.
- * Verification is the chain verifier's job (audit-verify-chain, runner-side);
- * until that lands for the Red Queen event (Tier 2.5 follow-up) we must not
- * label a mere present event as "signed". `logSha256` lets a reader re-hash
- * the committed `.redqueen/audit-log.jsonl` to confirm the digest matches.
+ * Honesty note: the column reads "Seal present" — it reflects only that a
+ * `redqueen_decisions` event was PRESENT in the impl events JSONL, NOT that
+ * its signature was cryptographically verified or its sealed prefix matched.
+ * That verification is the impl-provenance gate's job (chain verify +
+ * re-hash the first `coveredBytes` of the committed log). The Red Queen log
+ * is a live append-only sidecar, so the seal covers the PREFIX the runner
+ * read; `coveredSha256` lets a reader re-hash that prefix to confirm, and any
+ * decisions after `coveredBytes` are the agent's own post-seal commit-time
+ * tool calls (an uncovered tail the gate names separately).
  */
 function renderRedqueenSubsection(rows: ImplementationChainRow[]): string {
   const rqRows = rows.filter((r) => r.redqueenDigest);
@@ -1912,13 +1918,13 @@ function renderRedqueenSubsection(rows: ImplementationChainRow[]): string {
   lines.push('');
   lines.push('## Implementation chain (Red Queen)');
   lines.push('');
-  lines.push('| Repo | Digest event | Allowed | Denied | Overrides | Log sha256 |');
-  lines.push('|---|:---:|---:|---:|---:|---|');
+  lines.push('| Repo | Seal | Sealed decisions | Allowed | Denied | Overrides | Prefix sha256 |');
+  lines.push('|---|:---:|---:|---:|---:|---:|---|');
   for (const row of rqRows) {
     const d = row.redqueenDigest!;
     const presentIcon = d.digestPresent ? 'present' : '—';
-    const sha = d.logSha256 ? `\`${d.logSha256.slice(0, 12)}…\`` : '—';
-    lines.push(`| \`${row.repoSlug}\` | ${presentIcon} | ${d.allowed} | ${d.denied} | ${d.overrides} | ${sha} |`);
+    const sha = d.coveredSha256 ? `\`${d.coveredSha256.slice(0, 12)}…\`` : '—';
+    lines.push(`| \`${row.repoSlug}\` | ${presentIcon} | ${d.coveredCount} | ${d.allowed} | ${d.denied} | ${d.overrides} | ${sha} |`);
   }
   // Denials detail (only when present).
   for (const row of rqRows) {

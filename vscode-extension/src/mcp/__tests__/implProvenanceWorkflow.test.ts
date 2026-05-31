@@ -79,46 +79,48 @@ describe('Bug-AAE Phase 2/3: standalone impl-provenance.yml gate', () => {
     expect(wf).toContain('.redqueen/audit-log.jsonl');
     expect(wf).toMatch(/rq_allowed=/);
     expect(wf).toMatch(/rq_denied=/);
-    expect(wf).toMatch(/Red Queen decisions \(advisory\)/);
+    expect(wf).toMatch(/Red Queen enforcement seal \(advisory\)/);
     // The gate's pass condition must NOT include the red-queen log.
     expect(wf).toMatch(/const pass = chainOk && manifestOk && hatterOk;/);
     // Heredoc imports what it uses (Bug-XX-safe).
     expect(wf).toMatch(/import json, os/);
   });
 
-  it('Tier 2.5a: emits rq_digest_present + rq_digest_match outputs (advisory, honest about strength)', () => {
-    // The step recomputes the committed decision log's sha256 over RAW bytes
-    // and scans the redqueen_decisions digest event.
-    expect(wf).toMatch(/hashlib\.sha256\(bf\.read\(\)\)\.hexdigest\(\)/);
-    expect(wf).toMatch(/event_kind'\) != 'redqueen_decisions'/);
+  it('Tier 2.5a: signed-prefix seal — verifies the sealed prefix + names the tail (advisory)', () => {
     // Codex r3 finding 1 — scan ONLY the chain-verified events file (env
     // EVENTS_FILE = steps.chain.outputs.events_file), NOT a glob over every
     // IMPL JSONL. Otherwise file A could be verified while file B supplies the
-    // digest event.
+    // seal event.
     expect(wf).toMatch(/EVENTS_FILE: \$\{\{ steps\.chain\.outputs\.events_file \}\}/);
     expect(wf).toMatch(/if EVENTS_FILE and os\.path\.exists\(EVENTS_FILE\)/);
     expect(wf).not.toMatch(/glob\.glob\('\.maintainability\/audit\/events\/\*\.jsonl'\)/);
-    // Codex r3 finding 2 — honest-zero: a null event_sha vs a null log_sha is
-    // a MATCH (both "no log"), not a digest mismatch.
-    expect(wf).toMatch(/event_sha is None and log_sha is None/);
-    expect(wf).toMatch(/no decision log \(no governed tool calls captured\)/);
-    // Codex r4 — honest-zero requires the digest to MATCH (a true null-vs-null
-    // event). A digest claiming a non-null log_sha256 with no committed log
-    // must fall through to the mismatch branch, not read "no decision log".
-    expect(wf).toMatch(/rqHonestZero = rqDigestPresent && !rqPresent && rqDigestMatch/);
-    // Codex finding 1 — honest naming: "digest present" (event exists) is NOT
-    // "signed". The output is rq_digest_present, NOT rq_signed.
+    expect(wf).toMatch(/event_kind'\) != 'redqueen_decisions'/);
+    // SIGNED-PREFIX SEAL: read the seal's covered_bytes/covered_sha256, then
+    // re-hash the FIRST covered_bytes of the committed log (a live append-only
+    // sidecar; a whole-file digest can never match).
+    expect(wf).toMatch(/covered_bytes = p\.get\('covered_bytes'\)/);
+    expect(wf).toMatch(/covered_sha = p\.get\('covered_sha256'\)/);
+    expect(wf).toMatch(/prefix = log_bytes\[:covered_bytes\]/);
+    expect(wf).toMatch(/hashlib\.sha256\(prefix\)\.hexdigest\(\) == covered_sha/);
+    // Tail classification: bytes after the seal are the agent's post-seal
+    // commit-time decisions — allow-only is benign, deny/override/unknown blocks.
+    expect(wf).toMatch(/tail_bytes = len\(log_bytes\) - covered_bytes/);
+    expect(wf).toMatch(/tail_clean = \(tail_other == 0\)/);
+    // honest-zero seal: covered_bytes/covered_sha both None → match (nothing read).
+    expect(wf).toMatch(/covered_bytes is None and covered_sha is None/);
+    // Honest naming: "present" (event exists) is NOT "signed". No rq_signed.
     expect(wf).toMatch(/rq_digest_present=/);
     expect(wf).not.toMatch(/rq_signed=/);
-    expect(wf).toMatch(/rq_digest_match=/);
-    // Consumer side: "signed & verified" only when the chain step verified the
-    // signature AND a real log's digest matches; a bare present event reads
-    // "digest event present".
-    expect(wf).toMatch(/steps\.redqueen\.outputs\.rq_digest_present/);
-    expect(wf).toMatch(/steps\.redqueen\.outputs\.rq_digest_match/);
-    expect(wf).toMatch(/rqVerified = rqDigestPresent && rqPresent && rqDigestMatch && chainOk/);
-    expect(wf).toMatch(/digest event present/);
+    expect(wf).toMatch(/rq_seal_match=/);
+    expect(wf).toMatch(/rq_tail_clean=/);
+    // Consumer side: "signed & verified" only when the chain verified the
+    // signature AND the sealed prefix matched; a bare present event reads
+    // "seal present".
+    expect(wf).toMatch(/steps\.redqueen\.outputs\.rq_seal_match/);
+    expect(wf).toMatch(/rqVerified = rqDigestPresent && rqSealMatch && chainOk/);
+    expect(wf).toMatch(/seal present/);
     expect(wf).toMatch(/signed & verified/);
+    expect(wf).toMatch(/post-seal commit decision/);
     expect(wf).toMatch(/unsigned \(runner upgrade pending\)/);
     // Still advisory — pass must remain chain+manifest+hatter only.
     expect(wf).toMatch(/const pass = chainOk && manifestOk && hatterOk;/);

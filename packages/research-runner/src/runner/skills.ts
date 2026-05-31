@@ -2892,14 +2892,20 @@ const handleAuditSignRedqueenDecisions: SkillHandler = async (input) => {
       runId: ctx.runId,
       eventKind: 'redqueen_decisions',
       payload: {
-        count: 0,
+        // Signed-prefix seal contract (T2.5a). The Red Queen log is a live
+        // append-only sidecar; the hook fires on the agent's own final git
+        // add/commit, so a whole-file digest taken now can never match the
+        // committed file. We seal the PREFIX we actually read and let the gate
+        // verify exactly that many bytes, reporting anything after as an
+        // uncovered tail. Honest-zero: nothing read.
+        covered_bytes: 0,
+        covered_sha256: null,
+        covered_count: 0,
         allowed: 0,
         denied: 0,
         overrides: 0,
-        log_sha256: null,
-        log_path: logPath,
+        covered_through_ts: null,
         first_ts: null,
-        last_ts: null,
         denials: [],
         note: 'no decision log present',
       },
@@ -2909,21 +2915,25 @@ const handleAuditSignRedqueenDecisions: SkillHandler = async (input) => {
     if (!emit.ok) { return emit; }
     return {
       ok: true,
-      count: 0,
+      coveredBytes: 0,
+      coveredCount: 0,
       allowed: 0,
       denied: 0,
       overrides: 0,
-      log_sha256: null,
+      coveredSha256: null,
       eventId: emit.eventId,
       sealed: true,
     };
   }
 
-  // Digest the EXACT file bytes (the Buffer read above, NOT a UTF-8
-  // round-trip or canonical re-stringify) so a verifier re-hashes the
-  // committed file verbatim. The hook appends plain JSON lines; we count +
-  // classify them for the payload but sign over the byte-identical content.
-  const log_sha256 = createHash('sha256').update(rawBuf).digest('hex');
+  // SEAL THE PREFIX WE READ. `covered_bytes` is the exact byte length read;
+  // `covered_sha256` is the sha256 of those exact bytes. The gate re-hashes
+  // the first `covered_bytes` bytes of the COMMITTED log and compares — so
+  // both sides hash byte-identical content (no line-join / UTF-8 round-trip
+  // ambiguity). Bytes after `covered_bytes` are the agent's post-seal
+  // commit-time decisions; the gate reports them as an uncovered tail.
+  const covered_bytes = rawBuf.length;
+  const covered_sha256 = createHash('sha256').update(rawBuf).digest('hex');
 
   let count = 0;
   let allowed = 0;
@@ -2946,8 +2956,13 @@ const handleAuditSignRedqueenDecisions: SkillHandler = async (input) => {
       continue;
     }
     count++;
-    const verdict = typeof row.verdict === 'string' ? row.verdict : undefined;
     const payloadObj = (row.payload && typeof row.payload === 'object') ? row.payload as Record<string, unknown> : undefined;
+    // The Red Queen hook nests its fields under `payload` (payload.verdict);
+    // accept a top-level `verdict` too for forward-compat. Reading only the
+    // top level left allowed/denied at 0 while count reflected every line
+    // (observed on celeb-api PR #12: count=18, allowed=0, denied=0).
+    const verdict = typeof row.verdict === 'string' ? row.verdict
+      : (typeof payloadObj?.verdict === 'string' ? payloadObj.verdict as string : undefined);
     const ts = typeof row.ts === 'string' ? row.ts : (typeof row.timestamp === 'string' ? row.timestamp : undefined);
     if (ts) {
       if (first_ts === null) { first_ts = ts; }
@@ -2973,14 +2988,18 @@ const handleAuditSignRedqueenDecisions: SkillHandler = async (input) => {
     runId: ctx.runId,
     eventKind: 'redqueen_decisions',
     payload: {
-      count,
+      // Signed-prefix seal: covered_bytes/covered_sha256 are what the gate
+      // re-hashes (first covered_bytes of the committed log). covered_count is
+      // the decision count within that sealed prefix.
+      covered_bytes,
+      covered_sha256,
+      covered_count: count,
       allowed,
       denied,
       overrides,
-      log_sha256,
       log_path: logPath,
       first_ts,
-      last_ts,
+      covered_through_ts: last_ts,
       denials,
     },
     phase: ctx.phase,
@@ -2990,11 +3009,12 @@ const handleAuditSignRedqueenDecisions: SkillHandler = async (input) => {
 
   return {
     ok: true,
-    count,
+    coveredBytes: covered_bytes,
+    coveredCount: count,
     allowed,
     denied,
     overrides,
-    log_sha256,
+    coveredSha256: covered_sha256,
     eventId: emit.eventId,
     sealed: true,
   };
