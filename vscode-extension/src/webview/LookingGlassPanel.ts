@@ -2119,8 +2119,15 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
 
     // Rows worth polling: opened (no PR yet, looking for one) or
     // pr-opened (PR found, looking for merge/reject). pr-merged is
-    // terminal-ish (we still surface it but don't repoll). pr-rejected
-    // also terminal.
+    // terminal-ish (we still surface it but don't repoll).
+    //
+    // pr-rejected is RE-POLLED (not terminal): the immediate on-open poll can
+    // fire before Copilot opens this run's draft PR and — without the
+    // created-at filter below — match a CLOSED PR from a PRIOR run, locking
+    // the row to a FALSE pr-rejected. Re-polling lets it self-heal: once this
+    // run's PR appears (created at/after the landing issue), findImplPr returns
+    // it and the row flips to pr-opened. A genuinely-rejected PR stays
+    // rejected (no newer qualifying PR → no change).
     //
     // Codex-r3 Bug 3 — ALSO repoll any pr-merged row whose chain-ladder
     // append failed on a prior pass. The status transition is preserved
@@ -2130,6 +2137,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     const candidates = prior.rows.filter(r =>
       r.status === 'opened' ||
       r.status === 'pr-opened' ||
+      r.status === 'pr-rejected' ||
       (r.status === 'pr-merged' && r.chainLadderAppendError),
     );
     if (candidates.length === 0) return;
@@ -2160,7 +2168,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       // path: a pr-merged row carrying chainLadderAppendError that we
       // need to retry. Match that filter exactly here.
       const isRetryAppend = row.status === 'pr-merged' && !!row.chainLadderAppendError;
-      if (row.status !== 'opened' && row.status !== 'pr-opened' && !isRetryAppend) continue;
+      if (row.status !== 'opened' && row.status !== 'pr-opened' && row.status !== 'pr-rejected' && !isRetryAppend) continue;
       if (!row.landingIssueUrl) continue;
 
       const issueMatch = row.landingIssueUrl.match(/github\.com\/([\w.-]+)\/([\w.-]+)\/issues\/(\d+)/);
@@ -2169,7 +2177,12 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       const issueNumber = parseInt(issueNum, 10);
 
       try {
-        const observed = await this.findImplPrForLandingIssue(owner, repo, issueNumber, okrId);
+        // Pass this run's landing-issue creation time (row.openedAt) as the
+        // created-at boundary so PRs from PRIOR runs (the closed #2…#12 here)
+        // are excluded — mirrors the planning phases' findArtifactPr. Without
+        // it, a poll that runs before this run's PR exists matches the newest
+        // CLOSED prior-run PR and falsely marks the row pr-rejected.
+        const observed = await this.findImplPrForLandingIssue(owner, repo, issueNumber, okrId, row.openedAt);
         if (!observed) continue; // no impl PR yet -- keep row at `opened`
 
         // Map observed PR state -> design-fan-out row status.
@@ -2428,6 +2441,12 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     repo: string,
     issueNumber: number,
     okrId: string,
+    /** ISO time of THIS run's landing-issue creation. PRs created before it
+     *  are from prior runs and are EXCLUDED — mirrors findArtifactPr's
+     *  created_at filter. Without it, a poll that runs before this run's PR
+     *  exists matches the newest CLOSED prior-run PR and falsely marks the row
+     *  pr-rejected. Pass undefined to disable the filter. */
+    sinceIso?: string,
   ): Promise<{ number: number; url: string; state: 'open' | 'closed' | 'merged'; merged: boolean; draft: boolean } | null> {
     try {
       const client = await this.githubService.getClient();
@@ -2454,6 +2473,9 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       const refRe = new RegExp(`(?:closes|fixes|resolves|connects)\\s+#${issueNumber}\\b|#${issueNumber}\\b`, 'i');
       const headRe = new RegExp(`copilot/.*\\b${issueNumber}\\b`, 'i');
       const matched = data.filter(pr => {
+        // Exclude PRs from prior runs (created before THIS run's landing
+        // issue). A closed prior-run PR must never satisfy a fresh row.
+        if (sinceIso && typeof pr.created_at === 'string' && pr.created_at < sinceIso) { return false; }
         const title = pr.title ?? '';
         const body = pr.body ?? '';
         const headRef = pr.head?.ref ?? '';
