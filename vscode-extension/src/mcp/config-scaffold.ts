@@ -1333,7 +1333,17 @@ export function generateImplProvenanceWorkflow(): string {
   lines.push(`            const chainReason = \`\${{ steps.chain.outputs.chain_reason }}\`;`);
   lines.push(`            const missing = \`\${{ steps.manifest.outputs.manifest_missing }}\`;`);
   lines.push(`            const hatterReason = \`\${{ steps.hatter.outputs.hatter_reason }}\`;`);
-  lines.push(`            const pass = chainOk && manifestOk && hatterOk;`);
+  lines.push(`            // Red Queen signed-prefix seal signals — hoisted above the pass`);
+  lines.push(`            // gate so the gate can fail on a seal mismatch.`);
+  lines.push(`            const rqDigestPresent = '\${{ steps.redqueen.outputs.rq_digest_present }}' === 'true';`);
+  lines.push(`            const rqSealMatch = '\${{ steps.redqueen.outputs.rq_seal_match }}' === 'true';`);
+  lines.push(`            // GATE ON SEAL MISMATCH ONLY (user decision). A signed seal whose`);
+  lines.push(`            // committed prefix fails to re-hash means tamper / corruption / wrong`);
+  lines.push(`            // bytes — that FAILS the PR. A non-clean TAIL (the agent's own`);
+  lines.push(`            // post-seal commit-time decisions) stays advisory: surfaced, not`);
+  lines.push(`            // gated. No signed seal present → the seal clause is vacuously true`);
+  lines.push(`            // (back-compat with runs that predate the signer).`);
+  lines.push(`            const pass = chainOk && manifestOk && hatterOk && (!rqDigestPresent || rqSealMatch);`);
   lines.push(`            const row = (label, ok, detail) => \`| \${ok ? '✅' : '❌'} | \${label} | \${detail} |\`;`);
   lines.push(`            let bodyMd = \`## \${pass ? '✅' : '❌'} Implementation provenance\\n\\n\`;`);
   lines.push(`            bodyMd += '| | Check | Detail |\\n|---|---|---|\\n';`);
@@ -1343,8 +1353,6 @@ export function generateImplProvenanceWorkflow(): string {
   lines.push(`            const rqPresent = '\${{ steps.redqueen.outputs.rq_present }}' === 'true';`);
   lines.push(`            const rqAllowed = '\${{ steps.redqueen.outputs.rq_allowed }}';`);
   lines.push(`            const rqDenied = '\${{ steps.redqueen.outputs.rq_denied }}';`);
-  lines.push(`            const rqDigestPresent = '\${{ steps.redqueen.outputs.rq_digest_present }}' === 'true';`);
-  lines.push(`            const rqSealMatch = '\${{ steps.redqueen.outputs.rq_seal_match }}' === 'true';`);
   lines.push(`            const rqTailCount = parseInt('\${{ steps.redqueen.outputs.rq_tail_count }}' || '0', 10);`);
   lines.push(`            const rqTailClean = '\${{ steps.redqueen.outputs.rq_tail_clean }}' === 'true';`);
   lines.push(`            // Tier 2.5a SIGNED-PREFIX SEAL (Codex-approved contract). The seal`);
@@ -1354,7 +1362,8 @@ export function generateImplProvenanceWorkflow(): string {
   lines.push(`            // (chainOk) AND the sealed prefix to match (rqSealMatch). Anything`);
   lines.push(`            // after the seal is the agent's own post-seal commit-time decisions —`);
   lines.push(`            // an UNCOVERED TAIL, named honestly: allow-only is benign, deny/`);
-  lines.push(`            // override/unknown in the tail is flagged. Advisory: does not gate.`);
+  lines.push(`            // override/unknown in the tail is flagged. GATING: a seal MISMATCH`);
+  lines.push(`            // fails the PR (folded into pass above); the tail stays advisory.`);
   lines.push(`            const rqVerified = rqDigestPresent && rqSealMatch && chainOk;`);
   lines.push(`            const tailNote = rqTailCount > 0`);
   lines.push(`              ? (' · ' + rqTailCount + ' post-seal commit decision' + (rqTailCount === 1 ? '' : 's') + (rqTailClean ? ' (allow-only, uncovered)' : ' ⚠ NON-ALLOW IN TAIL'))`);
@@ -1364,13 +1373,13 @@ export function generateImplProvenanceWorkflow(): string {
   lines.push(`                    ? ('signed & verified · ' + rqAllowed + ' decisions sealed' + (rqDenied !== '0' ? (' / ' + rqDenied + ' denied') : ''))`);
   lines.push(`                    : 'signed & verified · no decision log (no governed tool calls captured)') + tailNote)`);
   lines.push(`              : rqDigestPresent`);
-  lines.push(`                ? ('seal present · ' + (rqSealMatch ? 'prefix ✓' : 'prefix ✗ (mismatch)') + (chainOk ? '' : ' · chain unverified') + ' · ' + rqAllowed + ' allowed / ' + rqDenied + ' denied' + tailNote)`);
+  lines.push(`                ? ('seal present · ' + (rqSealMatch ? 'prefix ✓' : 'prefix ✗ MISMATCH (gates — fails the PR)') + (chainOk ? '' : ' · chain unverified') + ' · ' + rqAllowed + ' allowed / ' + rqDenied + ' denied' + tailNote)`);
   lines.push(`                : (rqPresent ? (rqAllowed + ' allowed / ' + rqDenied + ' denied · unsigned (runner upgrade pending)') : 'no .redqueen/audit-log.jsonl committed (advisory — not gated)');`);
   lines.push(`            const rqIcon = !rqDigestPresent ? (rqPresent ? 'ℹ️' : '➖') : (rqVerified ? (rqTailClean ? '✅' : '⚠️') : '❌');`);
-  lines.push(`            bodyMd += \`| \${rqIcon} | Red Queen enforcement seal (advisory) | \${rqDetail} |\\n\`;`);
+  lines.push(`            bodyMd += \`| \${rqIcon} | Red Queen enforcement seal (mismatch gates · tail advisory) | \${rqDetail} |\\n\`;`);
   lines.push(`            bodyMd += '\\n---\\n🔴 Generated by [The Red Queen](https://maintainability.ai) — implementation provenance gate';`);
   lines.push(`            await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number, body: bodyMd });`);
-  lines.push(`            if (!pass) { core.setFailed('Implementation provenance failed — see the PR comment. The impl run was not governed (signed chain / skill manifest / Hatter Tag incomplete).'); }`);
+  lines.push(`            if (!pass) { const why = (rqDigestPresent && !rqSealMatch) ? 'the Red Queen seal failed to verify — the committed decision-log prefix does not match the signed seal (tamper / corruption / wrong bytes)' : 'the impl run was not governed (signed chain / skill manifest / Hatter Tag incomplete)'; core.setFailed('Implementation provenance failed — see the PR comment. ' + why + '.'); }`);
 
   return lines.join('\n') + '\n';
 }

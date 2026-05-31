@@ -72,16 +72,15 @@ describe('Bug-AAE Phase 2/3: standalone impl-provenance.yml gate', () => {
     expect(wf).toMatch(/was not governed/);
   });
 
-  it('Phase 3: surfaces the Red Queen decision log allow/deny count (advisory, not gated)', () => {
+  it('Phase 3: surfaces the Red Queen decision log allow/deny count (advisory counts, mismatch gates)', () => {
     // Reads .redqueen/audit-log.jsonl committed by the agent and reports
-    // N allowed / M denied. Advisory: the `pass` gate is chain+manifest+
-    // hatter only, so the all-allow autonomous trail never blocks.
+    // N allowed / M denied. The allow/deny COUNTS + the uncovered tail are
+    // advisory — the all-allow autonomous trail never blocks on counts. The
+    // SEAL itself gates on mismatch (see the T2.5a test below).
     expect(wf).toContain('.redqueen/audit-log.jsonl');
     expect(wf).toMatch(/rq_allowed=/);
     expect(wf).toMatch(/rq_denied=/);
-    expect(wf).toMatch(/Red Queen enforcement seal \(advisory\)/);
-    // The gate's pass condition must NOT include the red-queen log.
-    expect(wf).toMatch(/const pass = chainOk && manifestOk && hatterOk;/);
+    expect(wf).toMatch(/Red Queen enforcement seal \(mismatch gates · tail advisory\)/);
     // Heredoc imports what it uses (Bug-XX-safe).
     expect(wf).toMatch(/import json, os/);
   });
@@ -130,7 +129,12 @@ describe('Bug-AAE Phase 2/3: standalone impl-provenance.yml gate', () => {
     expect(wf).toMatch(/signed & verified/);
     expect(wf).toMatch(/post-seal commit decision/);
     expect(wf).toMatch(/unsigned \(runner upgrade pending\)/);
-    // Still advisory — pass must remain chain+manifest+hatter only.
-    expect(wf).toMatch(/const pass = chainOk && manifestOk && hatterOk;/);
+    // Gate on SEAL MISMATCH only (user decision): a signed seal whose committed
+    // prefix fails to re-hash FAILS the PR; a non-clean TAIL stays advisory.
+    expect(wf).toMatch(/const pass = chainOk && manifestOk && hatterOk && \(!rqDigestPresent \|\| rqSealMatch\);/);
+    // The setFailed message names the seal-mismatch case distinctly.
+    expect(wf).toMatch(/the Red Queen seal failed to verify/);
+    // The tail is NOT folded into pass — it only adjusts the comment/icon.
+    expect(wf).not.toMatch(/&& rqTailClean/);
   });
 });
