@@ -2054,6 +2054,9 @@ const AuditEmitInput = z.object({
     // Agent-emitted (signed under per-epoch private key):
     'self_review', 'self_review_exhausted', 'gap_loop',
     'review_received', 'review_emitted',
+    // Tier 2.5a — Red Queen enforcement-chain digest (agent-signed; see
+    // EVENT_KIND_ORIGIN + handleAuditSignRedqueenDecisions).
+    'redqueen_decisions',
     // Workflow-emitted (unsigned, re-derivable from canonical sources):
     'artifact_written', 'state_transition', 'human_gate',
   ]),
@@ -2082,6 +2085,9 @@ const InternalAuditEmitInput = z.object({
     // Agent (signed):
     'self_review', 'self_review_exhausted', 'gap_loop',
     'review_received', 'review_emitted',
+    // Tier 2.5a — Red Queen enforcement-chain digest (agent-signed; emitted
+    // via the internal path by handleAuditSignRedqueenDecisions).
+    'redqueen_decisions',
     // Workflow (unsigned, allowlisted):
     'artifact_written', 'state_transition', 'human_gate',
   ]),
@@ -2127,6 +2133,15 @@ const EVENT_KIND_ORIGIN: Record<string, 'runtime' | 'agent' | 'workflow'> = {
   gap_loop: 'agent',
   review_received: 'agent',
   review_emitted: 'agent',
+  // Tier 2.5a — Red Queen enforcement-chain digest. Emitted via CLI by the
+  // implementation agent's FINAL governed action (audit-sign-redqueen-
+  // decisions) while the runner still holds the live per-epoch private key.
+  // The PreToolUse hook that writes .redqueen/audit-log.jsonl runs in a
+  // separate process with no session key, so it CANNOT sign; this rolled-up
+  // digest event signs the log's sha256 into the same IMPL hash-chain. The
+  // verifier is data-driven off this map — an agent-origin kind with a valid
+  // signature + signer_epoch passes the existing loops with no verifier change.
+  redqueen_decisions: 'agent',
   // Workflow — emitted via CLI from inside a GitHub Actions step,
   // unsigned, re-derivable from canonical sources.
   artifact_written: 'workflow',
@@ -2802,6 +2817,186 @@ const handleAuditVerifyChain: SkillHandler = async (input) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────
+// audit-sign-redqueen-decisions — Tier 2.5a finalize-time chain signing
+// ─────────────────────────────────────────────────────────────────────
+
+const SignRedqueenInput = z.object({
+  // Optional override; defaults to <REPO_PATH or cwd>/.redqueen/audit-log.jsonl.
+  logPath: z.string().min(1).optional(),
+}).passthrough();
+
+/** Cap on the per-decision detail rows folded into the signed digest. */
+const REDQUEEN_DENIALS_CAP = 50;
+
+/**
+ * `audit-sign-redqueen-decisions` (Tier 2.5a) — the implementation agent's
+ * FINAL governed action. The Red Queen PreToolUse hook writes per-tool-call
+ * allow/deny decisions to `<repo>/.redqueen/audit-log.jsonl` as UNSIGNED
+ * plain JSON; a sandbox probe confirmed the hook (separate process, no
+ * session key, no session env) cannot sign them. This skill, run while the
+ * runner still holds the live per-epoch Ed25519 key, rolls the whole
+ * decision log into ONE digest event and signs it onto the IMPL hash-chain.
+ *
+ * Why one rolled-up event (not per-decision): keeps the chain small and the
+ * skill_call / self_review story readable. Verifiability is preserved by
+ * signing the log's sha256 — anyone re-hashes the committed
+ * `.redqueen/audit-log.jsonl` and compares it to `payload.log_sha256`.
+ *
+ * Back-compat / honest-zero: if the log is missing or empty (the hook may
+ * never have fired) the skill STILL emits an honest-zero digest event
+ * (`count:0`, `log_sha256:null`, `note:'no decision log present'`) rather
+ * than crashing — the impl chain stays complete either way.
+ */
+const handleAuditSignRedqueenDecisions: SkillHandler = async (input) => {
+  const parsed = SignRedqueenInput.safeParse(input ?? {});
+  if (!parsed.success) { return { ok: false, reason: `bad-input: ${parsed.error.message}` }; }
+
+  // Guard: this is a finalize-time IMPLEMENTATION-phase skill. Fail loud on
+  // any other phase / run-id shape, mirroring the phase↔runId guard style in
+  // emitAuditEvent (~2438). Without a live session context there is no epoch
+  // key to sign under and no IMPL chain to append to.
+  const ctx = readSessionContext();
+  if (!ctx) {
+    return {
+      ok: false,
+      reason: `no-session-context: audit-sign-redqueen-decisions requires OKR_ID/RUN_ID/INTENT_THREAD_UUID/PHASE in the environment (it must run as the agent's final governed action while the per-epoch signing key is live).`,
+    };
+  }
+  if (ctx.phase !== 'implementation' || !ctx.runId.startsWith('IMPL-')) {
+    return {
+      ok: false,
+      reason: `not-implementation-phase: audit-sign-redqueen-decisions only runs in the implementation phase (phase='implementation' + RUN_ID='IMPL-*'); got phase='${ctx.phase}' runId='${ctx.runId}'. The Red Queen decision log lives in the target repo's .redqueen/ and is signed onto the IMPL chain only.`,
+    };
+  }
+
+  // Resolve the RQ log path the same way auditBaseDir resolves the impl
+  // chain root: REPO_PATH env (falls back to cwd). Optional override wins.
+  const logPath = parsed.data.logPath ?? path.join(repoPath(), '.redqueen', 'audit-log.jsonl');
+
+  // Honest-zero: never crash when the hook hasn't fired (missing/empty log).
+  let raw = '';
+  if (fs.existsSync(logPath)) {
+    try {
+      raw = fs.readFileSync(logPath, 'utf8');
+    } catch (err) {
+      return { ok: false, reason: `redqueen-log-read-failed: ${(err as Error).message}` };
+    }
+  }
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) {
+    const emit = await emitAuditEvent({
+      okrId: ctx.okrId,
+      runId: ctx.runId,
+      eventKind: 'redqueen_decisions',
+      payload: {
+        count: 0,
+        allowed: 0,
+        denied: 0,
+        overrides: 0,
+        log_sha256: null,
+        log_path: logPath,
+        first_ts: null,
+        last_ts: null,
+        denials: [],
+        note: 'no decision log present',
+      },
+      phase: ctx.phase,
+      intentThreadUuid: ctx.intentThreadUuid,
+    }, { internal: true });
+    if (!emit.ok) { return emit; }
+    return {
+      ok: true,
+      count: 0,
+      allowed: 0,
+      denied: 0,
+      overrides: 0,
+      log_sha256: null,
+      eventId: emit.eventId,
+      sealed: true,
+    };
+  }
+
+  // Digest the RAW file bytes (NOT a canonical re-stringify) so a verifier
+  // re-hashes the committed file verbatim. The hook appends plain JSON lines;
+  // we count + classify them but sign over the exact bytes on disk.
+  const log_sha256 = createHash('sha256').update(Buffer.from(raw, 'utf8')).digest('hex');
+
+  let count = 0;
+  let allowed = 0;
+  let denied = 0;
+  let overrides = 0;
+  let first_ts: string | null = null;
+  let last_ts: string | null = null;
+  const denials: Array<{ tool?: unknown; filePath?: unknown; ruleId?: unknown; reason?: unknown }> = [];
+
+  for (const line of trimmed.split('\n')) {
+    const t = line.trim();
+    if (t.length === 0) { continue; }
+    let row: Record<string, unknown>;
+    try {
+      row = JSON.parse(t) as Record<string, unknown>;
+    } catch {
+      // Tolerate a malformed/partial line (e.g. a torn write) — count it but
+      // skip classification. Never crash on the decision log.
+      count++;
+      continue;
+    }
+    count++;
+    const verdict = typeof row.verdict === 'string' ? row.verdict : undefined;
+    const payloadObj = (row.payload && typeof row.payload === 'object') ? row.payload as Record<string, unknown> : undefined;
+    const ts = typeof row.ts === 'string' ? row.ts : (typeof row.timestamp === 'string' ? row.timestamp : undefined);
+    if (ts) {
+      if (first_ts === null) { first_ts = ts; }
+      last_ts = ts;
+    }
+    if (verdict === 'allow') { allowed++; }
+    if (verdict === 'deny') {
+      denied++;
+      if (denials.length < REDQUEEN_DENIALS_CAP) {
+        denials.push({
+          tool: row.tool ?? payloadObj?.tool,
+          filePath: row.filePath ?? payloadObj?.filePath,
+          ruleId: row.ruleId ?? payloadObj?.ruleId,
+          reason: row.reason ?? payloadObj?.reason,
+        });
+      }
+    }
+    if (payloadObj?.override === true || row.override === true) { overrides++; }
+  }
+
+  const emit = await emitAuditEvent({
+    okrId: ctx.okrId,
+    runId: ctx.runId,
+    eventKind: 'redqueen_decisions',
+    payload: {
+      count,
+      allowed,
+      denied,
+      overrides,
+      log_sha256,
+      log_path: logPath,
+      first_ts,
+      last_ts,
+      denials,
+    },
+    phase: ctx.phase,
+    intentThreadUuid: ctx.intentThreadUuid,
+  }, { internal: true });
+  if (!emit.ok) { return emit; }
+
+  return {
+    ok: true,
+    count,
+    allowed,
+    denied,
+    overrides,
+    log_sha256,
+    eventId: emit.eventId,
+    sealed: true,
+  };
+};
+
+// ─────────────────────────────────────────────────────────────────────
 // Registry + dispatcher
 // ─────────────────────────────────────────────────────────────────────
 
@@ -2848,6 +3043,8 @@ export const SKILLS: Record<string, SkillHandler> = {
   'format-research-issue-update': handleFormatResearchIssueUpdate,
   'audit-emit-event': handleAuditEmitEvent,
   'audit-verify-chain': handleAuditVerifyChain,
+  // Tier 2.5a — finalize-time Red Queen enforcement-chain signer.
+  'audit-sign-redqueen-decisions': handleAuditSignRedqueenDecisions,
 };
 
 export function isSkillName(name: string): boolean {
@@ -2861,7 +3058,15 @@ export function isSkillName(name: string): boolean {
  * recursion (audit-emit-event audit-emitting itself) or a meaningless
  * `skill_call` event for a read-only verify operation.
  */
-const NO_AUTO_EMIT_SKILLS = new Set(['audit-emit-event', 'audit-verify-chain']);
+const NO_AUTO_EMIT_SKILLS = new Set([
+  'audit-emit-event',
+  'audit-verify-chain',
+  // Tier 2.5a — this skill IS an audit-surface writer (it emits its own
+  // signed redqueen_decisions digest event via the internal path). Letting
+  // runSkill auto-emit a skill_call for it would double-log + muddy the
+  // final-action story, exactly like audit-emit-event above.
+  'audit-sign-redqueen-decisions',
+]);
 
 export async function runSkill(name: string, input: unknown): Promise<SkillResult> {
   const handler = SKILLS[name];

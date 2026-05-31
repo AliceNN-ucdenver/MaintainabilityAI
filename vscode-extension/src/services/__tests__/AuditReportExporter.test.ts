@@ -2056,4 +2056,62 @@ describe('buildOkrRollupMarkdown — implementation chain section', () => {
     expect(md).toContain('cross-repo-chain-root-mismatch');
     expect(md).toContain('wrong-root');
   });
+
+  // Tier 2.5a — Red Queen enforcement-digest sub-block.
+  it('omits the Red Queen sub-block when no row carries a redqueenDigest (back-compat)', () => {
+    const md = buildOkrRollupMarkdown({
+      ...baseInput,
+      implementationChain: {
+        rows: [{
+          repoSlug: 'acme/celeb-api',
+          status: 'pr-merged',
+          prUrl: 'https://github.com/acme/celeb-api/pull/42',
+          chain: { ...FULL_CHAIN },
+          // no redqueenDigest — older run, runner predates the signer.
+        }],
+        expectedIntentThread: FULL_CHAIN.parent_intent_thread,
+        expectedWhatChainRoot: FULL_CHAIN.parent_chain_root,
+      },
+    });
+    // Impl chain table renders, but the Red Queen sub-block is absent.
+    expect(md).toContain('## Implementation chain');
+    expect(md).not.toContain('## Implementation chain (Red Queen)');
+  });
+
+  it('renders the Red Queen sub-block (counts + log sha + denials) when a digest is present', () => {
+    const md = buildOkrRollupMarkdown({
+      ...baseInput,
+      implementationChain: {
+        rows: [{
+          repoSlug: 'acme/celeb-api',
+          status: 'pr-merged',
+          prUrl: 'https://github.com/acme/celeb-api/pull/42',
+          chain: { ...FULL_CHAIN },
+          redqueenDigest: {
+            count: 7,
+            allowed: 5,
+            denied: 2,
+            overrides: 1,
+            logSha256: 'deadbeef'.repeat(8),
+            signed: true,
+            denials: [
+              { tool: 'Write', filePath: 'secrets.env', ruleId: 'no-secrets', reason: 'blocked write to secret' },
+              { tool: 'Bash', reason: 'network egress denied' },
+            ],
+          },
+        }],
+        expectedIntentThread: FULL_CHAIN.parent_intent_thread,
+        expectedWhatChainRoot: FULL_CHAIN.parent_chain_root,
+      },
+    });
+    expect(md).toContain('## Implementation chain (Red Queen)');
+    // Signed icon + allow/deny/override counts in the table row.
+    expect(md).toMatch(/\| `acme\/celeb-api` \| ✓ \| 5 \| 2 \| 1 \|/);
+    // Truncated log sha256 surfaced for re-hash verification.
+    expect(md).toContain('`deadbeefdead…`');
+    // Denials detail block.
+    expect(md).toContain('Red Queen denials (2)');
+    expect(md).toContain('Write `secrets.env` [no-secrets] — blocked write to secret');
+    expect(md).toContain('network egress denied');
+  });
 });

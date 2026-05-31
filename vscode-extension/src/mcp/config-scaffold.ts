@@ -365,9 +365,6 @@ function emitDecision(input, decision) {
   // even if the agent runtime kills us after stdout. Fail-soft: any error
   // here is swallowed so the hook still enforces.
   try { appendAuditLine(input, decision, agent); } catch (_) { /* fail-soft */ }
-  // DIAGNOSTIC (Tier 2.5a) — one-time signing-context probe. Remove after
-  // the 2.0 run confirms whether the Ed25519 key is reachable from the hook.
-  try { writeSigningProbeOnce(); } catch (_) { /* fail-soft */ }
 
   if (agent === 'copilot') {
     process.stdout.write(JSON.stringify({
@@ -389,54 +386,6 @@ function emitDecision(input, decision) {
     },
   }));
   process.exit(0);
-}
-
-function writeSigningProbeOnce() {
-  // DIAGNOSTIC (Tier 2.5a) — one-time capture of whether the per-epoch
-  // Ed25519 signing context is reachable from THIS hook process. The hook
-  // runs separately from the runner that owns the ephemeral private key,
-  // so this confirms (rather than assumes) what the hook can sign. SAFE:
-  // env NAMES + booleans + counts only -- never key material or env values.
-  // REMOVE in Tier 2.5a once the 2.0 run confirms the signing context.
-  try {
-    var probePath = path.join(process.cwd(), '.redqueen', 'hook-signing-probe.jsonl');
-    if (fs.existsSync(probePath)) { return; }
-    var keysDir = path.join(process.cwd(), '.maintainability', 'audit', 'keys');
-    var privCount = 0, pubCount = 0;
-    try {
-      var files = fs.existsSync(keysDir) ? fs.readdirSync(keysDir) : [];
-      for (var i = 0; i < files.length; i++) {
-        var lf = files[i].toLowerCase();
-        if (lf.indexOf('.pub') !== -1) { pubCount++; }
-        else if (lf.indexOf('priv') !== -1 || lf.indexOf('secret') !== -1 || lf.indexOf('.key') !== -1) { privCount++; }
-      }
-    } catch (_) { /* ignore */ }
-    var hints = ['OKR', 'RUN_ID', 'INTENT', 'PHASE', 'EPOCH', 'SIGNER', 'MAINTAINABILITY', 'REDQUEEN', 'SESSION', 'KEY', 'TOKEN', 'SIGN'];
-    var envNames = Object.keys(process.env).filter(function (k) {
-      var ku = k.toUpperCase();
-      for (var j = 0; j < hints.length; j++) { if (ku.indexOf(hints[j]) !== -1) { return true; } }
-      return false;
-    }).sort();
-    var probe = {
-      diagnostic: 'tier-2.5a-hook-signing-probe',
-      note: 'env NAMES + booleans + counts only; REMOVE after the 2.0 run confirms signing context',
-      timestamp: new Date().toISOString(),
-      pid: process.pid,
-      ppid: typeof process.ppid === 'number' ? process.ppid : null,
-      phase: process.env.PHASE || null,
-      runId: process.env.RUN_ID || null,
-      okrId: process.env.OKR_ID || null,
-      intentThread: process.env.INTENT_THREAD_UUID || null,
-      signerEpoch: process.env.SIGNER_EPOCH || null,
-      runnerSessionEnvVisible: !!(process.env.RUN_ID && process.env.PHASE),
-      privKeyOnDisk: privCount,
-      pubKeysOnDisk: pubCount,
-      envKeysPresent: envNames
-    };
-    var dir = path.dirname(probePath);
-    if (!fs.existsSync(dir)) { fs.mkdirSync(dir, { recursive: true }); }
-    fs.writeFileSync(probePath, JSON.stringify(probe) + '\\n');
-  } catch (_) { /* fail-soft -- never affect enforcement */ }
 }
 
 function appendAuditLine(input, decision, agent) {
@@ -1255,11 +1204,17 @@ export function generateImplProvenanceWorkflow(): string {
   lines.push(`        if: always()`);
   lines.push(`        run: |`);
   lines.push(`          python3 <<'PYEOF'`);
-  lines.push(`          import json, os`);
+  lines.push(`          import json, os, glob, hashlib`);
   lines.push(`          path = '.redqueen/audit-log.jsonl'`);
   lines.push(`          present = os.path.exists(path)`);
   lines.push(`          allowed = denied = 0`);
+  lines.push(`          log_sha = None`);
   lines.push(`          if present:`);
+  lines.push(`              # Tier 2.5a — recompute the digest of the committed decision log`);
+  lines.push(`              # over the RAW bytes (same as the runner signs) so we can compare`);
+  lines.push(`              # it to the signed log_sha256 carried in the redqueen_decisions event.`);
+  lines.push(`              with open(path, 'rb') as bf:`);
+  lines.push(`                  log_sha = hashlib.sha256(bf.read()).hexdigest()`);
   lines.push(`              with open(path, 'r', encoding='utf-8') as f:`);
   lines.push(`                  for line in f:`);
   lines.push(`                      line = line.strip()`);
@@ -1271,12 +1226,40 @@ export function generateImplProvenanceWorkflow(): string {
   lines.push(`                      verdict = ((e.get('payload') or {}).get('verdict')) or e.get('verdict')`);
   lines.push(`                      if verdict == 'allow': allowed += 1`);
   lines.push(`                      elif verdict == 'deny': denied += 1`);
+  lines.push(`          # Tier 2.5a — scan the signed IMPL chain for the rolled-up`);
+  lines.push(`          # redqueen_decisions digest event the runner emits as the agent's`);
+  lines.push(`          # FINAL governed action. signed = the event exists at all; digest`);
+  lines.push(`          # match = the signed payload.log_sha256 equals the recomputed digest`);
+  lines.push(`          # of the committed log. Both ADVISORY (back-compat: absent on older`);
+  lines.push(`          # runners that predate the audit-sign-redqueen-decisions skill).`);
+  lines.push(`          signed = False`);
+  lines.push(`          digest_match = False`);
+  lines.push(`          signed_sha = None`);
+  lines.push(`          for ev_path in glob.glob('.maintainability/audit/events/*.jsonl'):`);
+  lines.push(`              try:`);
+  lines.push(`                  with open(ev_path, 'r', encoding='utf-8') as ef:`);
+  lines.push(`                      for line in ef:`);
+  lines.push(`                          line = line.strip()`);
+  lines.push(`                          if not line: continue`);
+  lines.push(`                          try:`);
+  lines.push(`                              ev = json.loads(line)`);
+  lines.push(`                          except Exception:`);
+  lines.push(`                              continue`);
+  lines.push(`                          if ev.get('event_kind') != 'redqueen_decisions': continue`);
+  lines.push(`                          signed = True`);
+  lines.push(`                          signed_sha = (ev.get('payload') or {}).get('log_sha256')`);
+  lines.push(`              except Exception:`);
+  lines.push(`                  continue`);
+  lines.push(`          if signed and signed_sha is not None and log_sha is not None:`);
+  lines.push(`              digest_match = (signed_sha == log_sha)`);
   lines.push(`          out = os.environ['GITHUB_OUTPUT']`);
   lines.push(`          with open(out, 'a', encoding='utf-8') as gh:`);
   lines.push(`              gh.write('rq_present=' + ('true' if present else 'false') + '\\n')`);
   lines.push(`              gh.write('rq_allowed=' + str(allowed) + '\\n')`);
   lines.push(`              gh.write('rq_denied=' + str(denied) + '\\n')`);
-  lines.push(`          print('red queen decisions: allowed=%d denied=%d present=%s' % (allowed, denied, present))`);
+  lines.push(`              gh.write('rq_signed=' + ('true' if signed else 'false') + '\\n')`);
+  lines.push(`              gh.write('rq_digest_match=' + ('true' if digest_match else 'false') + '\\n')`);
+  lines.push(`          print('red queen decisions: allowed=%d denied=%d present=%s signed=%s digest_match=%s' % (allowed, denied, present, signed, digest_match))`);
   lines.push(`          PYEOF`);
   lines.push(``);
   lines.push(`      - name: Post provenance verdict + gate`);
@@ -1300,7 +1283,13 @@ export function generateImplProvenanceWorkflow(): string {
   lines.push(`            const rqPresent = '\${{ steps.redqueen.outputs.rq_present }}' === 'true';`);
   lines.push(`            const rqAllowed = '\${{ steps.redqueen.outputs.rq_allowed }}';`);
   lines.push(`            const rqDenied = '\${{ steps.redqueen.outputs.rq_denied }}';`);
-  lines.push(`            const rqDetail = rqPresent ? (rqAllowed + ' allowed / ' + rqDenied + ' denied') : 'no .redqueen/audit-log.jsonl committed (advisory — not gated)';`);
+  lines.push(`            const rqSigned = '\${{ steps.redqueen.outputs.rq_signed }}' === 'true';`);
+  lines.push(`            const rqDigestMatch = '\${{ steps.redqueen.outputs.rq_digest_match }}' === 'true';`);
+  lines.push(`            // Tier 2.5a — advisory status: signed digest (with match icon) when`);
+  lines.push(`            // the runner signed the Red Queen chain, else unsigned (upgrade pending).`);
+  lines.push(`            const rqDetail = rqSigned`);
+  lines.push(`              ? ('signed · digest ' + (rqDigestMatch ? '✓' : '✗ (mismatch)') + ' · ' + rqAllowed + ' allowed / ' + rqDenied + ' denied')`);
+  lines.push(`              : (rqPresent ? (rqAllowed + ' allowed / ' + rqDenied + ' denied · unsigned (runner upgrade pending)') : 'no .redqueen/audit-log.jsonl committed (advisory — not gated)');`);
   lines.push(`            bodyMd += \`| \${rqPresent ? 'ℹ️' : '➖'} | Red Queen decisions (advisory) | \${rqDetail} |\\n\`;`);
   lines.push(`            bodyMd += '\\n---\\n🔴 Generated by [The Red Queen](https://maintainability.ai) — implementation provenance gate';`);
   lines.push(`            await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number, body: bodyMd });`);

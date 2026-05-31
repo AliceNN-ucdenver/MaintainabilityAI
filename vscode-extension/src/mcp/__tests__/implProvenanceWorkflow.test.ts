@@ -85,4 +85,23 @@ describe('Bug-AAE Phase 2/3: standalone impl-provenance.yml gate', () => {
     // Heredoc imports what it uses (Bug-XX-safe).
     expect(wf).toMatch(/import json, os/);
   });
+
+  it('Tier 2.5a: emits rq_signed + rq_digest_match outputs (advisory, still not gated)', () => {
+    // The step recomputes the committed decision log's sha256 over RAW bytes
+    // and scans the signed IMPL events JSONL for the redqueen_decisions digest
+    // event the runner emits as the agent's final governed action.
+    expect(wf).toMatch(/import json, os, glob, hashlib/);
+    expect(wf).toMatch(/hashlib\.sha256\(bf\.read\(\)\)\.hexdigest\(\)/);
+    expect(wf).toMatch(/\.maintainability\/audit\/events\/\*\.jsonl/);
+    expect(wf).toMatch(/event_kind'\) != 'redqueen_decisions'/);
+    expect(wf).toMatch(/rq_signed=/);
+    expect(wf).toMatch(/rq_digest_match=/);
+    // Consumer side: the verdict comment reads both new outputs and renders
+    // the signed/digest status, but the gate stays advisory.
+    expect(wf).toMatch(/steps\.redqueen\.outputs\.rq_signed/);
+    expect(wf).toMatch(/steps\.redqueen\.outputs\.rq_digest_match/);
+    expect(wf).toMatch(/unsigned \(runner upgrade pending\)/);
+    // Still advisory — pass must remain chain+manifest+hatter only.
+    expect(wf).toMatch(/const pass = chainOk && manifestOk && hatterOk;/);
+  });
 });

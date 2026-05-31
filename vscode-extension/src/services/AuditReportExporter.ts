@@ -1252,6 +1252,24 @@ export interface OkrRollupInput {
 }
 
 /**
+ * Tier 2.5a — the signed Red Queen decision-log digest for one impl chain.
+ * Mirrors the `payload` of the `redqueen_decisions` audit event (the impl
+ * agent's finalize-time `audit-sign-redqueen-decisions` skill emits it).
+ */
+export interface RedqueenDigest {
+  count: number;
+  allowed: number;
+  denied: number;
+  overrides: number;
+  /** sha256 of the committed `.redqueen/audit-log.jsonl` (null = no log). */
+  logSha256: string | null;
+  /** True when the digest event was found in the (verified) impl chain. */
+  signed: boolean;
+  /** Bounded list of deny decisions, if any. */
+  denials?: Array<{ tool?: string; filePath?: string; ruleId?: string; reason?: string }>;
+}
+
+/**
  * D-PR8 — implementation chain row sourced from `design-fan-out.yaml`
  * + the impl PR body's YAML frontmatter `implementation_chain` block
  * (per D-PR7 storage contract).
@@ -1271,6 +1289,13 @@ export interface ImplementationChainRow {
   prUrl: string | null;
   /** Parsed YAML frontmatter from the impl PR body; null when PR has none. */
   chain: ImplementationChainEntry | null;
+  /**
+   * Optional (Tier 2.5a): rolled-up Red Queen enforcement-chain digest,
+   * extracted from the `redqueen_decisions` event in this repo's impl chain.
+   * Absent on older runs (runner predates the signer) — the rollup omits the
+   * Red Queen subsection cleanly when this is undefined.
+   */
+  redqueenDigest?: RedqueenDigest;
 }
 
 /**
@@ -1851,7 +1876,53 @@ ${tableRows.join('\n')}`;
 
   const verifyHint = '\n\n_Runner verify column shows `not-yet-verified` pending the audit-verify-chain runner extension (Tier 3 T3-2). Chain-root + thread cross-checks above are the verification today — `✓` means the PR body\'s continuation block matched the mesh-side ground truth from chain-ladder.yaml._';
 
-  return table + issuesSection + verifyHint;
+  // Tier 2.5a — Red Queen enforcement subsection. Only rendered when at least
+  // one row carries a signed redqueen_decisions digest; absent on older runs
+  // (runner predates the signer) so the section is omitted cleanly, no error.
+  const redqueenSection = renderRedqueenSubsection(rows);
+
+  return table + issuesSection + verifyHint + redqueenSection;
+}
+
+/**
+ * Tier 2.5a — per-repo Red Queen enforcement digest sub-block for the OKR
+ * rollup. Returns '' when no row carries a digest (back-compat). Shows the
+ * signed allow/deny/override counts plus a bounded denials list when any deny
+ * decisions were recorded. Verifiability note: the counts are signed onto the
+ * IMPL chain via the `redqueen_decisions` event (its signature is validated by
+ * the chain verify), and `logSha256` lets a reader re-hash the committed
+ * `.redqueen/audit-log.jsonl` and confirm it matches.
+ */
+function renderRedqueenSubsection(rows: ImplementationChainRow[]): string {
+  const rqRows = rows.filter((r) => r.redqueenDigest);
+  if (rqRows.length === 0) { return ''; }
+  const lines: string[] = [];
+  lines.push('');
+  lines.push('## Implementation chain (Red Queen)');
+  lines.push('');
+  lines.push('| Repo | Signed | Allowed | Denied | Overrides | Log sha256 |');
+  lines.push('|---|:---:|---:|---:|---:|---|');
+  for (const row of rqRows) {
+    const d = row.redqueenDigest!;
+    const signedIcon = d.signed ? '✓' : '—';
+    const sha = d.logSha256 ? `\`${d.logSha256.slice(0, 12)}…\`` : '—';
+    lines.push(`| \`${row.repoSlug}\` | ${signedIcon} | ${d.allowed} | ${d.denied} | ${d.overrides} | ${sha} |`);
+  }
+  // Denials detail (only when present).
+  for (const row of rqRows) {
+    const d = row.redqueenDigest!;
+    if (!d.denials || d.denials.length === 0) { continue; }
+    lines.push('');
+    lines.push(`**\`${row.repoSlug}\`** — Red Queen denials (${d.denials.length}):`);
+    for (const dn of d.denials) {
+      const tool = dn.tool ?? '?';
+      const file = dn.filePath ? ` \`${dn.filePath}\`` : '';
+      const rule = dn.ruleId ? ` [${dn.ruleId}]` : '';
+      const reason = dn.reason ? ` — ${dn.reason}` : '';
+      lines.push(`  - ${tool}${file}${rule}${reason}`);
+    }
+  }
+  return '\n\n' + lines.join('\n');
 }
 
 export function buildOkrRollupMarkdown(input: OkrRollupInput): string {

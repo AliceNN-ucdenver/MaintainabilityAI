@@ -89,6 +89,7 @@ import {
   type AuditReportInputSources,
   type ImplementationChainEntry,
   type ImplementationChainRow,
+  type RedqueenDigest,
   type OkrRollupInput,
   type PhaseRollupDigest,
   type RunnerVerifyVerdict,
@@ -1833,16 +1834,90 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         }
       }
 
+      // Tier 2.5a — best-effort: extract the signed redqueen_decisions digest
+      // from this repo's impl events JSONL (committed at chain.event_log_path,
+      // read at the merge SHA). Absent on older runs (runner predates the
+      // signer) → redqueenDigest stays undefined and the rollup omits the Red
+      // Queen subsection cleanly (back-compat).
+      let redqueenDigest: RedqueenDigest | undefined;
+      if (chain && chain.event_log_path) {
+        const prMatch = r.implPrUrl?.match(/github\.com\/([\w.-]+)\/([\w.-]+)\/pull\/\d+/);
+        if (prMatch) {
+          const [, owner, repo] = prMatch;
+          redqueenDigest = await this.fetchRedqueenDigest(owner, repo, chain.event_log_path, chain.merge_commit_sha || undefined);
+        }
+      }
+
       rows.push({
         repoSlug: r.repo,
         status: r.status,
         prUrl: r.implPrUrl ?? null,
         chain,
+        ...(redqueenDigest ? { redqueenDigest } : {}),
       });
     }
 
     if (rows.length === 0) return undefined;
     return { rows, expectedIntentThread, expectedWhatChainRoot };
+  }
+
+  /**
+   * Tier 2.5a — best-effort fetch + parse of a repo's `redqueen_decisions`
+   * digest event from its impl events JSONL (committed at `eventLogPath`,
+   * read at `ref` when known). Returns undefined on any miss (file absent, no
+   * digest event, fetch error) so the rollup omits the Red Queen subsection
+   * cleanly. The digest event's SIGNATURE is validated by the runner's chain
+   * verifier elsewhere; here we only surface the (signed) counts + the
+   * log_sha256 so a reader can re-hash the committed log and confirm.
+   */
+  private async fetchRedqueenDigest(
+    owner: string,
+    repo: string,
+    eventLogPath: string,
+    ref?: string,
+  ): Promise<RedqueenDigest | undefined> {
+    if (!eventLogPath) return undefined;
+    let raw: string | null = null;
+    try {
+      raw = await this.githubService.getRepoFileText(owner, repo, eventLogPath, ref);
+    } catch {
+      return undefined;
+    }
+    if (!raw) return undefined;
+    let digestEvent: Record<string, unknown> | null = null;
+    for (const line of raw.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed || !trimmed.includes('"event_kind":"redqueen_decisions"')) continue;
+      try {
+        digestEvent = JSON.parse(trimmed) as Record<string, unknown>;
+      } catch {
+        // tolerate a malformed line — keep scanning for a parseable one.
+      }
+    }
+    if (!digestEvent) return undefined;
+    const payload = (digestEvent.payload && typeof digestEvent.payload === 'object')
+      ? digestEvent.payload as Record<string, unknown>
+      : {};
+    const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+    const rawDenials = Array.isArray(payload.denials) ? payload.denials : [];
+    const denials = rawDenials.map((d) => {
+      const o = (d && typeof d === 'object') ? d as Record<string, unknown> : {};
+      return {
+        tool: typeof o.tool === 'string' ? o.tool : undefined,
+        filePath: typeof o.filePath === 'string' ? o.filePath : undefined,
+        ruleId: typeof o.ruleId === 'string' ? o.ruleId : undefined,
+        reason: typeof o.reason === 'string' ? o.reason : undefined,
+      };
+    });
+    return {
+      count: num(payload.count),
+      allowed: num(payload.allowed),
+      denied: num(payload.denied),
+      overrides: num(payload.overrides),
+      logSha256: typeof payload.log_sha256 === 'string' ? payload.log_sha256 : null,
+      signed: typeof digestEvent.signature === 'string' && digestEvent.signature.length > 0,
+      denials,
+    };
   }
 
   /**
