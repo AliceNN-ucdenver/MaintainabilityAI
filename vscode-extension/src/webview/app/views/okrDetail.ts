@@ -211,6 +211,8 @@ export interface FanOutRepoEntryUi {
    */
   implPrUrl?: string;
   implPrNumber?: number;
+  /** Whether the impl PR is a DRAFT (D-PR5) — gates "Mark PR ready". */
+  implPrIsDraft?: boolean;
 }
 
 export type FanOutPreflightReportUi =
@@ -1825,7 +1827,7 @@ function renderFanOutEntryRow(entry: FanOutRepoEntryUi, okr: OkrCard, availableB
     ? `
       <div class="okr-fanout-entry-actions">
         <a class="okr-link-button" href="${escapeAttr(entry.implPrUrl)}" target="_blank" rel="noopener">#${entry.implPrNumber ?? ''} Impl PR ↗</a>
-        ${entry.implPrNumber != null ? `<button class="okr-button-small okr-button-primary" data-action="fanout-mark-pr-ready" data-okr-id="${escapeAttr(okr.meta.id)}" data-repo-slug="${escapeAttr(entry.slug)}" data-pr-number="${entry.implPrNumber}" title="Flip the Copilot agent's draft impl PR to ready-for-review so the Implementation Provenance gate fires. (If GitHub is also holding the run for approval, you'll still click Approve on the PR.)">✅ Mark PR ready</button>` : ''}
+        ${entry.implPrNumber != null && entry.implPrIsDraft !== false ? `<button class="okr-button-small okr-button-primary" data-action="fanout-mark-pr-ready" data-okr-id="${escapeAttr(okr.meta.id)}" data-repo-slug="${escapeAttr(entry.slug)}" data-pr-number="${entry.implPrNumber}" title="Flip the Copilot agent's draft impl PR to ready-for-review so the Implementation Provenance gate fires. (If GitHub is also holding the run for approval, you'll still click Approve on the PR.)">✅ Mark PR ready</button>` : ''}
       </div>`
     : '';
 

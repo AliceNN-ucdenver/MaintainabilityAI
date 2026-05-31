@@ -45,6 +45,13 @@ export interface ScaffoldOkrContext {
   okrId: string;
   /** owner/name slug. */
   repoSlug: string;
+  /**
+   * Mesh root captured in the Looking Glass window (authoritative). The
+   * greenfield scaffold runs in the target-repo workspace where the
+   * mesh.path setting may be wrong/empty, so prefer this over
+   * MeshService.getMeshPath().
+   */
+  meshPath?: string;
 }
 
 export class ScaffoldPanel extends BasePanel<Record<string, unknown>, Record<string, unknown>> {
@@ -351,6 +358,18 @@ export class ScaffoldPanel extends BasePanel<Record<string, unknown>, Record<str
     });
   }
 
+  /**
+   * Surface non-fatal scaffold warnings as visible governance steps. Used
+   * when the greenfield code-design seed couldn't be grounded from the mesh
+   * (the impl agent would otherwise ship against a pointer-stub
+   * code-design-spec.md). Non-fatal — the scaffold still completes.
+   */
+  private surfaceScaffoldWarnings(warnings?: string[]): void {
+    for (const w of warnings ?? []) {
+      this.postMessage({ type: 'step', id: 'governance', status: 'warning', message: w });
+    }
+  }
+
   private async runScaffold(config: {
     folder: string;
     files: string[];
@@ -438,7 +457,12 @@ export class ScaffoldPanel extends BasePanel<Record<string, unknown>, Record<str
     // Step 3b: Governance files from Red Queen
     if (selectedIds.has('governance')) {
       try {
-        const meshPath = MeshService.getMeshPath();
+        // Prefer the mesh root captured in the Looking Glass window. The
+        // greenfield fan-out scaffold runs in the target-repo workspace where
+        // the maintainabilityai.mesh.path setting may be wrong/empty, so the
+        // threaded okrContext.meshPath is authoritative. Falls back to the
+        // local setting for non-fan-out (Cheshire-in-mesh) scaffolds.
+        const meshPath = this.okrContext?.meshPath || MeshService.getMeshPath();
         if (meshPath) {
           this.postMessage({ type: 'step', id: 'governance', status: 'running', message: 'Generating governance files...' });
           // Determine BAR name: from component context, existing decision.json, or first BAR in mesh
@@ -466,6 +490,9 @@ export class ScaffoldPanel extends BasePanel<Record<string, unknown>, Record<str
             if (!('error' in result)) {
               const govCreated = writeScaffoldFiles(workspaceRoot, result.files);
               const tier = this.componentContext?.governanceTier || 'unknown';
+              // Fail loud when grounding fell back (e.g. the mesh path
+              // resolved to the wrong workspace for a greenfield fan-out).
+              this.surfaceScaffoldWarnings(result.warnings);
               this.postMessage({ type: 'step', id: 'governance', status: 'done', message: `${govCreated} governance files (${tier} tier)` });
             } else {
               this.postMessage({ type: 'step', id: 'governance', status: 'done', message: 'Governance: BAR not found in mesh' });

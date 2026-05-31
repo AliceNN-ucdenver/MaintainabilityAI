@@ -32,6 +32,12 @@ export interface ScaffoldResult {
   decision?: OrchestrationDecision;    // full decision when policy-driven
   files: Record<string, string>;       // relative path → content
   manifest: ConfigManifest;
+  /**
+   * Non-fatal warnings surfaced to the caller (e.g. the greenfield
+   * code-design seed could not be grounded from the mesh). The scaffold
+   * still completes; the caller decides how to surface these.
+   */
+  warnings?: string[];
 }
 
 export interface ConfigManifest {
@@ -1451,6 +1457,9 @@ export function scaffoldAgentConfig(
 
   const meshPath = reader.path;
   const files: Record<string, string> = {};
+  // Non-fatal warnings surfaced to the caller (e.g. the greenfield
+  // code-design seed could not be grounded from the mesh).
+  const warnings: string[] = [];
 
   // Check for custom templates in .redqueen/ within the mesh
   const customMcpTemplate = reader.readMeshFile('.redqueen/mcp-config.template.json');
@@ -1532,6 +1541,17 @@ export function scaffoldAgentConfig(
   // stub if the mesh artifact isn't readable at scaffold time.
   if (okrContext) {
     const codeDesignMd = reader.readMeshFile(`okrs/${okrContext.okrId}/what/code-design.md`);
+    // Fail loud: a null/empty read means the canonical design wasn't
+    // grounded, so buildCodeDesignSeed falls back to a POINTER STUB and
+    // the impl agent ships ungrounded. The usual cause is the mesh path
+    // resolving to the wrong workspace (greenfield fan-out runs in the
+    // target-repo workspace — see ScaffoldOkrContext.meshPath). Push a
+    // warning so the caller can surface it; the scaffold still completes.
+    if (!codeDesignMd || codeDesignMd.trim().length === 0) {
+      warnings.push(
+        `Grounding: could not read okrs/${okrContext.okrId}/what/code-design.md from mesh at "${reader.path}" — code-design-spec.md fell back to a pointer stub (impl agent will NOT be grounded). Check the mesh path.`,
+      );
+    }
     files['docs/code-design-spec.md'] = buildCodeDesignSeed(okrContext, codeDesignMd);
   }
 
@@ -1573,7 +1593,7 @@ export function scaffoldAgentConfig(
 
   files['.redqueen/config-manifest.yaml'] = generateConfigManifestYaml(manifest);
 
-  return { barName: bar.name, barId: bar.id, tier, decision, files, manifest };
+  return { barName: bar.name, barId: bar.id, tier, decision, files, manifest, warnings };
 }
 
 function generateConfigManifestYaml(manifest: ConfigManifest): string {

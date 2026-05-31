@@ -149,6 +149,11 @@ export interface FanOutRepoEntry {
    */
   implPrUrl?: string;
   implPrNumber?: number;
+  /**
+   * Whether the discovered impl PR is a DRAFT (D-PR5). Threaded from the
+   * persisted design-fan-out row so the UI can gate "Mark PR ready".
+   */
+  implPrIsDraft?: boolean;
 }
 
 /**

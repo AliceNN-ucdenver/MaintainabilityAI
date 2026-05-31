@@ -223,6 +223,12 @@ export interface DesignFanOutRow {
   repo_created?: boolean;
   /** Implementation PR URL once the impl agent opens one. */
   implPrUrl?: string;
+  /**
+   * Whether the discovered impl PR is a DRAFT. Set by the Stage-5 poll
+   * when the row reaches `pr-opened`. Drives the "Mark PR ready" UI
+   * affordance (only drafts need promotion to ready-for-review).
+   */
+  implPrIsDraft?: boolean;
   /** IMPL-<date>-<slug>-<nonce> per the D-PR7 storage contract. */
   implementation_run_id?: string;
   /** ISO 8601 timestamp of the latest state change. */

@@ -988,6 +988,9 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
             entry.implPrUrl = fanOutRow.implPrUrl;
             const prMatch = fanOutRow.implPrUrl.match(/github\.com\/[\w.-]+\/[\w.-]+\/pull\/(\d+)/);
             if (prMatch) { entry.implPrNumber = parseInt(prMatch[1], 10); }
+            // Thread the draft flag onto the engine entry so the row
+            // render can gate the "Mark PR ready" button (D-PR5).
+            entry.implPrIsDraft = fanOutRow.implPrIsDraft;
           }
         }
       }
@@ -1072,7 +1075,11 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         type: 'info',
         message: `Opening Cheshire from ${path.basename(barContext.barPath)} to prepare ${repoSlug}. Create/scaffold happens there; return here and Re-check when it finishes.`,
       });
-      await this.onScaffoldComponent(canonicalRepoUrl, barContext.barPath, undefined, { okrId, repoSlug });
+      // Capture the mesh root in THIS (Looking Glass) window — it resolves
+      // correctly here. The greenfield scaffold runs in the target-repo
+      // workspace where the mesh.path setting may be wrong/empty, so thread
+      // it through as the authoritative source for the code-design seed.
+      await this.onScaffoldComponent(canonicalRepoUrl, barContext.barPath, undefined, { okrId, repoSlug, meshPath: MeshService.getMeshPath() ?? undefined });
       return;
     }
 
@@ -1943,6 +1950,12 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
             ...row,
             status: newStatus,
             implPrUrl: observed.url,
+            // Persist the draft flag so the UI can gate "Mark PR ready"
+            // (drafts need promotion; ready PRs don't). Stored unconditionally
+            // — only read on `pr-opened` rows, where the button renders, so
+            // its value on merged/rejected rows is inert. (Assigned without a
+            // ternary to keep this method under its complexity budget.)
+            implPrIsDraft: observed.draft,
             updatedAt: nowIso,
           };
           anyChanged = true;
@@ -2147,58 +2160,65 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
   /**
    * D-PR5 — find the impl PR for a landing issue in a target repo.
    *
-   * GitHub auto-links PRs that reference an issue via `Closes #N` /
-   * `Fixes #N`. We search for PRs whose body mentions `#<issueNumber>`
-   * + filter by the impl-agent's labels when present (matches what
-   * implementation-agent writes per D-PR7's prompt-pack contract).
+   * DISCOVERY MECHANISM: deterministic `pulls.list` scan (NOT the search
+   * API). GitHub's search index lags PR creation by seconds-to-minutes
+   * and frequently OMITS freshly-opened DRAFT PRs, so the old
+   * `search.issuesAndPullRequests` path returned null for exactly the
+   * rows we most need to advance — the impl agent's just-opened draft.
+   * `pulls.list` reads live repo state and surfaces drafts immediately.
    *
-   * Returns the most-recent matching PR (open-first, then merged-first).
-   * Null when no PR has referenced the issue yet.
+   * We list PRs (state:'all' so merged/closed are also discoverable for
+   * the pr-merged/pr-rejected transitions the poll handles), then pick
+   * the PR whose body references the landing issue (`#<issueNumber>` via
+   * `Closes/Fixes/Resolves/Connects #N` or bare `#N`) OR whose head ref
+   * follows the impl-branch convention (`copilot/...` referencing the
+   * issue). The body `#N` cross-link is the primary signal.
+   *
+   * Returns the most-recent matching PR (open-first, then most-recent
+   * overall), with its `draft` flag so the UI can gate "Mark PR ready".
+   * Null when no PR references the issue yet.
    */
   private async findImplPrForLandingIssue(
     owner: string,
     repo: string,
     issueNumber: number,
-  ): Promise<{ number: number; url: string; state: 'open' | 'closed'; merged: boolean } | null> {
+  ): Promise<{ number: number; url: string; state: 'open' | 'closed' | 'merged'; merged: boolean; draft: boolean } | null> {
     try {
       const client = await this.githubService.getClient();
-      // Search PRs in this repo that mention #<issueNumber> in body.
-      // Quote the search term to force exact-match on the # prefix.
-      const search = await client.rest.search.issuesAndPullRequests({
-        q: `repo:${owner}/${repo} is:pr "#${issueNumber}" sort:created-desc`,
-        per_page: 10,
+      // Mirror the existing pulls.list pattern in GitHubService.ts:790.
+      // state:'all' so merged/closed PRs feed the pr-merged/pr-rejected
+      // transitions; sort/created-desc so the newest matching PR wins.
+      const { data } = await client.rest.pulls.list({
+        owner,
+        repo,
+        state: 'all',
+        per_page: 100,
+        sort: 'created',
+        direction: 'desc',
       });
-      const items = (search.data.items ?? []) as Array<{ number: number; html_url: string; state: string; pull_request?: { merged_at: string | null } }>;
-      if (items.length === 0) return null;
-      // Filter: GitHub's search may return false positives (PR body has
-      // "#N" but refers to a different N). Verify each candidate's body
-      // explicitly references this issue number via `Closes #N` / `Fixes #N` /
-      // `Resolves #N` or bare `#N` near the start.
-      const matched: typeof items = [];
-      for (const candidate of items.slice(0, 5)) {
-        try {
-          const pr = await client.rest.pulls.get({ owner, repo, pull_number: candidate.number });
-          const body = pr.data.body ?? '';
-          const refRe = new RegExp(`(?:closes|fixes|resolves|connects)\\s+#${issueNumber}\\b|#${issueNumber}\\b`, 'i');
-          if (refRe.test(body)) {
-            matched.push({
-              number: candidate.number,
-              html_url: candidate.html_url,
-              state: candidate.state,
-              pull_request: { merged_at: pr.data.merged_at },
-            });
-          }
-        } catch { /* skip */ }
-      }
+      // Match the impl PR by (a) its body referencing the landing issue
+      // (`#N` cross-link — the primary signal the impl agent writes) or
+      // (b) its head ref following the copilot impl-branch convention and
+      // mentioning the issue number.
+      const refRe = new RegExp(`(?:closes|fixes|resolves|connects)\\s+#${issueNumber}\\b|#${issueNumber}\\b`, 'i');
+      const headRe = new RegExp(`copilot/.*\\b${issueNumber}\\b`, 'i');
+      const matched = data.filter(pr => {
+        const body = pr.body ?? '';
+        const headRef = pr.head?.ref ?? '';
+        return refRe.test(body) || (headRef.toLowerCase().startsWith('copilot/') && headRe.test(headRef));
+      });
       if (matched.length === 0) return null;
       // Prefer most-recent-open, fall back to most-recent-overall.
-      const open = matched.filter(p => p.state === 'open');
+      // `data` is already created-desc, so index 0 is newest.
+      const open = matched.filter(pr => pr.state === 'open');
       const chosen = open[0] ?? matched[0];
+      const merged = !!chosen.merged_at;
       return {
         number: chosen.number,
         url: chosen.html_url,
-        state: chosen.state === 'open' ? 'open' : 'closed',
-        merged: !!chosen.pull_request?.merged_at,
+        state: merged ? 'merged' : (chosen.state === 'open' ? 'open' : 'closed'),
+        merged,
+        draft: chosen.draft === true,
       };
     } catch {
       return null;
@@ -7098,7 +7118,7 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
     repoUrl: string,
     barPath: string,
     component?: { name: string; type: string; description: string },
-    okrContext?: { okrId: string; repoSlug: string },
+    okrContext?: { okrId: string; repoSlug: string; meshPath?: string },
   ) {
     try {
       const context = await this.buildScaffoldDescription(repoUrl, barPath, component);
