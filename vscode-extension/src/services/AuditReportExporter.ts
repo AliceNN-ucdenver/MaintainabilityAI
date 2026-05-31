@@ -1602,6 +1602,19 @@ export function computeOkrRollupVerdict(input: OkrRollupInput): {
           reason: `implementation-chain-evidence-missing:${row.repoSlug} — impl PR body missing or incomplete (field: ${evidenceIssue.field})`,
         };
       }
+      // Codex finding #1 — mirror the PR gate's "gate on seal mismatch"
+      // decision at the rollup level. A merged impl row whose Red Queen seal's
+      // committed prefix failed to re-hash (sealMatch === false, computed by
+      // fetchRedqueenDigest re-hashing the log at the merge SHA) is a decision-
+      // log integrity failure: the rollup must FAIL, never PASS. Strict ===
+      // false so `null` (log not fetchable / unverified) and `true` (verified)
+      // do NOT trip it.
+      if (row.redqueenDigest && row.redqueenDigest.sealMatch === false) {
+        return {
+          verdict: 'FAIL',
+          reason: `redqueen-seal-mismatch:${row.repoSlug} — the committed Red Queen decision-log prefix does not match the signed seal (tamper / corruption / wrong bytes)`,
+        };
+      }
     }
   }
   // PARTIAL — at least one expected phase not started yet (or runner not
@@ -1944,9 +1957,12 @@ function renderRedqueenSubsection(rows: ImplementationChainRow[]): string {
     const d = row.redqueenDigest!;
     // Seal cell: prefer the rollup's own re-hash result; fall back to bare
     // presence when the log wasn't fetchable (sealMatch null/undefined).
+    // Codex finding #3 — "verified ✓" requires BOTH a signed event
+    // (digestPresent) AND a matching prefix re-hash. A prefix that re-hashes
+    // without a signature is "prefix ✓ · unsigned", never "verified".
     let seal: string;
-    if (d.sealMatch === true) { seal = 'verified ✓'; }
-    else if (d.sealMatch === false) { seal = 'MISMATCH ✗'; }
+    if (d.sealMatch === false) { seal = 'MISMATCH ✗'; }
+    else if (d.sealMatch === true) { seal = d.digestPresent ? 'verified ✓' : 'prefix ✓ · unsigned'; }
     else { seal = d.digestPresent ? 'present' : '—'; }
     // Tail cell: N decisions appended after the seal, flagged if non-allow.
     const tailN = d.tailCount ?? 0;

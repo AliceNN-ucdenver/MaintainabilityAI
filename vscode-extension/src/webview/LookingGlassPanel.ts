@@ -1953,18 +1953,21 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
           }
           tailClean = tailOther === 0;
         };
-        if (coveredBytes === 0) {
-          // honest-zero seal (runner read no log at sign time): a zero-byte
-          // prefix is vacuously sealed; the whole committed log is the tail.
+        if (coveredBytes === 0 && !coveredSha256) {
+          // honest-zero seal: the runner's EXACT no-log shape is covered_bytes=0
+          // AND covered_sha256=null. A zero-byte prefix is vacuously sealed; the
+          // whole committed log is the tail. covered_bytes=0 with a non-null sha
+          // is malformed → falls through to mismatch (Codex finding #2).
           sealMatch = true;
           classifyTail(0);
-        } else if (coveredBytes !== null && coveredSha256 && coveredBytes <= logBuf.length) {
+        } else if (coveredBytes !== null && coveredBytes > 0 && coveredSha256 && coveredBytes <= logBuf.length) {
           const prefixSha = createHash('sha256').update(logBuf.subarray(0, coveredBytes)).digest('hex');
           sealMatch = prefixSha === coveredSha256;
           if (sealMatch) { classifyTail(coveredBytes); }
         } else {
-          // covered_bytes claims MORE than the committed log holds, or the
-          // seal is malformed — a real mismatch, never a benign tail.
+          // covered_bytes claims MORE than the committed log holds, covered_bytes=0
+          // with a non-null sha, or otherwise malformed — a real mismatch, never
+          // a benign tail.
           sealMatch = false;
         }
       }

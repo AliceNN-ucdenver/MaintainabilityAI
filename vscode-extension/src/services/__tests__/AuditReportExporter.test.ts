@@ -1899,6 +1899,35 @@ describe('computeOkrRollupVerdict — implementation chain signals', () => {
     expect(v.reason).toMatch(/^implementation-pr-rejected:acme\/celeb-api/);
   });
 
+  it('Codex r2 #1 — FAIL with redqueen-seal-mismatch when a merged row\'s seal prefix does not re-hash', () => {
+    const v = computeOkrRollupVerdict(mkInput({
+      rows: [mkRow({ redqueenDigest: {
+        coveredCount: 18, allowed: 18, denied: 0, overrides: 0,
+        coveredBytes: 4096, coveredSha256: 'deadbeef'.repeat(8),
+        digestPresent: true, sealMatch: false, denials: [],
+      } })],
+      expectedIntentThread: FULL_CHAIN.parent_intent_thread,
+      expectedWhatChainRoot: FULL_CHAIN.parent_chain_root,
+    }));
+    // The rollup mirrors the PR gate's "gate on mismatch" decision.
+    expect(v.verdict).toBe('FAIL');
+    expect(v.reason).toMatch(/^redqueen-seal-mismatch:acme\/celeb-api/);
+  });
+
+  it('Codex r2 #1 — seal mismatch trips ONLY on === false (null/true do NOT fail)', () => {
+    const withSeal = (sealMatch: boolean | null) => computeOkrRollupVerdict(mkInput({
+      rows: [mkRow({ redqueenDigest: {
+        coveredCount: 1, allowed: 1, denied: 0, overrides: 0,
+        coveredBytes: 10, coveredSha256: 'a'.repeat(64),
+        digestPresent: true, sealMatch, denials: [],
+      } })],
+      expectedIntentThread: FULL_CHAIN.parent_intent_thread,
+      expectedWhatChainRoot: FULL_CHAIN.parent_chain_root,
+    }));
+    expect(withSeal(true).verdict).toBe('PASS');   // verified prefix
+    expect(withSeal(null).verdict).toBe('PASS');   // log not fetchable → unverified, not failed
+  });
+
   it('skips non-merged rows for FAIL-precedence cross-axis checks (only pr-merged is verified)', () => {
     // Codex-r1 Bug D update: a row at pr-opened no longer PASSes the
     // rollup outright -- it now downgrades to PARTIAL implementation-
@@ -2150,5 +2179,10 @@ describe('buildOkrRollupMarkdown — implementation chain section', () => {
     // A flagged tail (deny/override after the seal) → ⚠ marker with the count.
     const dirty = mk({ sealMatch: true, tailCount: 2, tailOther: 1, tailClean: false });
     expect(dirty).toMatch(/⚠ 2 \(1 flagged\)/);
+    // Codex r2 #3 — a matching prefix WITHOUT a signed event is "prefix ✓ ·
+    // unsigned", never "verified ✓" (verified requires digestPresent).
+    const unsigned = mk({ sealMatch: true, tailCount: 0, tailOther: 0, tailClean: true, digestPresent: false });
+    expect(unsigned).toContain('prefix ✓ · unsigned');
+    expect(unsigned).not.toMatch(/verified ✓/);
   });
 });
