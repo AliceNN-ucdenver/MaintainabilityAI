@@ -50,6 +50,19 @@ describe('Bug-AAE Phase 2/3: standalone impl-provenance.yml gate', () => {
     expect(wf).toMatch(/No \.maintainability\/audit\/events\/IMPL-\*\.jsonl committed/);
   });
 
+  it('invokes verify-chain with a JSON {okrId,runId} payload — NOT raw piped JSONL', () => {
+    // celeb-api PR #14: `cat "$EVENTS" | skill-audit-verify-chain` piped the raw
+    // JSONL, but the skill JSON.parses stdin and reads the file itself → it
+    // choked after event 1 with "bad-stdin-json", which cascaded a full gate
+    // FAIL (manifest/seal steps are gated on `chain_ok == 'true'`). The
+    // contract: pass {okrId,runId}; the runner resolves + replays the file.
+    expect(wf).toMatch(/RUN_ID=\$\(basename "\$EVENTS" \.jsonl\)/);
+    expect(wf).toContain('JSON.parse(l).okr_id');
+    expect(wf).toMatch(/printf '\{"okrId":"%s","runId":"%s"\}' "\$OKR_ID" "\$RUN_ID" \| npx .* skill-audit-verify-chain/);
+    // Anti-regress the bug: must NOT pipe the raw events file to the verifier.
+    expect(wf).not.toMatch(/cat "\$EVENTS" \| npx .* skill-audit-verify-chain/);
+  });
+
   it('verifies the required skill_call manifest (knowledge-code + both impl personas)', () => {
     expect(wf).toContain("'knowledge-code', 'self-review-impl-architect', 'self-review-impl-security'");
     // skill name read from payload.skill — matches the planning workflow + runner emission.

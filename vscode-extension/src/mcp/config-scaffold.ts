@@ -1133,7 +1133,15 @@ export function generateImplProvenanceWorkflow(): string {
   lines.push(`            exit 0`);
   lines.push(`          fi`);
   lines.push(`          echo "events_file=$EVENTS" >> "$GITHUB_OUTPUT"`);
-  lines.push(`          RESULT=$(cat "$EVENTS" | npx -y @maintainabilityai/research-runner@~0.1.42 skill-audit-verify-chain 2>&1 || true)`);
+  lines.push(`          # skill-audit-verify-chain takes a JSON {okrId,runId} on stdin and`);
+  lines.push(`          # RESOLVES + reads the committed events file ITSELF (IMPL-* runId →`);
+  lines.push(`          # .maintainability/audit/events/<runId>.jsonl under the checkout). Do`);
+  lines.push(`          # NOT pipe the raw JSONL — the CLI JSON.parses stdin and chokes after`);
+  lines.push(`          # the first event ("bad-stdin-json"). Derive both keys from the file:`);
+  lines.push(`          # the filename IS the runId, and each event carries top-level okr_id.`);
+  lines.push(`          RUN_ID=$(basename "$EVENTS" .jsonl)`);
+  lines.push(`          OKR_ID=$(node -e "const fs=require('fs');const l=fs.readFileSync(process.argv[1],'utf8').split('\\n').find(x=>x.trim());process.stdout.write(l?(JSON.parse(l).okr_id||''):'')" "$EVENTS")`);
+  lines.push(`          RESULT=$(printf '{"okrId":"%s","runId":"%s"}' "$OKR_ID" "$RUN_ID" | npx -y @maintainabilityai/research-runner@~0.1.42 skill-audit-verify-chain 2>&1 || true)`);
   lines.push(`          printf '%s' "$RESULT" > /tmp/impl-chain-verify.json`);
   lines.push(`          OK=$(node -e "try{const r=JSON.parse(require('fs').readFileSync('/tmp/impl-chain-verify.json','utf8'));process.stdout.write(String(r.ok===true))}catch(e){process.stdout.write('false')}")`);
   lines.push(`          echo "chain_ok=$OK" >> "$GITHUB_OUTPUT"`);
