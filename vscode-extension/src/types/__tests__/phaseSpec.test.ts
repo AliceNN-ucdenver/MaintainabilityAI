@@ -1089,6 +1089,27 @@ describe('Bug II — every deployable MESH_WORKFLOWS body parses as valid YAML',
   });
 });
 
+describe('Oracle & Privacy Rails — PII rail helpers in the deploy set (redeploy-gap regression)', () => {
+  it('MESH_WORKFLOWS ships all four rail helpers AND each reads from disk', () => {
+    // Regression for the gap where "redeploy mesh workflows" shipped the
+    // updated gate WITHOUT .github/workflows/scripts/oracle-rails/, leaving the
+    // PII rail fail-closed ("Oracle PII rail helpers not deployed"). generate()
+    // calls readScaffoldFile, which throws if the template is missing on disk.
+    const paths = MESH_WORKFLOWS.map(s => s.relativePath);
+    const required = [
+      '.github/workflows/oracle-rails-replay.yml',
+      '.github/workflows/scripts/oracle-rails/oracle_rail.py',
+      '.github/workflows/scripts/oracle-rails/pii.json',
+      '.github/workflows/scripts/oracle-rails/requirements.txt',
+    ];
+    for (const rp of required) {
+      expect(paths, `${rp} missing from MESH_WORKFLOWS — redeploy would skip it`).toContain(rp);
+      const spec = MESH_WORKFLOWS.find(s => s.relativePath === rp)!;
+      expect(spec.generate(EXTENSION_PATH).length, `${rp} template empty/missing on disk`).toBeGreaterThan(0);
+    }
+  });
+});
+
 describe('Bug QQ/A-plus — MeshBranchGuard wired at every mesh-write site', () => {
   // Source-grep regression. The four extension-driven write paths into
   // the mesh repo MUST each invoke `withMainBranchGuard` before any
