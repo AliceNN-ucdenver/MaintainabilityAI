@@ -4001,6 +4001,10 @@ function attachEventHandlers() {
       state.fanOutPreflight = { loading: true };
       render();
       vscode.postMessage({ type: 'fanOutPreflight', okrId });
+      // Also walk impl-PR state NOW. Refresh used to only re-probe repos, so a
+      // draft PR sitting on an `opened` row wouldn't surface until the 60s
+      // background poll fired — users (reasonably) expected Refresh to find it.
+      vscode.postMessage({ type: 'pollFanOutPRs', okrId });
       return;
     }
 
@@ -5146,10 +5150,12 @@ const inboundHandlers: Record<string, InboundHandler> = {
             clearInterval(state.fanOutPollTimer);
           }
           const pollOkrId = state.currentOkr.meta.id;
+          // Fire ONCE immediately so an existing draft/open impl PR surfaces on
+          // pane open — mirroring how the planning phases load their PR state
+          // on open rather than after a 60s wait. The extension handler is a
+          // no-op when design-fan-out.yaml has no opened rows, so it's cheap.
+          vscode.postMessage({ type: 'pollFanOutPRs', okrId: pollOkrId });
           state.fanOutPollTimer = setInterval(() => {
-            // Extension's onPollFanOutPRs is a no-op when
-            // design-fan-out.yaml has no opened rows, so it's cheap to
-            // fire unconditionally while the panel is open.
             vscode.postMessage({ type: 'pollFanOutPRs', okrId: pollOkrId });
           }, 60_000);
         } else {

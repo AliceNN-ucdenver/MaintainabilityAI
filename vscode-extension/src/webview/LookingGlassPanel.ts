@@ -25,6 +25,7 @@ import { SECRETS, RESEARCH_SECRET_IDS, detectGovernanceRepo } from '../services/
 import { testResearchKey } from '../services/ResearchKeyTester';
 import { MeshService } from '../services/MeshService';
 import type { ChainLadderImplRow } from '../services/coordination/designFanOutFile';
+import { isFanOutImplPr } from '../services/coordination/fanOutArtifacts';
 import { BarService } from '../services/BarService';
 import { GovernanceScorer } from '../services/GovernanceScorer';
 import { GitHubService, githubService } from '../services/GitHubService';
@@ -2157,7 +2158,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       const issueNumber = parseInt(issueNum, 10);
 
       try {
-        const observed = await this.findImplPrForLandingIssue(owner, repo, issueNumber);
+        const observed = await this.findImplPrForLandingIssue(owner, repo, issueNumber, okrId);
         if (!observed) continue; // no impl PR yet -- keep row at `opened`
 
         // Map observed PR state -> design-fan-out row status.
@@ -2415,6 +2416,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     owner: string,
     repo: string,
     issueNumber: number,
+    okrId: string,
   ): Promise<{ number: number; url: string; state: 'open' | 'closed' | 'merged'; merged: boolean; draft: boolean } | null> {
     try {
       const client = await this.githubService.getClient();
@@ -2429,16 +2431,24 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         sort: 'created',
         direction: 'desc',
       });
-      // Match the impl PR by (a) its body referencing the landing issue
-      // (`#N` cross-link — the primary signal the impl agent writes) or
-      // (b) its head ref following the copilot impl-branch convention and
-      // mentioning the issue number.
+      // Match the impl PR the SAME way the planning phases (findArtifactPr) +
+      // Reset cleanup (findFanOutArtifacts) do: the robust `isFanOutImplPr`
+      // signal — the deterministic title `[<okrId>] Implement <slug> slice`
+      // our template stamps, OR `okr_id: <okrId>` in the implementation_chain
+      // body block. Copilot picks its OWN branch name (e.g.
+      // `copilot/okr-…-celeb-api-…` — carries the OKR id but NOT the
+      // landing-issue number) and links the issue via the Development sidebar,
+      // so the old body-`#N` / branch-number heuristics missed real PRs. Those
+      // stay as a belt-and-suspenders fallback.
       const refRe = new RegExp(`(?:closes|fixes|resolves|connects)\\s+#${issueNumber}\\b|#${issueNumber}\\b`, 'i');
       const headRe = new RegExp(`copilot/.*\\b${issueNumber}\\b`, 'i');
       const matched = data.filter(pr => {
+        const title = pr.title ?? '';
         const body = pr.body ?? '';
         const headRef = pr.head?.ref ?? '';
-        return refRe.test(body) || (headRef.toLowerCase().startsWith('copilot/') && headRe.test(headRef));
+        return isFanOutImplPr(title, body, okrId)
+          || refRe.test(body)
+          || (headRef.toLowerCase().startsWith('copilot/') && headRe.test(headRef));
       });
       if (matched.length === 0) return null;
       // Prefer most-recent-open, fall back to most-recent-overall.
