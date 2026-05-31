@@ -1278,6 +1278,14 @@ export interface RedqueenDigest {
    *   - null  → not checkable (decision log not fetched at this ref)
    */
   sealMatch?: boolean | null;
+  /**
+   * Codex r3 finding #1 — the seal claims to cover a non-zero prefix
+   * (coveredBytes > 0) but `.redqueen/audit-log.jsonl` is DEFINITIVELY not
+   * committed at the merge SHA (GitHub 404, not a transient fetch error). The
+   * sealed evidence is gone → an auditor-grade FAIL, distinct from a re-hash
+   * mismatch (tamper) and from `sealMatch: null` (transient, non-failing).
+   */
+  sealEvidenceMissing?: boolean;
   /** Decisions AFTER the sealed prefix — the agent's own post-seal commit-time
    *  calls (the uncovered tail). 0 when the seal covered the whole log. */
   tailCount?: number;
@@ -1600,6 +1608,16 @@ export function computeOkrRollupVerdict(input: OkrRollupInput): {
         return {
           verdict: 'FAIL',
           reason: `implementation-chain-evidence-missing:${row.repoSlug} — impl PR body missing or incomplete (field: ${evidenceIssue.field})`,
+        };
+      }
+      // Codex r3 finding #1 — the signed seal covers a non-zero prefix but the
+      // decision log is DEFINITIVELY not committed at the merge SHA. The sealed
+      // evidence is gone — a distinct FAIL from a re-hash mismatch (checked just
+      // below) and from sealMatch:null (transient, non-failing).
+      if (row.redqueenDigest && row.redqueenDigest.sealEvidenceMissing) {
+        return {
+          verdict: 'FAIL',
+          reason: `redqueen-seal-evidence-missing:${row.repoSlug} — the signed seal covers a Red Queen decision log that is not committed at the merge SHA`,
         };
       }
       // Codex finding #1 — mirror the PR gate's "gate on seal mismatch"
@@ -1961,7 +1979,8 @@ function renderRedqueenSubsection(rows: ImplementationChainRow[]): string {
     // (digestPresent) AND a matching prefix re-hash. A prefix that re-hashes
     // without a signature is "prefix ✓ · unsigned", never "verified".
     let seal: string;
-    if (d.sealMatch === false) { seal = 'MISMATCH ✗'; }
+    if (d.sealEvidenceMissing) { seal = 'LOG MISSING ✗'; }
+    else if (d.sealMatch === false) { seal = 'MISMATCH ✗'; }
     else if (d.sealMatch === true) { seal = d.digestPresent ? 'verified ✓' : 'prefix ✓ · unsigned'; }
     else { seal = d.digestPresent ? 'present' : '—'; }
     // Tail cell: N decisions appended after the seal, flagged if non-allow.

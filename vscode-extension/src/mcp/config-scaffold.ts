@@ -1262,9 +1262,10 @@ export function generateImplProvenanceWorkflow(): string {
   lines.push(`              # A zero-byte prefix is vacuously sealed, so the WHOLE committed`);
   lines.push(`              # log is the uncovered tail. NOTE: test covered_bytes == 0, NOT`);
   lines.push(`              # 'is None' (the runner sends the int 0). And covered_sha MUST be`);
-  lines.push(`              # null — covered_bytes=0 with a non-null sha is MALFORMED and`);
-  lines.push(`              # falls through to mismatch, never a benign honest-zero.`);
-  lines.push(`              if isinstance(covered_bytes, int) and covered_bytes == 0 and not covered_sha:`);
+  lines.push(`              # null (exact) — covered_bytes=0 with a non-null sha (incl. an`);
+  lines.push(`              # empty string) is MALFORMED and falls through to mismatch, never`);
+  lines.push(`              # a benign honest-zero.`);
+  lines.push(`              if isinstance(covered_bytes, int) and covered_bytes == 0 and covered_sha is None:`);
   lines.push(`                  seal_match = True`);
   lines.push(`                  tail_bytes = len(log_bytes)`);
   lines.push(`              elif isinstance(covered_bytes, int) and covered_bytes > 0 and covered_sha and covered_bytes <= len(log_bytes):`);

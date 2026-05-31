@@ -1924,16 +1924,28 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     // committed decision log at the same ref and re-hash its first
     // `coveredBytes`; classify anything after as the uncovered tail. The
     // committed JSONL is valid UTF-8, so Buffer.from(text,'utf8') reproduces
-    // the on-disk bytes the runner hashed — a byte-exact re-hash. Best-effort:
-    // any fetch miss leaves sealMatch null (unverified ≠ failed).
+    // the on-disk bytes the runner hashed — a byte-exact re-hash.
+    //
+    // Codex r3 finding #1 — distinguish "log definitively NOT at this ref"
+    // (not-found) from "couldn't fetch" (transient). getRepoFileStatus gives
+    // us that 3-way split:
+    //   - ok          → re-hash the prefix as before.
+    //   - not-found   → the log is genuinely uncommitted at the merge SHA. If
+    //                   the seal claims to cover bytes (coveredBytes > 0), the
+    //                   evidence it points at is GONE → sealEvidenceMissing
+    //                   (hard fail). honest-zero (0/null) is consistent with
+    //                   no log → vacuously sealed.
+    //   - fetch-error → true existence unknown → leave sealMatch null
+    //                   (unverified ≠ failed); don't punish a transient blip.
     let sealMatch: boolean | null = null;
+    let sealEvidenceMissing = false;
     let tailCount = 0;
     let tailOther = 0;
     let tailClean = true;
     try {
-      const logText = await this.githubService.getRepoFileText(owner, repo, '.redqueen/audit-log.jsonl', ref);
-      if (logText !== null) {
-        const logBuf = Buffer.from(logText, 'utf8');
+      const logStatus = await this.githubService.getRepoFileStatus(owner, repo, '.redqueen/audit-log.jsonl', ref);
+      if (logStatus.status === 'ok') {
+        const logBuf = Buffer.from(logStatus.text, 'utf8');
         const classifyTail = (from: number): void => {
           const tail = logBuf.subarray(from).toString('utf8');
           for (const ln of tail.split('\n')) {
@@ -1953,11 +1965,11 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
           }
           tailClean = tailOther === 0;
         };
-        if (coveredBytes === 0 && !coveredSha256) {
+        if (coveredBytes === 0 && coveredSha256 === null) {
           // honest-zero seal: the runner's EXACT no-log shape is covered_bytes=0
-          // AND covered_sha256=null. A zero-byte prefix is vacuously sealed; the
-          // whole committed log is the tail. covered_bytes=0 with a non-null sha
-          // is malformed → falls through to mismatch (Codex finding #2).
+          // AND covered_sha256=null (Codex r3 finding #2 — exact null, not just
+          // falsey; an empty-string sha is malformed → mismatch). A zero-byte
+          // prefix is vacuously sealed; the whole committed log is the tail.
           sealMatch = true;
           classifyTail(0);
         } else if (coveredBytes !== null && coveredBytes > 0 && coveredSha256 && coveredBytes <= logBuf.length) {
@@ -1970,6 +1982,22 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
           // a benign tail.
           sealMatch = false;
         }
+      } else if (logStatus.status === 'not-found') {
+        if (coveredBytes === 0 && coveredSha256 === null) {
+          // honest-zero + no committed log → consistent, vacuously sealed.
+          sealMatch = true;
+        } else if (coveredBytes !== null && coveredBytes > 0) {
+          // The signed seal claims to cover bytes of a decision log that is NOT
+          // committed at the merge SHA — auditor-grade evidence failure.
+          sealMatch = false;
+          sealEvidenceMissing = true;
+        } else {
+          // malformed seal + no log.
+          sealMatch = false;
+        }
+      } else {
+        // fetch-error — transient; leave unverified (non-failing).
+        sealMatch = null;
       }
     } catch {
       sealMatch = null;
@@ -1989,6 +2017,9 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       digestPresent: typeof digestEvent.signature === 'string' && digestEvent.signature.length > 0,
       // Codex finding #4 — the rollup's OWN prefix re-hash result.
       sealMatch,
+      // Codex r3 finding #1 — seal claims coveredBytes>0 but the log is not
+      // committed at the merge SHA (definitive not-found, not a transient miss).
+      sealEvidenceMissing,
       tailCount,
       tailOther,
       tailClean,

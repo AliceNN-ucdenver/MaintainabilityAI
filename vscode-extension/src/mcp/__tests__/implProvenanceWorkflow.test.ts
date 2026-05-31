@@ -107,10 +107,11 @@ describe('Bug-AAE Phase 2/3: standalone impl-provenance.yml gate', () => {
     expect(wf).toMatch(/tail_clean = \(tail_other == 0\)/);
     // honest-zero seal: the runner emits covered_bytes=0 (the int, NOT null),
     // so the gate must test `== 0`, never `is None`. AND covered_sha MUST be
-    // null — covered_bytes=0 with a non-null sha is malformed → mismatch
-    // (Codex r2 finding #2). Earlier `is None` test sent legit no-log seals
-    // into mismatch (Codex r1 finding #1).
-    expect(wf).toMatch(/isinstance\(covered_bytes, int\) and covered_bytes == 0 and not covered_sha/);
+    // exactly None — covered_bytes=0 with a non-null sha (incl. an empty
+    // string) is malformed → mismatch (Codex r2 #2 / r3 #2 exact-null).
+    // Earlier `is None` on covered_bytes sent legit no-log seals into
+    // mismatch (Codex r1 #1).
+    expect(wf).toMatch(/isinstance\(covered_bytes, int\) and covered_bytes == 0 and covered_sha is None/);
     // No 'or True' escape hatch — a malformed/forged seal must FAIL to match.
     expect(wf).not.toMatch(/or True/);
     // Codex finding #2 — a post-seal override (verdict 'allow' but a deny was

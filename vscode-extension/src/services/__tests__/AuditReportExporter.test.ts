@@ -1914,6 +1914,22 @@ describe('computeOkrRollupVerdict — implementation chain signals', () => {
     expect(v.reason).toMatch(/^redqueen-seal-mismatch:acme\/celeb-api/);
   });
 
+  it('Codex r3 #1 — FAIL with redqueen-seal-evidence-missing when the sealed log is not committed at the merge SHA', () => {
+    const v = computeOkrRollupVerdict(mkInput({
+      rows: [mkRow({ redqueenDigest: {
+        coveredCount: 18, allowed: 18, denied: 0, overrides: 0,
+        coveredBytes: 4096, coveredSha256: 'deadbeef'.repeat(8),
+        digestPresent: true, sealMatch: false, sealEvidenceMissing: true, denials: [],
+      } })],
+      expectedIntentThread: FULL_CHAIN.parent_intent_thread,
+      expectedWhatChainRoot: FULL_CHAIN.parent_chain_root,
+    }));
+    // Evidence-missing wins over the bare mismatch reason — it's the precise
+    // failure (the log is gone, not merely re-hash-divergent).
+    expect(v.verdict).toBe('FAIL');
+    expect(v.reason).toMatch(/^redqueen-seal-evidence-missing:acme\/celeb-api/);
+  });
+
   it('Codex r2 #1 — seal mismatch trips ONLY on === false (null/true do NOT fail)', () => {
     const withSeal = (sealMatch: boolean | null) => computeOkrRollupVerdict(mkInput({
       rows: [mkRow({ redqueenDigest: {
@@ -2184,5 +2200,9 @@ describe('buildOkrRollupMarkdown — implementation chain section', () => {
     const unsigned = mk({ sealMatch: true, tailCount: 0, tailOther: 0, tailClean: true, digestPresent: false });
     expect(unsigned).toContain('prefix ✓ · unsigned');
     expect(unsigned).not.toMatch(/verified ✓/);
+    // Codex r3 #1 — sealed log not committed at the merge SHA → LOG MISSING ✗.
+    const missing = mk({ sealMatch: false, sealEvidenceMissing: true, tailCount: 0, tailOther: 0, tailClean: true });
+    expect(missing).toContain('LOG MISSING ✗');
+    expect(missing).not.toContain('MISMATCH ✗');
   });
 });
