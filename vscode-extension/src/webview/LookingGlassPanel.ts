@@ -1414,6 +1414,13 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       }
       const [owner, name] = parts;
 
+      // Codex r? #1 — resolve the target repo's DEFAULT BRANCH and use it for
+      // BOTH the grounding write AND the agent dispatch. Otherwise the spec
+      // lands on the default branch while assignCustomCopilotAgent starts
+      // Copilot from `main` — on a repo whose default isn't `main`, the agent
+      // never sees docs/code-design-spec.md even though fan-out "succeeded".
+      const baseBranch = await this.githubService.getDefaultBranch(owner, name);
+
       // Grounding delivery — commit the frozen WHAT design into THIS target
       // repo's default branch (docs/code-design-spec.md) BEFORE opening the
       // landing issue. Greenfield AND brownfield: the impl agent reads it
@@ -1432,6 +1439,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
           'docs/code-design-spec.md',
           designSpec,
           `chore(${okrId}): seed code-design-spec.md for impl-agent grounding`,
+          baseBranch,
         );
       } catch (seedErr) {
         const msg = toErrorMessage(seedErr);
@@ -1485,6 +1493,9 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
             issue.number,
             'implementation-agent',
             {
+              // Start Copilot from the SAME branch the grounding spec was
+              // committed to (Codex r? #1) — not the hardcoded `main` default.
+              baseBranch,
               customInstructions: `Read the landing issue body for OKR ${okrId} context, then ground on the frozen design committed to \`docs/code-design-spec.md\` in this repo (your per-repo slices are the H3 sub-blocks naming \`${entry.slug}\`; §2 is your binding API contract). Honour the sibling-repo coordination. Open a PR with the implementation_chain Hatter Tag continuation block.`,
             },
           );

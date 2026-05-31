@@ -189,7 +189,7 @@ function renderInputPhase() {
       <div>
         <label for="model-select">LLM Model</label>
         <select id="model-select">
-          <option value="codex" selected>Codex 5.3 (loading...)</option>
+          <option value="" selected>Loading models…</option>
         </select>
         <div id="model-info" style="font-size: 10px; color: var(--text-secondary); margin-top: 2px;"></div>
       </div>

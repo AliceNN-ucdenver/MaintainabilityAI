@@ -644,6 +644,26 @@ export class GitHubService {
    * reasonable mesh repo. Returns empty array on error so callers can
    * fall back to the default `copilot-swe-agent[bot]`.
    */
+  /**
+   * The target repo's default branch (single `repos.get`, no tree walk).
+   *
+   * The fan-out commits `docs/code-design-spec.md` AND dispatches the impl
+   * agent — both MUST target the SAME branch, or the agent starts from one
+   * branch while the design lives on another. createOrUpdateFileContents and
+   * assignCustomCopilotAgent both default to `main` independently, which
+   * silently diverges on repos whose default isn't `main`. Soft-fails to
+   * `main` so a transient read doesn't block dispatch.
+   */
+  async getDefaultBranch(owner: string, repo: string): Promise<string> {
+    try {
+      const client = await this.getClient();
+      const { data } = await client.rest.repos.get({ owner, repo });
+      return data.default_branch || 'main';
+    } catch {
+      return 'main';
+    }
+  }
+
   async listAssignees(owner: string, repo: string): Promise<{ login: string; type: string }[]> {
     try {
       const client = await this.getClient();
