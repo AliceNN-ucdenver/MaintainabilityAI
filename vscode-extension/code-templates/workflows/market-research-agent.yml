@@ -1106,7 +1106,7 @@ jobs:
           cat /tmp/grounded-err.txt || true
           printf 'groundedness rail stdout: %s\n' "$OUT"
           REPORT_FILE="$RUNNER_TEMP/oracle-groundedness.rail-report.json"
-          SUMMARY=$(python3 -c "import json,sys;r=json.load(open(sys.argv[1]));print('contradicted='+str(r.get('counts',{}).get('contradicted',0))+' unsupported='+str(r.get('counts',{}).get('unsupported',0))+' entailed='+str(r.get('counts',{}).get('entailed',0)))" "$REPORT_FILE" 2>/dev/null || echo "see workflow log")
+          SUMMARY=$(python3 -c "import json,sys;c=json.load(open(sys.argv[1])).get('counts',{});u=c.get('unresolved',0);print('contradicted='+str(c.get('contradicted',0))+' unsupported='+str(c.get('unsupported',0))+(' unresolved='+str(u) if u else '')+' entailed='+str(c.get('entailed',0)))" "$REPORT_FILE" 2>/dev/null || echo "see workflow log")
           if [ "$CODE" -eq 0 ]; then
             echo "ok=true" >> "$GITHUB_OUTPUT"
             echo "reason=groundedness: $SUMMARY" >> "$GITHUB_OUTPUT"
