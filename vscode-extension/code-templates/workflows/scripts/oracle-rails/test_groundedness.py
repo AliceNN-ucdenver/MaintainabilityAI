@@ -197,7 +197,7 @@ class TestReport(unittest.TestCase):
             self.assertEqual(
                 set(row),
                 {"type", "claim", "disposition", "cited", "resolved",
-                 "entailment", "combined_entailment", "contradiction", "entail_source", "contra_source", "line", "shape"},
+                 "entailment", "combined_entailment", "neutral", "contradiction", "entail_source", "contra_source", "line", "shape"},
             )
 
     def test_findings_sorted_deterministically(self):
@@ -334,6 +334,30 @@ class TestCalibrationRegressions(unittest.TestCase):
         pairings = score_claims(claims, {"S1": "supporting excerpt"}, {}, nli)
         self.assertEqual(len(calls), 1)  # single-source: no combined call
         self.assertEqual(pairings[0].combined_entail, pairings[0].best_entail)
+
+    # Instrumentation: neutral is captured + the score_summary diagnoses the
+    # all-neutral case (what the live run showed) vs a real spread.
+    def test_neutral_recorded_from_best_entail_pairing(self):
+        def nli(premise, hypothesis):
+            return (0.03, 0.95, 0.02)   # the live-run shape: everything neutral
+        claims = [Claim(num=1, text="prescriptive conclusion", cited=("S1",), line=1)]
+        p = score_claims(claims, {"S1": "descriptive evidence snippet"}, {}, nli)[0]
+        self.assertAlmostEqual(p.neutral, 0.95)
+        self.assertAlmostEqual(p.best_entail, 0.03)
+
+    def test_score_summary_surfaces_all_neutral(self):
+        def nli(premise, hypothesis):
+            return (0.03, 0.95, 0.02)
+        claims = [Claim(num=n, text=f"c{n}", cited=("S1",), line=n) for n in (1, 2)]
+        r = build_report(
+            okr_id="X", run_id="W", phase="why", inputs=[], model={},
+            thresholds={}, config={"entail_threshold": 0.6, "contra_threshold": 0.6},
+            pairings=score_claims(claims, {"S1": "evidence"}, {}, nli),
+        )
+        s = r["score_summary"]
+        self.assertAlmostEqual(s["avg_neutral"], 0.95)
+        self.assertAlmostEqual(s["avg_entailment"], 0.03)
+        self.assertAlmostEqual(s["avg_contradiction"], 0.02)
 
 
 if __name__ == "__main__":

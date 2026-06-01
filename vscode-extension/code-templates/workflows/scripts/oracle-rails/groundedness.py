@@ -203,13 +203,18 @@ class Pairing:
       - combined_entail: entailment of the claim over a bounded CONCATENATION of
         all cited excerpts (the synthesis view).
     A claim passes if EITHER clears the threshold. best_contra is the highest
-    single-source contradiction (the serious signal). No raw text is carried."""
+    single-source contradiction (the serious signal). `neutral` is the neutral
+    probability from the SAME pairing that produced best_entail (a coherent
+    triple, not a max-of-neutrals) — instrumentation so a run can self-diagnose
+    "all-neutral" (NLI mismatched to our claim style) vs a real entail/contra
+    spread, before any metric change. No raw text is carried."""
     claim_num: int
     cited: tuple[str, ...]
     resolved: tuple[str, ...]          # cited S-tags that resolved to an excerpt
     best_entail: float
     best_contra: float
     combined_entail: float = 0.0
+    neutral: float = 0.0
     best_entail_src: str = ""
     best_contra_src: str = ""
     line: int = 0
@@ -271,6 +276,7 @@ def _finding_row(p: Pairing, disposition: str) -> dict:
         "resolved": list(p.resolved),
         "entailment": round(float(p.best_entail), 4),
         "combined_entailment": round(float(p.combined_entail), 4),
+        "neutral": round(float(p.neutral), 4),
         "contradiction": round(float(p.best_contra), 4),
         "entail_source": p.best_entail_src,
         "contra_source": p.best_contra_src,
@@ -300,6 +306,14 @@ def build_report(*, okr_id: str, run_id: str, phase: str, inputs: list[dict],
     entailed = [r for r in rows if r["disposition"] == PASS]
 
     verdict = compute_verdict([r["disposition"] for r in rows], config)
+    # Score summary — instrumentation (not a gate input). Lets a run self-
+    # diagnose the NLI behavior: all-neutral (strict entailment mismatched to
+    # prescriptive conclusions) vs a real entail/contra spread. Averaged over the
+    # rounded per-claim scores so it is replay-deterministic.
+    def _avg(key: str) -> float:
+        vals = [float(p_row[key]) for p_row in rows] if rows else []
+        return round(sum(vals) / len(vals), 4) if vals else 0.0
+
     return {
         "schema_version": SCHEMA_VERSION,
         "rail": RAIL,
@@ -317,6 +331,12 @@ def build_report(*, okr_id: str, run_id: str, phase: str, inputs: list[dict],
             "unsupported": len(unsupported),
             "entailed": len(entailed),
             "claims": len(pairings),
+        },
+        "score_summary": {
+            "avg_entailment": _avg("entailment"),
+            "avg_combined_entailment": _avg("combined_entailment"),
+            "avg_neutral": _avg("neutral"),
+            "avg_contradiction": _avg("contradiction"),
         },
         "contradicted_claims": contradicted,
         "unsupported_claims": unsupported,
@@ -363,10 +383,11 @@ def score_claims(claims: list[Claim], excerpts: dict[str, str], config: dict,
         resolved = tuple(t for t in c.cited if t in excerpts)
         best_e, best_c = 0.0, 0.0
         best_e_src, best_c_src = "", ""
+        neutral_at_best = 0.0  # neutral prob from the SAME pairing as best_entail
         for tag in resolved:
-            e, _n, contra = nli(excerpts[tag], c.text)
+            e, n, contra = nli(excerpts[tag], c.text)
             if e > best_e:
-                best_e, best_e_src = e, tag
+                best_e, best_e_src, neutral_at_best = e, tag, n
             if contra > best_c:
                 best_c, best_c_src = contra, tag
         # Combined-premise (synthesis) score: only meaningful for multi-source
@@ -375,11 +396,14 @@ def score_claims(claims: list[Claim], excerpts: dict[str, str], config: dict,
         combined_e = best_e
         if len(resolved) > 1:
             joined = " ".join(excerpts[t] for t in resolved)[:max_combined_chars]
-            ce, _cn, _cc = nli(joined, c.text)
+            ce, cn, _cc = nli(joined, c.text)
             combined_e = ce
+            if ce > best_e:               # combined beats every single source
+                neutral_at_best = cn      # report the neutral that pairs with the winning view
         pairings.append(Pairing(
             claim_num=c.num, cited=c.cited, resolved=resolved,
             best_entail=best_e, best_contra=best_c, combined_entail=combined_e,
+            neutral=neutral_at_best,
             best_entail_src=best_e_src, best_contra_src=best_c_src,
             line=c.line, shape=claim_shape(c.text, c.cited, resolved),
         ))
@@ -582,11 +606,20 @@ def cmd_run(args) -> int:
         for r in report.get(key, []):
             print(
                 f"::warning::oracle-groundedness-rail {r['claim']} {label} "
-                f"entail={r['entailment']} contra={r['contradiction']} "
+                f"entail={r['entailment']} combined={r.get('combined_entailment', '?')} "
+                f"neutral={r.get('neutral', '?')} contra={r['contradiction']} "
                 f"cited={','.join(r['cited']) or 'none'} resolved={len(r['resolved'])} "
                 f"L{r['line']} [{r['shape']}]",
                 file=sys.stderr,
             )
+    # Score-distribution summary — diagnoses all-neutral vs a real spread.
+    s = report.get("score_summary", {})
+    print(
+        f"::notice::oracle-groundedness-rail score summary — avg_entail={s.get('avg_entailment', '?')} "
+        f"avg_combined={s.get('avg_combined_entailment', '?')} avg_neutral={s.get('avg_neutral', '?')} "
+        f"avg_contra={s.get('avg_contradiction', '?')}",
+        file=sys.stderr,
+    )
     print(json.dumps({"verdict": report["verdict"], "counts": report["counts"]}))
     if report["verdict"] == VERDICT_FAIL:
         return 2
