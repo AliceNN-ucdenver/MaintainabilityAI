@@ -278,36 +278,85 @@ class RailNotInvocable(Exception):
     PASS; in run mode it is also a hard failure (can't certify un-scanned bytes)."""
 
 
+# Label names (case-insensitive) that mean "this is an injection/jailbreak".
+# Prompt Guard 2's head is binary; historically the positive class is labelled
+# LABEL_1 / "INJECTION" / "JAILBREAK" / "malicious". We read the ACTUAL mapping
+# from model.config.id2label and fail closed if no positive label is found —
+# never assume index 1, which a config drift could silently invert.
+_MALICIOUS_LABELS = {"label_1", "injection", "jailbreak", "malicious", "unsafe", "1"}
+
+
+def _malicious_index(id2label: dict) -> int | None:
+    """Return the logit index whose label means injection/malicious, or None.
+    `id2label` maps int id -> label string (transformers config)."""
+    for idx, label in (id2label or {}).items():
+        if str(label).strip().lower() in _MALICIOUS_LABELS:
+            try:
+                return int(idx)
+            except (TypeError, ValueError):
+                continue
+    return None
+
+
 def _load_classifier(config: dict):
     """Build a Prompt Guard 2 scorer: a callable str -> float (injection prob).
-    Raises RailNotInvocable if transformers/torch/the model are unavailable.
+    Raises RailNotInvocable if transformers/torch/the model are unavailable, if
+    the model revision is not pinned (replay determinism), or if the malicious
+    class cannot be identified from the model config (fail closed, never guess).
 
     Pinned by HF commit SHA (config.model_revision) so replay retrieves the EXACT
     same weights. CPU-only; offline-after-cache via the HF snapshot cache."""
+    model_id = config.get("model_id", DEFAULT_MODEL_ID)
+    revision = config.get("model_revision")  # HF commit SHA
+    # BLOCKING fix: an unpinned model breaks replay determinism AND lets a hard
+    # gate run on whatever weights the tag resolves to today. Refuse unless the
+    # operator explicitly opts out (require_pinned_revision: false → advisory use
+    # only, recorded honestly as "unpinned-tag" in the report's model identity).
+    require_pinned = bool(config.get("require_pinned_revision", True))
+    if require_pinned and not revision:
+        raise RailNotInvocable(
+            "model_revision is not pinned in config (injection.json). The rail is "
+            "a hard gate and replay-verified — refusing to run on an unpinned tag. "
+            "Pin the HF commit SHA, or set require_pinned_revision:false for "
+            "advisory-only use until the cert run pins it.")
     try:
         import torch  # noqa: F401
         from transformers import AutoModelForSequenceClassification, AutoTokenizer
     except Exception as e:  # noqa: BLE001 — any import failure is not-invocable
         raise RailNotInvocable(f"transformers/torch unavailable: {e}") from e
-    model_id = config.get("model_id", DEFAULT_MODEL_ID)
-    revision = config.get("model_revision")  # HF commit SHA; None → resolved-by-tag (recorded honestly)
     try:
         import torch
         tok = AutoTokenizer.from_pretrained(model_id, revision=revision)
         model = AutoModelForSequenceClassification.from_pretrained(model_id, revision=revision)
         model.eval()
 
+        # MAJOR fix: identify the malicious class from the model's OWN config,
+        # never assume index 1. Fail closed if the head doesn't expose a
+        # recognizable positive label (a config drift must not silently invert
+        # or corrupt the rail).
+        id2label = getattr(model.config, "id2label", {}) or {}
+        mal_idx = _malicious_index(id2label)
+        if mal_idx is None:
+            raise RailNotInvocable(
+                f"could not identify the malicious class from model.config.id2label="
+                f"{id2label!r}; refusing to guess. Update _MALICIOUS_LABELS for this "
+                f"model's label scheme before gating on it.")
+
         def score(unit: str) -> float:
             enc = tok(unit, truncation=True, max_length=512, return_tensors="pt")
             with torch.no_grad():
                 logits = model(**enc).logits
             probs = torch.softmax(logits, dim=-1)[0]
-            # Prompt Guard 2 is binary {benign(0), malicious(1)} — index 1 is the
-            # injection/jailbreak probability. If the head ever changes shape,
-            # fall back to the max non-zero class so we fail safe (higher score).
-            return float(probs[1]) if probs.shape[-1] >= 2 else float(probs.max())
+            return float(probs[mal_idx])
 
-        return score, {"model_id": model_id, "revision": revision or "unpinned-tag"}
+        return score, {
+            "model_id": model_id,
+            "revision": revision or "unpinned-tag",
+            "malicious_label": str(id2label[mal_idx]),
+            "malicious_index": mal_idx,
+        }
+    except RailNotInvocable:
+        raise
     except Exception as e:  # noqa: BLE001
         raise RailNotInvocable(f"Prompt Guard 2 load failed: {e}") from e
 
@@ -328,6 +377,10 @@ def _model_meta(model_info: dict) -> dict:
         "engine": "llama-prompt-guard-2",
         "model_id": model_info.get("model_id", DEFAULT_MODEL_ID),
         "model_revision": model_info.get("revision", "unknown"),
+        # Which class the score reads — recorded so replay compares it and a
+        # label-scheme drift surfaces as rail-replay-mismatch, not a silent flip.
+        "malicious_label": model_info.get("malicious_label", "unknown"),
+        "malicious_index": model_info.get("malicious_index", -1),
         "transformers_version": _ver("transformers"),
         "torch_version": _ver("torch"),
     }

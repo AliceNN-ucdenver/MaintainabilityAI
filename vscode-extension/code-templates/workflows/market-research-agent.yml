@@ -983,6 +983,16 @@ jobs:
           else
             echo "::notice::Oracle injection rail using bundled default config"
           fi
+          # ADVISORY mode: until the model is pinned + require_pinned_revision is
+          # true, the rail runs + records but MUST NOT hard-fail the PR (honesty:
+          # do not hard-gate on an unpinned/uncertified model). The rail is a
+          # required gate ONLY when BOTH model_revision is set AND
+          # require_pinned_revision is true.
+          ADVISORY=$(python3 -c "import json,sys; c=json.load(open(sys.argv[1])); print('false' if (c.get('model_revision') and c.get('require_pinned_revision', True)) else 'true')" "$CONFIG" 2>/dev/null || echo "true")
+          echo "advisory=$ADVISORY" >> "$GITHUB_OUTPUT"
+          if [ "$ADVISORY" = "true" ]; then
+            echo "::notice::Oracle injection rail is ADVISORY (model not pinned/certified) — it will run + record but not hard-fail this PR. Pin model_revision + require_pinned_revision:true to promote it to a required gate."
+          fi
           set +e
           OUT=$(python3 "$DIR/inject_check.py" run \
             --config "$CONFIG" \
@@ -1222,12 +1232,19 @@ jobs:
           # Oracle & Privacy Rails — INJECTION rail (Phase 3). Same fail-closed
           # gate as PII: a blocked / needs_review / not-invoked injection rail
           # degrades the evidence verdict. Independent of PII so either rail can
-          # fail the PR on its own.
+          # fail the PR on its own. ADVISORY guard: until the model is pinned +
+          # certified (require_pinned_revision), the rail does NOT hard-fail —
+          # it runs + records + comments, but the verdict is not degraded by it.
           INJECT_OK='${{ steps.inject-rail.outputs.ok }}'
           INJECT_REASON='${{ steps.inject-rail.outputs.reason }}'
+          INJECT_ADVISORY='${{ steps.inject-rail.outputs.advisory }}'
           if [ "$VERDICT" = "ok" ] && [ "$DOC_FOUND" = "true" ] && [ "$INJECT_OK" != "true" ]; then
-            VERDICT="degraded"; REASON="Oracle injection rail: ${INJECT_REASON:-failed}"
-            EVIDENCE_FAIL="true"
+            if [ "$INJECT_ADVISORY" = "true" ]; then
+              echo "::warning::Oracle injection rail (ADVISORY, not gating): ${INJECT_REASON:-failed}"
+            else
+              VERDICT="degraded"; REASON="Oracle injection rail: ${INJECT_REASON:-failed}"
+              EVIDENCE_FAIL="true"
+            fi
           fi
 
           # Drift
@@ -1514,6 +1531,10 @@ jobs:
           python3 -m pip install --disable-pip-version-check -r "$SCRIPTS/requirements.txt"
           CONFIG="$SCRIPTS/injection.json"
           if [ -f ".caterpillar/guardrails/oracle/injection.json" ]; then CONFIG=".caterpillar/guardrails/oracle/injection.json"; fi
+          # ADVISORY until model pinned + certified — see PR-gate step. When
+          # advisory, a non-pass does NOT abort finalize; the report is still
+          # written + recorded so the rollup shows the rail honestly.
+          ADVISORY=$(python3 -c "import json,sys; c=json.load(open(sys.argv[1])); print('false' if (c.get('model_revision') and c.get('require_pinned_revision', True)) else 'true')" "$CONFIG" 2>/dev/null || echo "true")
           REPORT="okrs/${OKR_ID}/audit/rails/${RUN_ID}.injection.rail-report.json"
           set +e
           python3 "$SCRIPTS/inject_check.py" run \
@@ -1522,15 +1543,25 @@ jobs:
             --okr-id "$OKR_ID" --run-id "$RUN_ID" --phase why
           CODE=$?
           set -e
-          # Same finalize-requires-pass contract as the PII rail: the PR-audit
-          # gate blocks any non-pass pre-merge, so a merged run should be clean.
-          # (0=pass, 2=blocked, 3=needs_review, 5=not-invoked.)
-          if [ "$CODE" -ne 0 ] || [ ! -f "$REPORT" ]; then
-            echo "::error::Oracle injection rail did not PASS at finalize (exit $CODE) — finalize aborts. Investigate a bypass/override or policy/model change before finalizing."
+          # Same finalize-requires-pass contract as the PII rail (when REQUIRED):
+          # the PR-audit gate blocks any non-pass pre-merge, so a merged run
+          # should be clean. (0=pass, 2=blocked, 3=needs_review, 5=not-invoked.)
+          # No report on disk is always fatal (we cannot record what we did not
+          # produce); a non-pass is fatal ONLY when the rail is a required gate.
+          if [ ! -f "$REPORT" ]; then
+            echo "::error::Oracle injection rail produced no report (exit $CODE) — finalize aborts; cannot record a rail that did not run."
             exit 1
           fi
+          if [ "$CODE" -ne 0 ]; then
+            if [ "$ADVISORY" = "true" ]; then
+              echo "::warning::Oracle injection rail non-pass (exit $CODE) but ADVISORY — recording the report; not aborting finalize."
+            else
+              echo "::error::Oracle injection rail did not PASS at finalize (exit $CODE) — finalize aborts. Investigate a bypass/override or policy/model change before finalizing."
+              exit 1
+            fi
+          fi
           echo "report_path=$REPORT" >> "$GITHUB_OUTPUT"
-          echo "::notice::Oracle injection rail PASS at finalize — report written to $REPORT"
+          echo "::notice::Oracle injection rail finalize (exit $CODE, advisory=$ADVISORY) — report written to $REPORT"
 
       # Refactor 3c — delegate to the canonical finalize composite action.
       # PHASE SPEC — see vscode-extension/src/types/phaseSpec.ts.

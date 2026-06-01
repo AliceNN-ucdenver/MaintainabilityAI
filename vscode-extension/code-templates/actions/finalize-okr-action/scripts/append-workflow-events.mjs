@@ -330,8 +330,11 @@ async function main() {
   // origin, re-derivable — the rollup re-runs each pinned rail over committed
   // bytes and never trusts these events.
   let appendedRail = false;
+  // RAIL_REPORT_PATHS is newline-separated — split on newlines ONLY. A path can
+  // legitimately contain ':' (e.g. a Windows drive or a URL-ish segment), so
+  // colon-splitting would corrupt valid paths.
   const railPaths = [
-    ...(process.env.RAIL_REPORT_PATHS || '').split(/[\n:]+/),
+    ...(process.env.RAIL_REPORT_PATHS || '').split(/\r?\n/),
     process.env.RAIL_REPORT_PATH || '',
   ].map(s => s.trim()).filter((p, i, a) => p && a.indexOf(p) === i); // dedupe + drop empties
   for (const railReportPath of railPaths) {

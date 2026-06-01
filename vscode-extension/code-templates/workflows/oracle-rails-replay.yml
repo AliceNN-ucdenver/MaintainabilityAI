@@ -40,11 +40,20 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Cache Oracle PII rail deps (pip)
+      - name: Cache Oracle rail deps (pip)
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
           key: oracle-pii-rail-presidio-2.2.362-spacy-3.8.14-${{ runner.os }}
+
+      # Phase 3 injection rail: cache the Hugging Face model snapshot so a replay
+      # re-run is offline + deterministic (the FIRST run on a cold cache still
+      # downloads the pinned Prompt Guard 2 revision).
+      - name: Cache Oracle injection rail model (Hugging Face)
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: oracle-injection-rail-prompt-guard-2-86m-${{ runner.os }}
 
       - name: Replay pinned rail over committed reports
         run: |
