@@ -34,6 +34,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import sys
 from dataclasses import dataclass, field
 from typing import Any
@@ -52,6 +53,55 @@ VERDICT_FAIL = "fail"
 VERDICT_NEEDS_REVIEW = "needs_review"
 VERDICT_PASS = "pass"
 
+# ── Secret recognizers ────────────────────────────────────────────────────────
+# (name, regex, score) — module-level so they are unit-testable WITHOUT Presidio.
+#
+# SECRET_PATTERNS are SECRET-SHAPED and hard-block as ORACLE_SECRET: vendor key
+# prefixes, JWTs, and explicit assignment / bearer forms. Matching one of these
+# is strong evidence of a real credential, not merely a long mixed-case string.
+SECRET_PATTERNS = [
+    ("github-token", r"\bghp_[A-Za-z0-9]{30,}\b", 0.9),
+    ("aws-access-key", r"\bAKIA[0-9A-Z]{16}\b", 0.9),
+    ("openai-key", r"\bsk-[A-Za-z0-9]{20,}\b", 0.85),
+    ("jwt", r"\beyJ[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-]{6,}\b", 0.9),
+    ("secret-assignment",
+     r"(?i)\b(?:api[_\-]?key|client[_\-]?secret|secret|token|password|passwd|pwd)\b\s*[:=]\s*['\"]?[A-Za-z0-9_\-\.]{8,}",
+     0.85),
+    ("bearer-token", r"(?i)\bbearer\s+[A-Za-z0-9_\-\.]{16,}", 0.85),
+]
+
+# CANDIDATE_PATTERNS are merely high-entropy (lower+upper+digit, 24+ chars). That
+# shape ALSO describes legitimate governance / source identifiers — OKR / WHY-run
+# ids, UUIDs, SHAs, arXiv / DOI refs, URL slugs — so a match here is NOT treated
+# as a secret. It is emitted as ORACLE_SECRET_CANDIDATE which (a) is dropped when
+# it matches a known benign id shape (is_benign_identifier) and (b) NEVER
+# hard-blocks — it only escalates to needs_review inside a sensitive context.
+# This is what stops the corpus's OKR-/WHY- ids from hard-failing the rail.
+CANDIDATE_PATTERNS = [
+    ("high-entropy",
+     r"\b(?=[A-Za-z0-9_\-]*[a-z])(?=[A-Za-z0-9_\-]*[A-Z])(?=[A-Za-z0-9_\-]*[0-9])[A-Za-z0-9_\-]{24,}\b",
+     0.6),
+]
+
+# Entity emitted for CANDIDATE_PATTERNS — deliberately NOT in any block tier.
+SECRET_CANDIDATE = "ORACLE_SECRET_CANDIDATE"
+
+# Benign identifier shapes the high-entropy candidate must NOT flag as a secret.
+_BENIGN_ID_PATTERNS = [
+    re.compile(r"^(?:OKR|WHY|HOW|WHAT|IMPL)-", re.IGNORECASE),                                       # governance / phase-run ids
+    re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE),    # UUID
+    re.compile(r"^[0-9a-f]{40}$|^[0-9a-f]{64}$", re.IGNORECASE),                                      # git SHA-1 / sha256
+    re.compile(r"^\d{4}\.\d{4,5}(?:v\d+)?$"),                                                         # arXiv id
+    re.compile(r"^10\.\d{4,9}/", re.IGNORECASE),                                                      # DOI
+    re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+){2,}$"),                                                     # url slug (kebab, 3+ parts)
+]
+
+
+def is_benign_identifier(token: str) -> bool:
+    """True if a high-entropy candidate is actually a known-safe identifier shape
+    (governance id, UUID, SHA, arXiv, DOI, url slug) — not a secret. Pure."""
+    return any(p.search(token) for p in _BENIGN_ID_PATTERNS)
+
 
 # ─────────────────────────────────────────────────────────────────────
 # Pure policy + report + replay (no Presidio import — unit-testable)
@@ -68,12 +118,50 @@ class Detection:
     end: int
     input_index: int = 0
     context_marker: str = ""
+    input_path: str = ""
+    line: int = 0
+    col: int = 0
+    shape: str = ""  # safe structural fingerprint (no raw value) — see token_shape()
+
+
+def token_shape(text: str, start: int, end: int) -> str:
+    """A SAFE structural fingerprint of a match — never the raw value. Used to
+    name a false-positive class without leaking the matched bytes. Reports:
+      len<N>     match length
+      url|txt    is the match part of a whitespace-bounded token containing '://'
+      <charset>  which classes are present: a=lower A=upper 9=digit (e.g. 'aA9')
+    e.g. 'len36 url aA9' = a 36-char mixed-case+digit token inside a URL — a
+    locator/identifier, not a leaked credential."""
+    n = len(text)
+    a, b = start, end
+    while a > 0 and not text[a - 1].isspace():
+        a -= 1
+    while b < n and not text[b].isspace():
+        b += 1
+    token = text[a:b]
+    frag = text[start:end]
+    charset = (("a" if any(c.islower() for c in frag) else "")
+               + ("A" if any(c.isupper() for c in frag) else "")
+               + ("9" if any(c.isdigit() for c in frag) else "")) or "-"
+    return f"len{end - start} {'url' if '://' in token else 'txt'} {charset}"
 
 
 def classify(det: Detection, config: dict) -> str:
     """Map one detection to a disposition under the tiered policy. Pure."""
     if det.score < float(config.get("score_threshold", 0.5)):
         return IGNORE
+    # Per-entity minimum match length — drops short-token false positives from
+    # low-precision built-in recognizers (e.g. US_DRIVER_LICENSE matching the
+    # 3-char acronym "API"). A real identifier of that class is longer. Length
+    # is end-start; a 0 floor (the default) is a no-op.
+    floor = int(config.get("min_chars", {}).get(det.entity_type, 0))
+    if floor and (det.end - det.start) < floor:
+        return IGNORE
+    # A high-entropy candidate is NOT a confirmed secret: it only escalates to
+    # needs_review inside a sensitive context (auth keys, leaked dataset, etc.);
+    # otherwise it is a benign long identifier and is ignored. NEVER hard-blocked.
+    if det.entity_type == SECRET_CANDIDATE:
+        return NEEDS_REVIEW if det.context_marker else IGNORE
     tiers = config.get("tiers", {})
     if det.entity_type in set(tiers.get("block", [])):
         return BLOCK
@@ -102,9 +190,13 @@ def _safe_ref(det: Detection) -> str:
 def _finding_row(det: Detection, disposition: str) -> dict:
     row = {
         "type": det.entity_type,
-        "ref": _safe_ref(det),
-        "score": round(float(det.score), 4),
         "disposition": disposition,
+        "score": round(float(det.score), 4),
+        "input": det.input_path,
+        "line": det.line,
+        "col": det.col,
+        "shape": det.shape,
+        "ref": _safe_ref(det),
     }
     if det.context_marker:
         row["context_marker"] = det.context_marker
@@ -199,15 +291,14 @@ def _load_analyzer(config: dict):
         raise RailNotInvocable(f"presidio-analyzer unavailable: {e}") from e
     try:
         analyzer = AnalyzerEngine()
-        secret_patterns = [
-            Pattern(name="github-token", regex=r"\bghp_[A-Za-z0-9]{30,}\b", score=0.9),
-            Pattern(name="aws-access-key", regex=r"\bAKIA[0-9A-Z]{16}\b", score=0.9),
-            Pattern(name="openai-key", regex=r"\bsk-[A-Za-z0-9]{20,}\b", score=0.85),
-            Pattern(name="generic-secret", regex=r"\b[A-Za-z0-9_\-]{32,}\b", score=0.5),
-        ]
-        analyzer.registry.add_recognizer(
-            PatternRecognizer(supported_entity="ORACLE_SECRET", patterns=secret_patterns)
-        )
+        analyzer.registry.add_recognizer(PatternRecognizer(
+            supported_entity="ORACLE_SECRET",
+            patterns=[Pattern(name=n, regex=r, score=s) for n, r, s in SECRET_PATTERNS],
+        ))
+        analyzer.registry.add_recognizer(PatternRecognizer(
+            supported_entity=SECRET_CANDIDATE,
+            patterns=[Pattern(name=n, regex=r, score=s) for n, r, s in CANDIDATE_PATTERNS],
+        ))
         return analyzer
     except Exception as e:  # noqa: BLE001
         raise RailNotInvocable(f"analyzer init failed (spaCy model?): {e}") from e
@@ -285,6 +376,10 @@ def analyze_inputs(input_paths: list[str], config: dict) -> tuple[list[Detection
             text = fh.read()
         results = analyzer.analyze(text=text, language=lang, score_threshold=threshold)
         for r in results:
+            # Drop high-entropy candidates that are actually benign governance /
+            # source identifiers (OKR-/WHY- ids, UUIDs, SHAs, arXiv/DOI, slugs).
+            if r.entity_type == SECRET_CANDIDATE and is_benign_identifier(text[int(r.start):int(r.end)]):
+                continue
             detections.append(Detection(
                 entity_type=r.entity_type,
                 score=float(r.score),
@@ -292,6 +387,10 @@ def analyze_inputs(input_paths: list[str], config: dict) -> tuple[list[Detection
                 end=int(r.end),
                 input_index=idx,
                 context_marker=_context_marker(text, r.start, r.end, path, markers),
+                input_path=path,
+                line=text.count("\n", 0, int(r.start)) + 1,
+                col=int(r.start) - text.rfind("\n", 0, int(r.start)),
+                shape=token_shape(text, int(r.start), int(r.end)),
             ))
     return detections, model
 
@@ -329,6 +428,17 @@ def cmd_run(args) -> int:
         config=config, detections=detections,
     )
     _write_report(args.report, report)
+    # Explainable failure (NO raw value / excerpt) — type, disposition, score,
+    # input file, line. Stderr → surfaced in the audit log + as annotations.
+    # TYPE score file:line:col disposition — no raw value, no excerpt.
+    for label, key in (("BLOCK", "blocked_entities"), ("NEEDS_REVIEW", "needs_review_entities")):
+        for e in report.get(key, []):
+            print(
+                f"::warning::oracle-pii-rail {e['type']} score={e['score']} "
+                f"{e.get('input') or '?'}:{e.get('line', '?')}:{e.get('col', '?')} "
+                f"{label} [{e.get('shape', '')}] (ref {e['ref']})",
+                file=sys.stderr,
+            )
     print(json.dumps({"verdict": report["verdict"], "counts": report["counts"]}))
     if report["verdict"] == VERDICT_FAIL:
         return 2

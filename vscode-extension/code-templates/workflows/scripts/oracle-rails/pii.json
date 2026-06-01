@@ -4,6 +4,12 @@
   "score_threshold": 0.5,
   "block_on_needs_review": true,
   "nlp_model": "en_core_web_lg",
+  "_min_chars_note": "Per-entity minimum match length. Drops short-token false positives from low-precision built-in recognizers (e.g. US_DRIVER_LICENSE matching a 3-char acronym). A real identifier of that class is longer; tune conservatively.",
+  "min_chars": {
+    "US_DRIVER_LICENSE": 6,
+    "US_PASSPORT": 6,
+    "US_BANK_NUMBER": 6
+  },
   "_note": "Tiered PII policy for a public-figure research domain. PERSON / public ORG / public LOCATION are legitimate content (redact + record); contact/identity/secret PII hard-fails; an allowed entity in a sensitive context escalates to needs_review. A mesh operator may override this file at .caterpillar/guardrails/oracle/pii.json; the workflow prefers that path when present. config_sha256 in the rail report pins whichever config ran.",
   "tiers": {
     "block": [

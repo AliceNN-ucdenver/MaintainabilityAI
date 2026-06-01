@@ -59,6 +59,12 @@ permissions:
   pull-requests: write
   contents: write
   checks: write
+  # Oracle & Privacy Rails: finalize dispatches the model-replay workflow after
+  # committing the durable rail report. A push made with the default GITHUB_TOKEN
+  # does NOT trigger workflows (GitHub's recursion guard), but workflow_dispatch
+  # is the explicit exception and runs with this token — so the replay leg fires
+  # automatically without a PAT/App secret. Requires `actions: write`.
+  actions: write
   # B21: models:read REQUIRED for the Pocket Watch goal-drift check —
   # the GitHub Models endpoint (models.inference.ai.azure.com/embeddings)
   # rejects requests without this scope. Without it embedding calls
@@ -871,7 +877,7 @@ jobs:
           # Install pinned Presidio + spaCy + the URL-pinned en_core_web_lg
           # model (all in requirements.txt) — no `spacy download`, so the EXACT
           # model artifact is retrieved for replay determinism.
-          python3 -m pip install --quiet --disable-pip-version-check -r "$DIR/requirements.txt"
+          python3 -m pip install --disable-pip-version-check -r "$DIR/requirements.txt"
           # Config: prefer a mesh-committed policy at
           # .caterpillar/guardrails/oracle/pii.json fetched from the DEFAULT
           # BRANCH (trusted, never PR head); fall back to the bundled default.
@@ -898,6 +904,10 @@ jobs:
           set -e
           cat /tmp/pii-err.txt || true
           printf 'rail stdout: %s\n' "$OUT"
+          # Safe summary for the verdict reason + PR comment — entity TYPE @
+          # file:line:col only (no raw value / excerpt). Read from the report file.
+          REPORT_FILE="$RUNNER_TEMP/oracle-pii.rail-report.json"
+          SUMMARY=$(python3 -c "import json,sys;r=json.load(open(sys.argv[1]));rows=r.get('blocked_entities') or r.get('needs_review_entities') or [];print('; '.join(sorted({e['type']+' @'+(e.get('input') or '?')+':'+str(e.get('line','?'))+':'+str(e.get('col','?')) for e in rows})) or 'none')" "$REPORT_FILE" 2>/dev/null || echo "see workflow log")
           echo "missing=false" >> "$GITHUB_OUTPUT"
           if [ "$CODE" -eq 0 ]; then
             echo "ok=true" >> "$GITHUB_OUTPUT"
@@ -905,12 +915,12 @@ jobs:
             echo "::notice::Oracle PII rail passed (verdict=pass)"
           elif [ "$CODE" -eq 2 ]; then
             echo "ok=false" >> "$GITHUB_OUTPUT"
-            echo "reason=blocked PII detected (verdict=fail)" >> "$GITHUB_OUTPUT"
-            echo "::error::Oracle PII rail BLOCKED — a hard-fail PII class was detected in the research doc / source registry"
+            echo "reason=blocked PII: $SUMMARY" >> "$GITHUB_OUTPUT"
+            echo "::error::Oracle PII rail BLOCKED — hard-fail PII class detected: $SUMMARY"
           elif [ "$CODE" -eq 3 ]; then
             echo "ok=false" >> "$GITHUB_OUTPUT"
-            echo "reason=needs_review — ambiguous PII in a sensitive context (blocking during hardening)" >> "$GITHUB_OUTPUT"
-            echo "::error::Oracle PII rail NEEDS REVIEW — ambiguous PII in a sensitive context; blocking per policy (block_on_needs_review)"
+            echo "reason=needs_review: $SUMMARY" >> "$GITHUB_OUTPUT"
+            echo "::error::Oracle PII rail NEEDS REVIEW (blocking per policy): $SUMMARY"
           else
             echo "ok=false" >> "$GITHUB_OUTPUT"
             echo "reason=rail-not-invoked (Presidio/model/config unloadable, exit $CODE)" >> "$GITHUB_OUTPUT"
@@ -1355,7 +1365,7 @@ jobs:
             echo "report_path=" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          python3 -m pip install --quiet --disable-pip-version-check -r "$SCRIPTS/requirements.txt"
+          python3 -m pip install --disable-pip-version-check -r "$SCRIPTS/requirements.txt"
           # Config: mesh override if committed, else the bundled default
           # (both live on the trusted main checkout). config_sha256 pins it.
           CONFIG="$SCRIPTS/pii.json"
@@ -1408,3 +1418,26 @@ jobs:
           # just produced to the generic recorder, which emits the unsigned
           # workflow-origin rail_decision pointer (empty → no-op).
           rail-report-path: ${{ steps.pii-rail-finalize.outputs.report_path }}
+
+      # ── Oracle & Privacy Rails — trigger the model-replay leg ──────────────
+      # The finalize action commits the durable rail-report.json to main with the
+      # default GITHUB_TOKEN. GitHub will NOT auto-trigger oracle-rails-replay.yml
+      # from that push (default-token pushes don't fire workflows — recursion
+      # guard). workflow_dispatch is the explicit exception and runs with this
+      # token, so we dispatch the replay explicitly. It re-runs the pinned model
+      # over the committed report + cited bytes and records match / replay-
+      # mismatch / not-invoked — the authoritative third leg of "replay, not sign".
+      - name: Dispatch Oracle rails model-replay
+        if: steps.pii-rail-finalize.outputs.report_path != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -uo pipefail
+          # Best-effort: a missing/again-renamed replay workflow must not fail an
+          # otherwise-complete finalize. The replay's own push trigger + manual
+          # dispatch remain as fallbacks.
+          if gh workflow run oracle-rails-replay.yml --repo "${{ github.repository }}" --ref main; then
+            echo "::notice::dispatched oracle-rails-replay.yml (model replay) on main"
+          else
+            echo "::warning::could not dispatch oracle-rails-replay.yml — run it manually (Actions → Oracle Rails — model replay → Run workflow) to record the replay verdict"
+          fi

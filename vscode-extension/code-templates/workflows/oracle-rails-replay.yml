@@ -54,7 +54,7 @@ jobs:
             echo "::error::Oracle rail helpers missing on main ($SCRIPTS) — redeploy mesh workflows from Looking Glass."
             exit 1
           fi
-          python3 -m pip install --quiet --disable-pip-version-check -r "$SCRIPTS/requirements.txt"
+          python3 -m pip install --disable-pip-version-check -r "$SCRIPTS/requirements.txt"
           # Replay only the reports changed in this push; on workflow_dispatch
           # (no diff) replay every committed report.
           CHANGED=$(git diff --name-only HEAD^ HEAD -- 'okrs/**/audit/rails/*.rail-report.json' 2>/dev/null || true)

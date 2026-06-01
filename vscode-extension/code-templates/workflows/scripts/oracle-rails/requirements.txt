@@ -7,6 +7,10 @@
 # change (and shows up as a rail-replay-mismatch until both sides move).
 presidio-analyzer==2.2.362
 spacy==3.8.14
+# presidio-analyzer imports `click` at load time but does NOT declare it, and
+# the modern typer (0.26.x) no longer pulls it in transitively — so without
+# this pin the analyzer import fails with "No module named 'click'".
+click==8.3.0
 
 # spaCy NLP model — URL-pinned to an IMMUTABLE GitHub release asset AND
 # hash-pinned via the #sha256 fragment, so pip VERIFIES the wheel digest at
