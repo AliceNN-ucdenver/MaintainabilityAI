@@ -88,17 +88,39 @@ DEFAULT_MODEL_ID = "MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli"
 # Pure parsing: claims + cited S-tags (hypotheses) and registry excerpts (premises)
 # ─────────────────────────────────────────────────────────────────────
 
-# **C1**: <claim text> … Confidence: HIGH  — the formal-conclusion bullet form.
+# **C1**: <claim text> — supported by S1, S7 because <rationale>. Confidence: HIGH
 _CLAIM_RE = re.compile(r"\*\*C(?P<num>\d+)\*\*\s*[:\-—–]?\s*(?P<body>.+)", re.IGNORECASE)
 # S-tag references anywhere in the claim body ("supported by S1, S7, S14").
 _STAG_RE = re.compile(r"\bS(\d+)\b")
+# The Formal Conclusions section header (H2, case-insensitive, tolerant of
+# "## Formal Conclusions" / "## Formal conclusions").
+_CONCLUSIONS_H2_RE = re.compile(r"^\s*##\s+formal\s+conclusions\b", re.IGNORECASE)
+_ANY_H2_RE = re.compile(r"^\s*##\s+\S")
+# Strip the support/rationale/confidence tail so the NLI HYPOTHESIS is the claim
+# only — not "supported by S3/S12 because <meta-rationale>. Confidence: HIGH",
+# which is meta-text about the sources and systematically depresses entailment.
+_SUPPORT_TAIL_RE = re.compile(
+    r"\s*[—–\-]+\s*supported by\b.*$"     # "— supported by S1, S7 because …"
+    r"|\s*\bsupported by\b.*$"            # bare "supported by …" (no dash)
+    r"|\s*\bConfidence\s*:.*$",           # trailing "Confidence: HIGH" if no support tail
+    re.IGNORECASE,
+)
+
+
+def clean_claim_text(body: str) -> str:
+    """Return just the claim sentence — drop the `— supported by … because …`
+    rationale and any trailing `Confidence: …`. Pure. The cited S-tags are parsed
+    from the FULL body separately, so this only shapes the NLI hypothesis."""
+    cleaned = _SUPPORT_TAIL_RE.sub("", body).strip()
+    return cleaned or body.strip()
 
 
 @dataclass(frozen=True)
 class Claim:
-    """One Formal Conclusion. `cited` is the ordered, de-duplicated list of
-    S-tag ids it references. The raw claim text is carried only for scoring and
-    is NEVER written to the report (the row keeps id + shape only)."""
+    """One Formal Conclusion. `text` is the CLEAN claim sentence (the NLI
+    hypothesis); `cited` is the ordered, de-duplicated list of S-tag ids the
+    full line references. Raw text is used only for scoring, never written to
+    the report (rows keep id + shape only)."""
     num: int
     text: str
     cited: tuple[str, ...]
@@ -108,11 +130,22 @@ class Claim:
 def parse_claims(markdown: str) -> list[Claim]:
     """Parse Formal Conclusions (C<n>) and the S-tags each cites. Pure.
 
-    Only lines that contain a `**C<n>**` marker are treated as claims, so the
-    Source-Premises bullets (`**S1**: …`) and prose are not misread as claims.
-    """
+    SECTION-SCOPED: only lines inside the `## Formal Conclusions` section (up to
+    the next H2) are parsed. The Recommendations / References sections reuse
+    `**C1**`-style back-references to the conclusions; scanning the whole doc
+    double-counts those as new claims (the 11-vs-6 bug). The NLI hypothesis is
+    the CLEAN claim text (support/rationale/confidence stripped); cited S-tags
+    are taken from the full line."""
     out: list[Claim] = []
+    in_section = False
     for i, line in enumerate(markdown.split("\n")):
+        if _CONCLUSIONS_H2_RE.match(line):
+            in_section = True
+            continue
+        if in_section and _ANY_H2_RE.match(line):
+            break  # next H2 ends the Formal Conclusions section
+        if not in_section:
+            continue
         if "**C" not in line and "**c" not in line:
             continue
         m = _CLAIM_RE.search(line)
@@ -124,7 +157,8 @@ def parse_claims(markdown: str) -> list[Claim]:
             tag = "S" + sm.group(1)
             if tag not in seen:
                 seen.append(tag)
-        out.append(Claim(num=int(m.group("num")), text=body, cited=tuple(seen), line=i + 1))
+        out.append(Claim(num=int(m.group("num")), text=clean_claim_text(body),
+                         cited=tuple(seen), line=i + 1))
     return out
 
 
@@ -161,16 +195,21 @@ def load_source_excerpts(registry_text: str, config: dict) -> dict[str, str]:
 class Pairing:
     """The scored result for ONE claim against its cited sources.
 
-    Scores are max-pooled across cited sources: best_entail is the highest
-    entailment any single cited source gives the claim; best_contra is the
-    highest contradiction. `resolved`/`cited` counts make 'unsupported because
-    no source resolved' distinguishable from 'unsupported because the model
-    said so'. No raw text is carried."""
+    Two entailment signals, because the doc's conclusions are CONJUNCTIVE (one
+    source supports the market fact, another the technical fact): pairwise
+    max-pool alone asks "does any single source entail the WHOLE claim?", which
+    is honestly 'no' for a synthesis even when the sources support it together.
+      - best_entail: highest entailment any SINGLE cited source gives the claim.
+      - combined_entail: entailment of the claim over a bounded CONCATENATION of
+        all cited excerpts (the synthesis view).
+    A claim passes if EITHER clears the threshold. best_contra is the highest
+    single-source contradiction (the serious signal). No raw text is carried."""
     claim_num: int
     cited: tuple[str, ...]
     resolved: tuple[str, ...]          # cited S-tags that resolved to an excerpt
     best_entail: float
     best_contra: float
+    combined_entail: float = 0.0
     best_entail_src: str = ""
     best_contra_src: str = ""
     line: int = 0
@@ -194,7 +233,10 @@ def classify(p: Pairing, config: dict) -> str:
     contra_t = float(config.get("contra_threshold", DEFAULT_CONTRA_THRESHOLD))
     if p.best_contra >= contra_t:
         return BLOCK
-    if p.resolved and p.best_entail >= entail_t:
+    # Pass if EITHER a single cited source entails the claim OR the combined
+    # cited excerpts do (the synthesis view) — so a conjunctive conclusion
+    # grounded across several sources isn't marked unsupported.
+    if p.resolved and max(p.best_entail, p.combined_entail) >= entail_t:
         return PASS
     return NEEDS_REVIEW
 
@@ -228,6 +270,7 @@ def _finding_row(p: Pairing, disposition: str) -> dict:
         "cited": list(p.cited),
         "resolved": list(p.resolved),
         "entailment": round(float(p.best_entail), 4),
+        "combined_entailment": round(float(p.combined_entail), 4),
         "contradiction": round(float(p.best_contra), 4),
         "entail_source": p.best_entail_src,
         "contra_source": p.best_contra_src,
@@ -311,6 +354,10 @@ def score_claims(claims: list[Claim], excerpts: dict[str, str], config: dict,
     `nli(premise, hypothesis) -> (entail, neutral, contra)` probabilities. Pure
     given the scorer; the model seam is injected so this is unit-testable with a
     fake scorer."""
+    # Bounded concatenation budget for the combined-premise (synthesis) view —
+    # keeps the joined premise within the NLI model's context window and makes
+    # replay deterministic. Excerpts are joined in cited order.
+    max_combined_chars = int(config.get("combined_premise_max_chars", 2000))
     pairings: list[Pairing] = []
     for c in claims:
         resolved = tuple(t for t in c.cited if t in excerpts)
@@ -322,9 +369,17 @@ def score_claims(claims: list[Claim], excerpts: dict[str, str], config: dict,
                 best_e, best_e_src = e, tag
             if contra > best_c:
                 best_c, best_c_src = contra, tag
+        # Combined-premise (synthesis) score: only meaningful for multi-source
+        # claims — a single resolved source's combined == its single score, so
+        # skip the redundant call.
+        combined_e = best_e
+        if len(resolved) > 1:
+            joined = " ".join(excerpts[t] for t in resolved)[:max_combined_chars]
+            ce, _cn, _cc = nli(joined, c.text)
+            combined_e = ce
         pairings.append(Pairing(
             claim_num=c.num, cited=c.cited, resolved=resolved,
-            best_entail=best_e, best_contra=best_c,
+            best_entail=best_e, best_contra=best_c, combined_entail=combined_e,
             best_entail_src=best_e_src, best_contra_src=best_c_src,
             line=c.line, shape=claim_shape(c.text, c.cited, resolved),
         ))

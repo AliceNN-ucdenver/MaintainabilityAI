@@ -16,7 +16,7 @@ import unittest
 from groundedness import (
     Claim, Pairing, parse_claims, load_source_excerpts, score_claims,
     classify, compute_verdict, build_report, compare_reports, canonical_hash,
-    claim_shape, _label_indices,
+    claim_shape, clean_claim_text, _label_indices,
     BLOCK, NEEDS_REVIEW, PASS,
     VERDICT_FAIL, VERDICT_PASS, VERDICT_NEEDS_REVIEW,
     DEFAULT_ENTAIL_THRESHOLD, DEFAULT_CONTRA_THRESHOLD,
@@ -197,7 +197,7 @@ class TestReport(unittest.TestCase):
             self.assertEqual(
                 set(row),
                 {"type", "claim", "disposition", "cited", "resolved",
-                 "entailment", "contradiction", "entail_source", "contra_source", "line", "shape"},
+                 "entailment", "combined_entailment", "contradiction", "entail_source", "contra_source", "line", "shape"},
             )
 
     def test_findings_sorted_deterministically(self):
@@ -264,6 +264,76 @@ class TestDefaults(unittest.TestCase):
         self.assertGreater(DEFAULT_ENTAIL_THRESHOLD, 0)
         self.assertLessEqual(DEFAULT_ENTAIL_THRESHOLD, 1.0)
         self.assertGreater(DEFAULT_CONTRA_THRESHOLD, 0)
+
+
+class TestCalibrationRegressions(unittest.TestCase):
+    """Regressions from the first live WHY run: the parser over-counted 11 claims
+    vs 6 conclusions (Recommendations reuse **C1** refs), and fed the whole noisy
+    line (support rationale + Confidence) to NLI."""
+
+    # A doc whose Recommendations + References sections reuse **C1**/**C2** refs.
+    DOC = """## Formal Conclusions
+
+1. **C1**: Reuse ratings for recommendations — supported by S1, S7, S14 because they show CF works on interaction data. Confidence: **HIGH**
+2. **C2**: Privacy controls are acceptance criteria — supported by S18, S20 because the sources show preference-privacy risk. Confidence: **HIGH**
+
+## Recommendations
+
+- Implement **C1** behind a feature flag during ramp.
+- Treat **C2** as a GA gate, per the privacy review.
+
+## References
+
+- S1: [title](http://x)
+"""
+
+    # P1 (1): only the 2 conclusions parse — Recommendations refs do NOT.
+    def test_only_formal_conclusions_parse_not_recommendations(self):
+        claims = parse_claims(self.DOC)
+        self.assertEqual([c.num for c in claims], [1, 2])
+
+    # P1 (2): the hypothesis is the clean claim — no "supported by"/Confidence.
+    def test_hypothesis_is_clean_claim_text(self):
+        c1 = parse_claims(self.DOC)[0]
+        self.assertNotIn("supported by", c1.text.lower())
+        self.assertNotIn("confidence", c1.text.lower())
+        self.assertNotIn("S1", c1.text)  # the support list is stripped from the hypothesis
+        self.assertEqual(c1.text, "Reuse ratings for recommendations")
+        # ...but the cited S-tags are still captured from the full line.
+        self.assertEqual(c1.cited, ("S1", "S7", "S14"))
+
+    def test_clean_claim_text_handles_no_support_tail(self):
+        # A bare claim with only a trailing Confidence still cleans correctly.
+        self.assertEqual(clean_claim_text("A plain claim. Confidence: HIGH"), "A plain claim.")
+        # A claim with neither tail is returned as-is.
+        self.assertEqual(clean_claim_text("Just a claim"), "Just a claim")
+
+    # P1 (3): combined-premise scoring — a conjunctive claim no single source
+    # entails, but the combined cited excerpts do, PASSES.
+    def test_combined_premise_passes_conjunctive_claim(self):
+        cfg = {"entail_threshold": 0.6, "contra_threshold": 0.6}
+        # Fake NLI: each single source is weak (0.4); the joined premise is strong.
+        def nli(premise, hypothesis):
+            return (0.85, 0.1, 0.05) if " " in premise and premise.count("|") >= 1 else (0.4, 0.55, 0.05)
+        # excerpts joined with " " — encode "combined" by a sentinel the fake detects.
+        excerpts = {"S1": "market|fact", "S7": "tech|fact"}
+        claims = [Claim(num=1, text="synthesis", cited=("S1", "S7"), line=1)]
+        pairings = score_claims(claims, excerpts, cfg, nli)
+        p = pairings[0]
+        self.assertLess(p.best_entail, 0.6)        # no single source entails
+        self.assertGreaterEqual(p.combined_entail, 0.6)  # but combined does
+        self.assertEqual(classify(p, cfg), PASS)
+
+    def test_single_source_claim_skips_redundant_combined_call(self):
+        # With one resolved source, combined_entail == best_entail (no 2nd NLI call).
+        calls = []
+        def nli(premise, hypothesis):
+            calls.append(premise)
+            return (0.8, 0.1, 0.1)
+        claims = [Claim(num=1, text="claim", cited=("S1",), line=1)]
+        pairings = score_claims(claims, {"S1": "supporting excerpt"}, {}, nli)
+        self.assertEqual(len(calls), 1)  # single-source: no combined call
+        self.assertEqual(pairings[0].combined_entail, pairings[0].best_entail)
 
 
 if __name__ == "__main__":
