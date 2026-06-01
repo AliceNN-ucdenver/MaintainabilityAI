@@ -86,6 +86,12 @@ CANDIDATE_PATTERNS = [
 # Entity emitted for CANDIDATE_PATTERNS — deliberately NOT in any block tier.
 SECRET_CANDIDATE = "ORACLE_SECRET_CANDIDATE"
 
+# Generic PII recognizers are noisy on source URLs (e.g. medium.com/@author
+# looks like EMAIL_ADDRESS, US patent ids look like government identifiers).
+# Preserve offsets by replacing URL characters with spaces before Presidio runs,
+# then run a narrow URL-secret pass over the original bytes.
+URL_RE = re.compile(r"https?://[^\s\"'<>)\]]+")
+
 # Benign identifier shapes the high-entropy candidate must NOT flag as a secret.
 _BENIGN_ID_PATTERNS = [
     re.compile(r"^(?:OKR|WHY|HOW|WHAT|IMPL)-", re.IGNORECASE),                                       # governance / phase-run ids
@@ -144,6 +150,49 @@ def token_shape(text: str, start: int, end: int) -> str:
                + ("A" if any(c.isupper() for c in frag) else "")
                + ("9" if any(c.isdigit() for c in frag) else "")) or "-"
     return f"len{end - start} {'url' if '://' in token else 'txt'} {charset}"
+
+
+def mask_urls_for_pii(text: str) -> str:
+    """Return `text` with URL spans blanked, preserving byte offsets.
+
+    This prevents generic PII recognizers from treating source locators as PII
+    while keeping line/column math stable for all non-URL detections. Real
+    URL-embedded secrets are handled by `detect_url_secrets` below.
+    """
+    chars = list(text)
+    for m in URL_RE.finditer(text):
+        for i in range(m.start(), m.end()):
+            if chars[i] not in "\r\n":
+                chars[i] = " "
+    return "".join(chars)
+
+
+def detect_url_secrets(text: str, input_index: int, path: str, markers: list[str]) -> list[Detection]:
+    """Detect strong secret shapes inside URL spans only.
+
+    We intentionally do NOT run broad PII recognizers on URLs, but a URL such as
+    `...?api_key=...` or `...?token=...` is still a hard-blocking credential leak.
+    """
+    detections: list[Detection] = []
+    for url in URL_RE.finditer(text):
+        url_text = url.group(0)
+        for _name, rgx, score in SECRET_PATTERNS:
+            for hit in re.finditer(rgx, url_text):
+                start = url.start() + hit.start()
+                end = url.start() + hit.end()
+                detections.append(Detection(
+                    entity_type="ORACLE_SECRET",
+                    score=float(score),
+                    start=start,
+                    end=end,
+                    input_index=input_index,
+                    context_marker=_context_marker(text, start, end, path, markers),
+                    input_path=path,
+                    line=text.count("\n", 0, start) + 1,
+                    col=start - text.rfind("\n", 0, start),
+                    shape=token_shape(text, start, end),
+                ))
+    return detections
 
 
 def classify(det: Detection, config: dict) -> str:
@@ -374,11 +423,13 @@ def analyze_inputs(input_paths: list[str], config: dict) -> tuple[list[Detection
     for idx, path in enumerate(input_paths):
         with open(path, "r", encoding="utf-8", errors="replace") as fh:
             text = fh.read()
-        results = analyzer.analyze(text=text, language=lang, score_threshold=threshold)
+        pii_text = mask_urls_for_pii(text)
+        results = analyzer.analyze(text=pii_text, language=lang, score_threshold=threshold)
+        detections.extend(detect_url_secrets(text, idx, path, markers))
         for r in results:
             # Drop high-entropy candidates that are actually benign governance /
             # source identifiers (OKR-/WHY- ids, UUIDs, SHAs, arXiv/DOI, slugs).
-            if r.entity_type == SECRET_CANDIDATE and is_benign_identifier(text[int(r.start):int(r.end)]):
+            if r.entity_type == SECRET_CANDIDATE and is_benign_identifier(pii_text[int(r.start):int(r.end)]):
                 continue
             detections.append(Detection(
                 entity_type=r.entity_type,
@@ -386,11 +437,11 @@ def analyze_inputs(input_paths: list[str], config: dict) -> tuple[list[Detection
                 start=int(r.start),
                 end=int(r.end),
                 input_index=idx,
-                context_marker=_context_marker(text, r.start, r.end, path, markers),
+                context_marker=_context_marker(pii_text, r.start, r.end, path, markers),
                 input_path=path,
-                line=text.count("\n", 0, int(r.start)) + 1,
-                col=int(r.start) - text.rfind("\n", 0, int(r.start)),
-                shape=token_shape(text, int(r.start), int(r.end)),
+                line=pii_text.count("\n", 0, int(r.start)) + 1,
+                col=int(r.start) - pii_text.rfind("\n", 0, int(r.start)),
+                shape=token_shape(pii_text, int(r.start), int(r.end)),
             ))
     return detections, model
 

@@ -9,9 +9,11 @@ using Meta's Llama Prompt Guard 2 (86M, multilingual). It is the authoritative
 INDIRECT-injection gate behind the runner's coarse deterministic tripwire
 (packages/research-runner/src/runner/guardrails/envelope.ts). Closes T3-6.
 
-Scan target (DECIDED): provider snippets / source-registry text ONLY — the true
-indirect-injection surface. The agent-authored synthesis doc is NOT scanned: it
-is benign security prose that legitimately discusses injection as subject matter.
+Scan target (DECIDED): provider snippets / source-registry snippet fields ONLY
+— the true indirect-injection surface. Registry metadata such as provider names,
+URLs, titles, retrieval timestamps, and agent-generated query strings is not
+scored. The agent-authored synthesis doc is NOT scanned: it is benign security
+prose that legitimately discusses injection as subject matter.
 
 Policy (banded by the model's jailbreak/injection probability):
   - block       → score ≥ block_threshold (a strong injection attempt in a
@@ -28,7 +30,8 @@ contains a raw snippet value — only a unit index, a safe location ref, the
 rounded score, the band, and a structural shape. (Mirrors oracle_rail.py.)
 
 Exit codes (consumed by the audit workflow):
-  run:    0 pass | 2 fail (blocked injection) | 3 needs_review (when block_on_needs_review)
+  run:    0 pass or advisory needs_review | 2 fail (blocked injection) |
+          3 needs_review (only when block_on_needs_review)
   verify: 0 match | 4 rail-replay-mismatch | 5 rail-replay-not-invoked
 
 This file is a self-contained TRUSTED helper: fetched from the default branch
@@ -41,6 +44,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import sys
 from dataclasses import dataclass
@@ -248,13 +252,59 @@ def benign_context_marker(text: str, start: int, end: int, markers: list[str]) -
     return ""
 
 
+_JSON_STRING_FIELD_RE = re.compile(r'"(?P<key>[^"\\]+)"\s*:\s*"(?P<raw>(?:\\.|[^"\\])*)"')
+
+
+def _looks_like_source_registry(text: str) -> bool:
+    """Heuristic for the Hatter source registry shape.
+
+    Cert fixtures intentionally omit schema_version, so `sources` is the stable
+    discriminator. Non-registry fixtures fall back to line-oriented extraction.
+    """
+    stripped = text.lstrip()
+    return stripped.startswith("{") and '"sources"' in text
+
+
+def _decode_json_string(raw: str) -> str:
+    try:
+        decoded = json.loads(f'"{raw}"')
+        return decoded if isinstance(decoded, str) else raw
+    except json.JSONDecodeError:
+        return raw
+
+
+def extract_source_registry_units(text: str, config: dict) -> list[tuple[int, int, str]]:
+    """Extract only provider evidence fields from a source registry.
+
+    The registry also contains agent-generated query strings and metadata. Those
+    are not external instructions and must not drive the model verdict. Offsets
+    point at the raw JSON value bytes; unit_text is decoded before scoring so
+    replay is deterministic and the model sees the real snippet text.
+    """
+    min_chars = int(config.get("min_unit_chars", 24))
+    fields = set(config.get("source_registry_scan_fields", ["snippet", "excerpt", "content", "abstract"]))
+    units: list[tuple[int, int, str]] = []
+    for m in _JSON_STRING_FIELD_RE.finditer(text):
+        if m.group("key") not in fields:
+            continue
+        raw = m.group("raw")
+        unit = _decode_json_string(raw).strip()
+        if len(unit) >= min_chars:
+            units.append((m.start("raw"), m.end("raw"), unit))
+    return units
+
+
 def extract_units(text: str, config: dict) -> list[tuple[int, int, str]]:
     """Split an input file into scored UNITS as (start, end, unit_text).
 
-    A unit is a non-empty line (snippets/registry fields are line-oriented in our
-    artifacts). Units shorter than `min_unit_chars` are skipped — Prompt Guard 2
-    is noisy on fragments, and a 2-word title is not an injection vector. Pure +
-    deterministic so replay reproduces the identical unit set."""
+    Source registries are parsed field-aware: only configured provider snippet
+    fields are scored, while query strings and metadata are skipped. Non-registry
+    fixtures remain line-oriented. Units shorter than `min_unit_chars` are
+    skipped — Prompt Guard 2 is noisy on fragments, and metadata fragments are
+    not an injection vector. Pure + deterministic so replay reproduces the
+    identical unit set."""
+    if _looks_like_source_registry(text):
+        return extract_source_registry_units(text, config)
     min_chars = int(config.get("min_unit_chars", 24))
     units: list[tuple[int, int, str]] = []
     offset = 0
@@ -326,8 +376,9 @@ def _load_classifier(config: dict):
         raise RailNotInvocable(f"transformers/torch unavailable: {e}") from e
     try:
         import torch
-        tok = AutoTokenizer.from_pretrained(model_id, revision=revision)
-        model = AutoModelForSequenceClassification.from_pretrained(model_id, revision=revision)
+        hf_token = os.environ.get("HF_TOKEN") or None
+        tok = AutoTokenizer.from_pretrained(model_id, revision=revision, token=hf_token)
+        model = AutoModelForSequenceClassification.from_pretrained(model_id, revision=revision, token=hf_token)
         model.eval()
 
         # MAJOR fix: identify the malicious class from the model's OWN config,

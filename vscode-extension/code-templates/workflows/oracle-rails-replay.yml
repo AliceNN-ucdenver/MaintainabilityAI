@@ -56,6 +56,8 @@ jobs:
           key: oracle-injection-rail-prompt-guard-2-86m-${{ runner.os }}
 
       - name: Replay pinned rail over committed reports
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           set -uo pipefail
           SCRIPTS=".github/workflows/scripts/oracle-rails"

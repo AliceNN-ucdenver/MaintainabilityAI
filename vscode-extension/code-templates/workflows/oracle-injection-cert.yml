@@ -11,7 +11,8 @@ name: "Oracle injection rail — cert (5b: live execution on adversarial fixture
 # How it works: the job writes a HOSTILE and a BENIGN source-registry fixture to
 # $RUNNER_TEMP (never committed — no adversarial JSON is left in the OKR tree or
 # on a triggerable path), then runs `inject_check.py run` over each and asserts
-# the exit code: hostile -> non-pass (2 blocked / 3 needs_review), benign -> 0.
+# the exit code: hostile -> 2 blocked, benign -> 0. A needs_review-only hostile
+# fixture is not enough to certify a hard gate.
 # It also prints the RESOLVED model revision — that SHA is what you pin into
 # injection.json (model_revision) to promote the rail to a required gate.
 #
@@ -138,12 +139,12 @@ jobs:
             echo "::error::rail not-invoked (exit 5) — model/auth/config unloadable. Set HF_TOKEN for the gated Meta model; the cert cannot conclude."
             exit 1
           fi
-          # Hostile MUST be blocked (2) or needs_review (3) — NOT pass.
-          if [ "$HCODE" = "0" ]; then
-            echo "::error::CERT FAIL — hostile fixture PASSED the rail (exit 0). The injection rail did not catch a direct injection. Tune block_threshold / review the model."
+          # Hostile MUST be blocked (2), not merely needs_review/advisory.
+          if [ "$HCODE" != "2" ]; then
+            echo "::error::CERT FAIL — hostile fixture did not hard-block (exit $HCODE). The injection rail must catch a direct injection at block_threshold, not only needs_review."
             FAIL=1
           else
-            echo "::notice::✓ hostile fixture correctly non-pass (exit $HCODE)"
+            echo "::notice::✓ hostile fixture correctly blocked (exit 2)"
           fi
           # Benign MUST pass (0) — a false positive here would hard-fail clean runs.
           if [ "$BCODE" != "0" ]; then

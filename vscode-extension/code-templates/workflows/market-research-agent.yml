@@ -944,6 +944,7 @@ jobs:
           OKR_ID: ${{ steps.ctx.outputs.okr_id }}
           RUN_ID: ${{ steps.ctx.outputs.run_id }}
           REGISTRY_PATH: okrs/${{ steps.ctx.outputs.okr_id }}/audit/sources/${{ steps.ctx.outputs.run_id }}.source-registry.json
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           set -uo pipefail
           # No untrusted snippet surface (registry absent) → nothing to scan.
@@ -1004,11 +1005,17 @@ jobs:
           cat /tmp/inject-err.txt || true
           printf 'injection rail stdout: %s\n' "$OUT"
           REPORT_FILE="$RUNNER_TEMP/oracle-injection.rail-report.json"
+          REPORT_VERDICT=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('verdict','unknown'))" "$REPORT_FILE" 2>/dev/null || echo "unknown")
           SUMMARY=$(python3 -c "import json,sys;r=json.load(open(sys.argv[1]));rows=r.get('blocked_entities') or r.get('needs_review_entities') or [];print('; '.join(sorted({'@'+(e.get('input') or '?')+':'+str(e.get('line','?'))+':'+str(e.get('col','?'))+' ['+str(e.get('shape',''))+']' for e in rows})) or 'none')" "$REPORT_FILE" 2>/dev/null || echo "see workflow log")
           if [ "$CODE" -eq 0 ]; then
             echo "ok=true" >> "$GITHUB_OUTPUT"
-            echo "reason=clean (verdict=pass)" >> "$GITHUB_OUTPUT"
-            echo "::notice::Oracle injection rail passed (verdict=pass)"
+            if [ "$REPORT_VERDICT" = "needs_review" ]; then
+              echo "reason=needs_review advisory (ambiguous injection signal): $SUMMARY" >> "$GITHUB_OUTPUT"
+              echo "::warning::Oracle injection rail NEEDS REVIEW (advisory, not blocking): $SUMMARY"
+            else
+              echo "reason=clean (verdict=$REPORT_VERDICT)" >> "$GITHUB_OUTPUT"
+              echo "::notice::Oracle injection rail passed (verdict=$REPORT_VERDICT)"
+            fi
           elif [ "$CODE" -eq 2 ]; then
             echo "ok=false" >> "$GITHUB_OUTPUT"
             echo "reason=prompt injection in retrieved evidence: $SUMMARY" >> "$GITHUB_OUTPUT"
@@ -1229,12 +1236,14 @@ jobs:
             EVIDENCE_FAIL="true"
           fi
 
-          # Oracle & Privacy Rails — INJECTION rail (Phase 3). Same fail-closed
-          # gate as PII: a blocked / needs_review / not-invoked injection rail
-          # degrades the evidence verdict. Independent of PII so either rail can
-          # fail the PR on its own. ADVISORY guard: until the model is pinned +
-          # certified (require_pinned_revision), the rail does NOT hard-fail —
-          # it runs + records + comments, but the verdict is not degraded by it.
+          # Oracle & Privacy Rails — INJECTION rail (Phase 3). A blocked or
+          # not-invoked injection rail degrades the evidence verdict. The
+          # needs_review band is recorded + annotated but not blocking unless a
+          # mesh override sets block_on_needs_review:true. Independent of PII so
+          # either required rail can fail the PR on its own. ADVISORY guard:
+          # until the model is pinned + certified (require_pinned_revision), the
+          # rail does NOT hard-fail — it runs + records + comments, but the
+          # verdict is not degraded by it.
           INJECT_OK='${{ steps.inject-rail.outputs.ok }}'
           INJECT_REASON='${{ steps.inject-rail.outputs.reason }}'
           INJECT_ADVISORY='${{ steps.inject-rail.outputs.advisory }}'
@@ -1513,6 +1522,7 @@ jobs:
           OKR_ID: ${{ steps.ctx.outputs.okr_id }}
           RUN_ID: ${{ steps.ctx.outputs.run_id }}
           REGISTRY_PATH: okrs/${{ steps.ctx.outputs.okr_id }}/audit/sources/${{ steps.ctx.outputs.run_id }}.source-registry.json
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           set -uo pipefail
           SCRIPTS=".github/workflows/scripts/oracle-rails"
@@ -1543,11 +1553,10 @@ jobs:
             --okr-id "$OKR_ID" --run-id "$RUN_ID" --phase why
           CODE=$?
           set -e
-          # Same finalize-requires-pass contract as the PII rail (when REQUIRED):
-          # the PR-audit gate blocks any non-pass pre-merge, so a merged run
-          # should be clean. (0=pass, 2=blocked, 3=needs_review, 5=not-invoked.)
-          # No report on disk is always fatal (we cannot record what we did not
-          # produce); a non-pass is fatal ONLY when the rail is a required gate.
+          # Same finalize contract as the PR gate: blocked/not-invoked are fatal
+          # when the rail is required; needs_review may be advisory (exit 0 under
+          # the default config). No report on disk is always fatal (we cannot
+          # record what we did not produce).
           if [ ! -f "$REPORT" ]; then
             echo "::error::Oracle injection rail produced no report (exit $CODE) — finalize aborts; cannot record a rail that did not run."
             exit 1

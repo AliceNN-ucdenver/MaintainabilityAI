@@ -11,7 +11,8 @@ import unittest
 
 from oracle_rail import (
     Detection, classify, compute_verdict, build_report, compare_reports,
-    canonical_hash, token_shape, is_benign_identifier,
+    canonical_hash, token_shape, is_benign_identifier, mask_urls_for_pii,
+    detect_url_secrets,
     SECRET_PATTERNS, CANDIDATE_PATTERNS, SECRET_CANDIDATE,
     BLOCK, REDACT, NEEDS_REVIEW, IGNORE,
     VERDICT_FAIL, VERDICT_PASS, VERDICT_NEEDS_REVIEW,
@@ -322,6 +323,44 @@ class TestMinChars(unittest.TestCase):
         cfg = {"score_threshold": 0.5, "tiers": {"block": ["US_DRIVER_LICENSE"]}}
         d = Detection("US_DRIVER_LICENSE", 0.65, 0, 3, 0)
         self.assertEqual(classify(d, cfg), BLOCK)
+
+
+class TestUrlMasking(unittest.TestCase):
+    """Source URLs are locators, not PII. Generic Presidio recognizers should not
+    inspect URL bytes, but secret-shaped URL parameters must still block."""
+
+    def test_medium_author_handle_masked_before_generic_pii(self):
+        text = "Source https://medium.com/@nazeer.td/5-data-architecture-patterns-every-engineer-must-know-in-2026-427dcce14b50 done"
+        masked = mask_urls_for_pii(text)
+        self.assertEqual(len(masked), len(text))
+        self.assertNotIn("@nazeer.td", masked)
+        self.assertEqual(masked.count("\n"), text.count("\n"))
+
+    def test_patent_ids_masked_before_generic_pii(self):
+        for url in [
+            "https://patents.google.com/patent/US8547169",
+            "https://patents.google.com/patent/US8037080",
+        ]:
+            masked = mask_urls_for_pii(url)
+            self.assertNotIn("US8547169", masked)
+            self.assertNotIn("US8037080", masked)
+
+    def test_real_email_outside_url_remains_visible_to_pii(self):
+        text = "contact privacy@example.com after reading https://medium.com/@nazeer.td/post"
+        masked = mask_urls_for_pii(text)
+        self.assertIn("privacy@example.com", masked)
+        self.assertNotIn("@nazeer.td", masked)
+
+    def test_url_secret_query_param_still_blocks(self):
+        text = "see https://example.com/callback?api_key=abcd1234efgh5678 for details"
+        detections = detect_url_secrets(text, 0, "source-registry.json", [])
+        self.assertEqual(len(detections), 1)
+        self.assertEqual(detections[0].entity_type, "ORACLE_SECRET")
+        self.assertIn("url", detections[0].shape)
+
+    def test_plain_url_without_secret_does_not_emit_secret(self):
+        text = "https://patents.google.com/patent/US8547169 and https://medium.com/@nazeer.td/post"
+        self.assertEqual(detect_url_secrets(text, 0, "source-registry.json", []), [])
 
 
 if __name__ == "__main__":
