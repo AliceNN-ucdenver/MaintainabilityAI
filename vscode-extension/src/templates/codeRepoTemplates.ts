@@ -542,6 +542,15 @@ export function generateOracleInjectionScript(extensionPath: string): string {
 export function generateOracleInjectionConfig(extensionPath: string): string {
   return readScaffoldFile(extensionPath, 'workflows', 'scripts', 'oracle-rails', 'injection.json');
 }
+/**
+ * Oracle injection rail CERT (Phase 3 step 5b) — a manual workflow_dispatch job
+ * that runs the DEPLOYED rail over inline hostile + benign fixtures and asserts
+ * exit-code (hostile non-pass, benign pass). Deployed so the cert runs against
+ * the mesh's own copy of the rail; never auto-triggers (dispatch only).
+ */
+export function generateOracleInjectionCertWorkflow(extensionPath: string): string {
+  return readScaffoldFile(extensionPath, 'workflows', 'oracle-injection-cert.yml');
+}
 
 /**
  * Canonical list of every workflow Looking Glass writes into the mesh repo's
@@ -601,6 +610,8 @@ export const MESH_WORKFLOWS: MeshWorkflowSpec[] = [
   // so only the script + its config deploy here.
   { relativePath: '.github/workflows/scripts/oracle-rails/inject_check.py',     generate: generateOracleInjectionScript },
   { relativePath: '.github/workflows/scripts/oracle-rails/injection.json',      generate: generateOracleInjectionConfig },
+  // Cert (5b) — manual dispatch only; runs the deployed rail over fixtures.
+  { relativePath: '.github/workflows/oracle-injection-cert.yml',                generate: generateOracleInjectionCertWorkflow },
 
   // No transitional workflows remain. WHY + HOW + WHAT are owned end-
   // to-end by per-agent workflows above. The prior bus / state-machine
