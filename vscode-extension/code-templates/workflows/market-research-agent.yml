@@ -1045,6 +1045,7 @@ jobs:
           RUN_ID: ${{ steps.ctx.outputs.run_id }}
           DOC_PATH: okrs/${{ steps.ctx.outputs.okr_id }}/why/research-doc.md
           REGISTRY_PATH: okrs/${{ steps.ctx.outputs.okr_id }}/audit/sources/${{ steps.ctx.outputs.run_id }}.source-registry.json
+          SC_PATH: okrs/${{ steps.ctx.outputs.okr_id }}/why/${{ steps.ctx.outputs.run_id }}.support-claims.json
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           set -uo pipefail
@@ -1089,11 +1090,16 @@ jobs:
           if [ "$ADVISORY" = "true" ]; then
             echo "::notice::Oracle groundedness rail is ADVISORY — runs + records but does not hard-fail this PR. Pin model_revision + require_pinned_revision:true + block_on_contradiction:true to promote contradiction-blocking."
           fi
+          # Phase 4.1: pass the support-claims sidecar when the WHY agent emitted
+          # it — the rail prefers atomic-claim scoring and falls back to whole-
+          # conclusion when absent. The sidecar is DATA (PR-head), not a helper.
+          INPUTS=("$DOC_PATH" "$REGISTRY_PATH")
+          if [ -f "$SC_PATH" ]; then INPUTS+=("$SC_PATH"); fi
           set +e
           OUT=$(python3 "$DIR/groundedness.py" run \
             --config "$CONFIG" \
             --report "$RUNNER_TEMP/oracle-groundedness.rail-report.json" \
-            --inputs "$DOC_PATH" "$REGISTRY_PATH" \
+            --inputs "${INPUTS[@]}" \
             --okr-id "$OKR_ID" --run-id "$RUN_ID" --phase why 2>/tmp/grounded-err.txt)
           CODE=$?
           set -e
@@ -1684,6 +1690,7 @@ jobs:
           RUN_ID: ${{ steps.ctx.outputs.run_id }}
           DOC_PATH: okrs/${{ steps.ctx.outputs.okr_id }}/why/research-doc.md
           REGISTRY_PATH: okrs/${{ steps.ctx.outputs.okr_id }}/audit/sources/${{ steps.ctx.outputs.run_id }}.source-registry.json
+          SC_PATH: okrs/${{ steps.ctx.outputs.okr_id }}/why/${{ steps.ctx.outputs.run_id }}.support-claims.json
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           set -uo pipefail
@@ -1703,10 +1710,14 @@ jobs:
           if [ -f ".caterpillar/guardrails/oracle/groundedness.json" ]; then CONFIG=".caterpillar/guardrails/oracle/groundedness.json"; fi
           ADVISORY=$(python3 -c "import json,sys; c=json.load(open(sys.argv[1])); print('false' if (c.get('model_revision') and c.get('require_pinned_revision', True) and c.get('block_on_contradiction', True)) else 'true')" "$CONFIG" 2>/dev/null || echo "true")
           REPORT="okrs/${OKR_ID}/audit/rails/${RUN_ID}.groundedness.rail-report.json"
+          # Phase 4.1: include the support-claims sidecar when present (atomic
+          # claim scoring); fall back to whole-conclusion when absent.
+          INPUTS=("$DOC_PATH" "$REGISTRY_PATH")
+          if [ -f "$SC_PATH" ]; then INPUTS+=("$SC_PATH"); fi
           set +e
           python3 "$SCRIPTS/groundedness.py" run \
             --config "$CONFIG" --report "$REPORT" \
-            --inputs "$DOC_PATH" "$REGISTRY_PATH" \
+            --inputs "${INPUTS[@]}" \
             --okr-id "$OKR_ID" --run-id "$RUN_ID" --phase why
           CODE=$?
           set -e

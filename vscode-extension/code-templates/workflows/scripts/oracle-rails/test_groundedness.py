@@ -14,7 +14,8 @@ import json
 import unittest
 
 from groundedness import (
-    Claim, Pairing, parse_claims, load_source_excerpts, score_claims,
+    Claim, SupportClaim, Pairing, parse_claims, load_source_excerpts, score_claims,
+    load_support_claims, score_support_claims,
     classify, compute_verdict, build_report, compare_reports, canonical_hash,
     claim_shape, clean_claim_text, _label_indices,
     BLOCK, NEEDS_REVIEW, PASS,
@@ -196,7 +197,7 @@ class TestReport(unittest.TestCase):
         for row in r["contradicted_claims"] + r["unsupported_claims"]:
             self.assertEqual(
                 set(row),
-                {"type", "claim", "disposition", "cited", "resolved",
+                {"type", "claim", "conclusion", "disposition", "cited", "resolved",
                  "entailment", "combined_entailment", "neutral", "contradiction", "entail_source", "contra_source", "line", "shape"},
             )
 
@@ -358,6 +359,68 @@ class TestCalibrationRegressions(unittest.TestCase):
         self.assertAlmostEqual(s["avg_neutral"], 0.95)
         self.assertAlmostEqual(s["avg_entailment"], 0.03)
         self.assertAlmostEqual(s["avg_contradiction"], 0.02)
+
+
+class TestSupportClaimsSidecar(unittest.TestCase):
+    """Phase 4.1: the rail prefers the atomic-factual support-claims sidecar (the
+    unit strict NLI can judge) and falls back to whole-conclusion when absent."""
+
+    SIDECAR = json.dumps({
+        "schema_version": "support-claims.v1", "okr_id": "X", "run_id": "W", "phase": "why",
+        "claims": [
+            {"conclusion_id": "C1", "support_claims": [
+                {"id": "C1-SC1", "text": "AI recommendations improve conversion 10-15%.", "sources": ["S3"]},
+                {"id": "C1-SC2", "text": "Collaborative filtering works on ~10K ratings.", "sources": ["S12"]},
+            ]},
+            {"conclusion_id": "C2", "support_claims": [
+                {"id": "C2-SC1", "text": "Catalog metadata can drive recs without behavioral PII.", "sources": ["S50"]},
+            ]},
+        ],
+    })
+
+    def test_parses_atomic_claims_with_ids(self):
+        scs = load_support_claims(self.SIDECAR)
+        self.assertEqual([s.support_id for s in scs], ["C1-SC1", "C1-SC2", "C2-SC1"])
+        self.assertEqual(scs[0].conclusion_id, "C1")
+        self.assertEqual(scs[0].cited, ("S3",))
+
+    def test_malformed_or_empty_sidecar_returns_empty(self):
+        self.assertEqual(load_support_claims("not json"), [])
+        self.assertEqual(load_support_claims('{"claims": []}'), [])
+        self.assertEqual(load_support_claims('{"claims": [{"conclusion_id": "C1", "support_claims": [{"sources": ["S1"]}]}]}'), [])  # no text
+
+    def test_atomic_claim_scored_against_its_source(self):
+        # A factual support-claim entailed by its source PASSES — the unit NLI
+        # can actually judge (unlike whole prescriptive conclusions).
+        def nli(premise, hypothesis):
+            return (0.88, 0.1, 0.02) if "improve conversion" in hypothesis else (0.5, 0.45, 0.05)
+        scs = load_support_claims(self.SIDECAR)
+        excerpts = {"S3": "study shows AI recs lift conversion 12%", "S12": "x", "S50": "y"}
+        pairings = score_support_claims(scs, excerpts, {"entail_threshold": 0.6, "contra_threshold": 0.6}, nli)
+        p0 = next(p for p in pairings if p.claim_id == "C1-SC1")
+        self.assertEqual(classify(p0, {"entail_threshold": 0.6, "contra_threshold": 0.6}), PASS)
+
+    def test_report_rows_key_off_support_id_and_conclusion(self):
+        def nli(premise, hypothesis):
+            return (0.1, 0.85, 0.05)  # all unsupported
+        scs = load_support_claims(self.SIDECAR)
+        pairings = score_support_claims(scs, {"S3": "z", "S12": "z", "S50": "z"}, {}, nli)
+        r = build_report(okr_id="X", run_id="W", phase="why", inputs=[], model={},
+                         thresholds={}, config={"entail_threshold": 0.6, "contra_threshold": 0.6},
+                         pairings=pairings, mode="support_claims")
+        self.assertEqual(r["mode"], "support_claims")
+        rows = r["unsupported_claims"]
+        ids = {row["claim"] for row in rows}
+        self.assertIn("C1-SC1", ids)
+        # conclusion grouping preserved
+        c1sc1 = next(row for row in rows if row["claim"] == "C1-SC1")
+        self.assertEqual(c1sc1["conclusion"], "C1")
+
+    def test_whole_conclusion_mode_default_label(self):
+        # No sidecar path → build_report defaults to whole_conclusion mode.
+        r = build_report(okr_id="X", run_id="W", phase="why", inputs=[], model={},
+                         thresholds={}, config={}, pairings=[])
+        self.assertEqual(r["mode"], "whole_conclusion")
 
 
 if __name__ == "__main__":

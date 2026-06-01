@@ -102,6 +102,20 @@ This is the ONLY invocation that emits an audit `skill_call` event. Do NOT use C
 9. Write the synthesis directly to `okrs/<id>/why/research-doc.md` using the strict 10-H2-section format from `.caterpillar/prompts/research/synthesis.md`: Source Premises, Executive Summary, Cross-Source Analysis, Evidence Gaps, JTBD Analysis, Patent Landscape, Whitespace Analysis, Formal Conclusions, Recommendations, References. Each finding requires Supporting + Contradicting + Confidence (HIGH/MEDIUM/LOW). The post-run validator parses these heading strings literally — do NOT renumber, paraphrase, or add prefixes like `## 1. Source Premises`.
    - **Source table rule:** populate `## Source Premises` from `dedupe-and-rank.sourcePremisesMarkdown` and `## References` from `dedupe-and-rank.referencesMarkdown`. Do not hand-type URLs, "clean up" titles, or create a second copy of the source list manually. The audit verifier hash-checks the source registry and fails if any `S[N]` title/URL in the artifact drifts from the registry.
    - **Source registry rule:** if `dedupe-and-rank` returns `sourceRegistry.path`, include that file in the PR with the research doc, JSONL, and public key. Do not edit the registry by hand; its SHA-256 is pinned in the `dedupe-and-rank` audit event.
+9b. **Emit the support-claims sidecar** (Phase 4.1 — for the groundedness rail). From the SAME synthesis pass that produced your Formal Conclusions, write `okrs/<id>/why/<runId>.support-claims.json` decomposing each conclusion (`C<n>`) into the **atomic FACTUAL sub-claims** it rests on. The conclusion itself is a synthesis/recommendation ("the endpoint *should* reuse ratings *because*…") that an evidence snippet cannot logically entail; the support-claims are the verifiable facts beneath it that a cited source CAN entail. Decompose, do not paraphrase the whole conclusion. Each support-claim is one checkable factual statement + the S-tag(s) that establish it. Shape:
+    ```json
+    {
+      "schema_version": "support-claims.v1",
+      "okr_id": "<id>", "run_id": "<runId>", "phase": "why",
+      "claims": [
+        { "conclusion_id": "C1", "support_claims": [
+          { "id": "C1-SC1", "text": "AI content recommendations show a 10-15% conversion improvement.", "sources": ["S3"] },
+          { "id": "C1-SC2", "text": "Collaborative filtering works on roughly 10K ratings.", "sources": ["S12"] }
+        ]}
+      ]
+    }
+    ```
+    Rules: every `conclusion_id` must match a `C<n>` in `## Formal Conclusions`; every `text` is a single FACTUAL claim (no "should"/"recommend"/"optimal" wording — that's judgment, not fact); `sources` must be S-tags that conclusion cites; include the file in the PR with the other artifacts. **This is ADVISORY today** — the groundedness rail prefers it when present and falls back to whole-conclusion scoring when absent, so a missing or imperfect sidecar does NOT fail the merge. Emit it on a best-effort basis; do not block your run on it.
 10. Append the Hatter's Tag to **both** the artifact's frontmatter (canonical, per §11.1.5) AND the PR description (display mirror). The Hatter's Tag MUST include an `evidence:` block. The PR description's copy is a fenced YAML code block — required so `audit-validate` can extract the OKR context even when the artifact path detection fails. Format the PR description as:
 
    ````markdown
