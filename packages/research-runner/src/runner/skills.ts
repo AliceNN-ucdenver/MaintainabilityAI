@@ -1823,7 +1823,55 @@ function sourceRegistryPath(ctx: SessionContext): string {
   return path.posix.join('okrs', ctx.okrId, 'audit', 'sources', `${ctx.runId}.source-registry.json`);
 }
 
+// Deterministic excerpt hygiene. Provider snippets (esp. web/Tavily) arrive with
+// page chrome baked in — .gov security banners, "Image 9: Close Search", cookie
+// notices — which dilutes the groundedness NLI signal and inflates the PII /
+// injection scan surface. We STRIP known chrome classes; we never rewrite,
+// summarize, or reorder the surviving evidence text. The cleaned excerpt is what
+// gets committed to the source registry AND shown to the agent, so the rail
+// evaluates exactly the text the agent was asked to cite — no silent magic.
+export const EXCERPT_CLEANER_VERSION = 'excerpt-cleaner.v1';
+
+const CHROME_RULES: ReadonlyArray<{ cls: string; re: RegExp }> = [
+  // US .gov security banner ("A .gov website belongs to an official government
+  // organization…", "Official websites use .gov", "A lock () or https:// means…").
+  { cls: 'gov_banner', re: /\bAn?\s+\.gov\s+website belongs to an official government organization[^.]*\.?/gi },
+  { cls: 'gov_banner', re: /\bOfficial websites use \.gov\b[^.]*\.?/gi },
+  { cls: 'gov_banner', re: /\bA lock \([^)]*\)[^.]*\.?/gi },
+  // Scraper image/figure placeholders, with the adjacent Close/Search nav label
+  // folded in: "Image 9: Close Search", "Image 10: Search". The colon is required
+  // so real prose ("Image 3 shows the architecture") is left untouched.
+  { cls: 'image_placeholder', re: /\bImage\s+\d+\s*:(?:\s+(?:Close\s+)?Search\b)?/gi },
+  // Standalone search / nav chrome (not adjacent to an Image placeholder).
+  { cls: 'search_chrome', re: /\bClose Search\b/gi },
+  { cls: 'nav_chrome', re: /\bSkip to (?:main )?content\b/gi },
+  // Cookie / consent banners.
+  { cls: 'cookie_consent', re: /\bWe use cookies[^.]*\.?/gi },
+  { cls: 'cookie_consent', re: /\bAccept (?:all )?cookies\b/gi },
+];
+
+/** Strip known web-chrome classes from a raw excerpt. Pure + deterministic
+ *  (replay-safe). Returns the cleaned text and the classes that were removed. */
+export function cleanExcerpt(raw: string): { cleaned: string; removedClasses: string[] } {
+  const removed = new Set<string>();
+  let text = raw;
+  for (const { cls, re } of CHROME_RULES) {
+    const next = text.replace(re, ' ');
+    if (next !== text) { removed.add(cls); text = next; }
+  }
+  // Tidy what the removals left behind — never alter surviving words: drop spaces
+  // before punctuation, collapse whitespace, then strip a leading orphan period/
+  // comma left where chrome used to sit.
+  const cleaned = text
+    .replace(/\s+([.,;:])/g, '$1')
+    .replace(/\s+/g, ' ')
+    .replace(/^[\s.,;:]+/, '')
+    .trim();
+  return { cleaned, removedClasses: [...removed].sort() };
+}
+
 function sourceRegistryEntry(source: RankedSource): Record<string, unknown> {
+  const { cleaned, removedClasses } = cleanExcerpt(source.excerpt);
   return {
     source_id: source.id,
     provider: source.provider,
@@ -1832,8 +1880,18 @@ function sourceRegistryEntry(source: RankedSource): Record<string, unknown> {
     url: source.url,
     canonical_url: source.url,
     retrieved_at: source.retrieved_at,
+    // Cleaned, checkable evidence text — the exact bytes the rail will read.
+    excerpt: cleaned,
+    // Honest provenance: what cleaner ran, what it removed, and (when it changed
+    // anything) the hash of the raw excerpt so a verifier can re-derive `excerpt`.
+    excerpt_cleaning: {
+      version: EXCERPT_CLEANER_VERSION,
+      removed_classes: removedClasses,
+      ...(removedClasses.length > 0
+        ? { raw_excerpt_sha256: createHash('sha256').update(source.excerpt).digest('hex') }
+        : {}),
+    },
     salience_score: source.salience_score,
-    excerpt: source.excerpt,
     ...(source.published_at ? { published_at: source.published_at } : {}),
     ...(source.authors && source.authors.length > 0 ? { authors: source.authors } : {}),
   };
@@ -1847,13 +1905,17 @@ function sourceRegistryEntry(source: RankedSource): Record<string, unknown> {
 // string. The `establishes:` clause stays intact (the agent edits its text).
 function renderSourcePremisesMarkdown(sources: RankedSource[]): string {
   return sources
-    // Match the groundedness rail's resolution rule exactly: it only treats an
-    // excerpt as readable when it has non-empty `.strip()` text, so a
-    // whitespace-only excerpt is metadata-only here too — otherwise a row could
-    // claim `checkable` and then be reported UNRESOLVED by the rail.
-    .map(s => s.excerpt.trim()
-      ? `- **${s.id}**: [${s.title}](${s.url}) establishes: ${s.excerpt} _(premise: checkable)_`
-      : `- **${s.id}**: [${s.title}](${s.url}) establishes: source returned without excerpt — ⚠️ **metadata-only** (no checkable excerpt; use as a discovery lead or weak corroboration only — never the sole basis for a factual support-claim or a HIGH/MEDIUM-confidence conclusion)`)
+    // Show the agent the CLEANED excerpt — the same bytes committed to the source
+    // registry and read by the groundedness rail. A row is checkable only when the
+    // cleaned text is non-empty (matches the rail's `.strip()` resolution): an
+    // excerpt that was all chrome cleans to empty → metadata-only → UNRESOLVED,
+    // consistent end to end.
+    .map(s => {
+      const { cleaned } = cleanExcerpt(s.excerpt);
+      return cleaned
+        ? `- **${s.id}**: [${s.title}](${s.url}) establishes: ${cleaned} _(premise: checkable)_`
+        : `- **${s.id}**: [${s.title}](${s.url}) establishes: source returned without excerpt — ⚠️ **metadata-only** (no checkable excerpt; use as a discovery lead or weak corroboration only — never the sole basis for a factual support-claim or a HIGH/MEDIUM-confidence conclusion)`;
+    })
     .join('\n');
 }
 

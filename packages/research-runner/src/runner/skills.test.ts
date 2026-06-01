@@ -14,7 +14,7 @@ import * as assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { runSkill, SKILLS, isSkillName } from './skills';
+import { runSkill, SKILLS, isSkillName, cleanExcerpt, EXCERPT_CLEANER_VERSION } from './skills';
 
 function tmpMesh(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'skills-test-'));
@@ -554,6 +554,72 @@ test('dedupe-and-rank tags premise rows with checkable vs metadata-only quality'
   // whitespace-only excerpt matches the rail's strip() semantics → metadata-only
   assert.ok(blank?.includes('⚠️ **metadata-only**'), `whitespace-only excerpt must be metadata-only: ${blank}`);
   assert.ok(!blank?.includes('_(premise: checkable)_'), 'whitespace-only excerpt must not claim to be checkable');
+});
+
+test('cleanExcerpt strips known web chrome deterministically without rewriting content', () => {
+  // Real chrome from run WHY-2026-06-01-dr7u9l, source S21 (issue #191).
+  const raw = 'A .gov website belongs to an official government organization in the United States. '
+    + 'Image 9: Close Search  Image 10: Search. '
+    + 'Movie recommender systems are meant to give suggestions to the users based on the features they love.';
+  const { cleaned, removedClasses } = cleanExcerpt(raw);
+  // surviving evidence text is intact, chrome is gone
+  assert.ok(cleaned.startsWith('Movie recommender systems are meant to give suggestions'), `content not preserved: ${cleaned}`);
+  assert.ok(!/\.gov website belongs/.test(cleaned), 'gov banner not stripped');
+  assert.ok(!/Image \d/.test(cleaned), 'image placeholders not stripped');
+  assert.ok(!/Close Search/.test(cleaned), 'search chrome not stripped');
+  // "Close Search" is folded into the image_placeholder rule (it sits adjacent to
+  // "Image 9:"), so search_chrome doesn't separately fire on this input.
+  assert.deepEqual(removedClasses, ['gov_banner', 'image_placeholder']);
+  // deterministic: same input → same output (replay-safe)
+  assert.deepEqual(cleanExcerpt(raw), cleanExcerpt(raw));
+  // a clean excerpt is left untouched (no classes removed)
+  assert.deepEqual(cleanExcerpt('Collaborative filtering provides recommendations.'),
+    { cleaned: 'Collaborative filtering provides recommendations.', removedClasses: [] });
+});
+
+test('dedupe-and-rank commits the cleaned excerpt + honest cleaning provenance', async () => {
+  const mesh = tmpMesh();
+  try {
+    await withMeshPath(mesh, async () => {
+      await withSession({
+        okrId: 'OKR-CLEAN', runId: 'WHY-CLEAN',
+        intentThreadUuid: '12345678-1234-1234-1234-123456789abc', phase: 'why',
+      }, async () => {
+        const r = await runSkill('dedupe-and-rank', {
+          results: [
+            { provider: 'tavily', fromQuery: 'q1', title: 'Movie Recs', url: 'https://a.com',
+              content: 'Image 9: Close Search Movie recommender systems give suggestions based on features.', score: 0.9 },
+            { provider: 'arxiv', fromQuery: 'q2', title: 'CF Paper', url: 'https://b.com',
+              content: 'Collaborative filtering provides recommendations.', score: 0.8 },
+          ],
+          topN: 50,
+        });
+        assert.equal(r.ok, true);
+        if (!r.ok) { return; }
+        const registry = r.sourceRegistry as { path: string; sha256: string };
+        const abs = path.join(mesh, registry.path);
+        const parsed = JSON.parse(fs.readFileSync(abs, 'utf8')) as {
+          sources: Array<{ source_id: string; excerpt: string;
+            excerpt_cleaning: { version: string; removed_classes: string[]; raw_excerpt_sha256?: string } }>;
+        };
+        const dirty = parsed.sources.find(s => s.excerpt.includes('Movie recommender'))!;
+        const clean = parsed.sources.find(s => s.excerpt.startsWith('Collaborative filtering'))!;
+        // committed excerpt is the cleaned text (no chrome), with verifiable provenance
+        assert.ok(!/Image \d|Close Search/.test(dirty.excerpt), 'registry excerpt still has chrome');
+        assert.equal(dirty.excerpt_cleaning.version, EXCERPT_CLEANER_VERSION);
+        assert.deepEqual(dirty.excerpt_cleaning.removed_classes, ['image_placeholder']);
+        assert.equal(typeof dirty.excerpt_cleaning.raw_excerpt_sha256, 'string'); // hash present when changed
+        // an untouched excerpt records the cleaner ran but removed nothing — no raw hash
+        assert.deepEqual(clean.excerpt_cleaning.removed_classes, []);
+        assert.equal(clean.excerpt_cleaning.raw_excerpt_sha256, undefined);
+        // the agent sees the same cleaned text the rail will evaluate
+        assert.ok(!/Image \d|Close Search/.test(r.sourcePremisesMarkdown as string),
+          'premise markdown leaked chrome the registry stripped');
+      });
+    });
+  } finally {
+    fs.rmSync(mesh, { recursive: true, force: true });
+  }
 });
 
 test('dedupe-and-rank writes a hash-addressed source registry when session context is present', async () => {
