@@ -94,6 +94,7 @@ import {
   type RedqueenDigest,
   type OkrRollupInput,
   type OracleRailReplayVerdict,
+  type OracleRailRollupInput,
   type PhaseRollupDigest,
   type RunnerVerifyVerdict,
 } from '../services/AuditReportExporter';
@@ -1804,20 +1805,20 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     meshPath: string,
     okrId: string,
     whyRunId: string | null,
-  ): OkrRollupInput['oracleRails'] {
-    if (!whyRunId) { return undefined; }
+  ): OracleRailRollupInput[] {
+    if (!whyRunId) { return []; }
 
-    // 1. rail_decision event from the WHY chain (local).
-    type RailEvent = NonNullable<OkrRollupInput['oracleRails']>['railEvent'];
-    let railEvent: RailEvent = null;
+    // 1. ALL rail_decision events from the WHY chain (Phase 3: pii + injection
+    //    + …). Phase 2 emitted one; the exporter folds every rail independently.
+    type RailEvent = NonNullable<OracleRailRollupInput['railEvent']>;
+    const railEvents: RailEvent[] = [];
     const chainPath = path.join(meshPath, `okrs/${okrId}/audit/events/${whyRunId}.jsonl`);
     if (fs.existsSync(chainPath)) {
       try {
         const events = parseChain(fs.readFileSync(chainPath, 'utf8').split('\n').filter(l => l.trim().length > 0));
-        const rd = events.find(e => e.event_kind === 'rail_decision');
-        if (rd) {
+        for (const rd of events.filter(e => e.event_kind === 'rail_decision')) {
           const p = (rd.payload ?? {}) as unknown as Record<string, unknown>;
-          railEvent = {
+          railEvents.push({
             schema_version: String(p.schema_version ?? ''),
             rail: String(p.rail ?? ''),
             verdict: String(p.verdict ?? ''),
@@ -1829,24 +1830,51 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
             report_sha256: String(p.report_sha256 ?? ''),
             merge_commit_sha: String(p.merge_commit_sha ?? ''),
             pr_number: typeof p.pr_number === 'number' ? p.pr_number : Number(p.pr_number ?? 0),
-          };
+          });
         }
-      } catch { /* leave railEvent null */ }
+      } catch { /* leave railEvents empty */ }
     }
 
-    // 2. committed rail report (event-pointed path, else the conventional one).
-    const reportRel = railEvent?.report_path || `okrs/${okrId}/audit/rails/${whyRunId}.rail-report.json`;
+    // Back-compat: when no rail_decision events exist (e.g. a pre-rail chain),
+    // still probe the conventional single PII report path so an older OKR with a
+    // committed report but no event surfaces as the "report present, no event"
+    // FAIL the exporter already renders, rather than silently disappearing.
+    const eventReportPaths = new Set(railEvents.map(e => e.report_path).filter(Boolean));
+    const fallbackPaths = eventReportPaths.size === 0
+      ? [`okrs/${okrId}/audit/rails/${whyRunId}.rail-report.json`]
+      : [];
+
+    const rails: OracleRailRollupInput[] = [];
+    for (const railEvent of railEvents) {
+      rails.push(this.buildOracleRail(meshPath, railEvent, railEvent.report_path));
+    }
+    for (const reportRel of fallbackPaths) {
+      const rail = this.buildOracleRail(meshPath, null, reportRel);
+      if (rail.reportRaw !== null) { rails.push(rail); }
+    }
+    return rails;
+  }
+
+  /**
+   * Build one OracleRailRollupInput from a rail_decision event (or a bare
+   * report path when no event exists): read the committed report, the input
+   * bytes it cites (for re-hash), and the CI replay verdict. PURE re-derivation
+   * — no model run, no network. Used once per rail by assembleOracleRails.
+   */
+  private buildOracleRail(
+    meshPath: string,
+    railEvent: NonNullable<OracleRailRollupInput['railEvent']> | null,
+    reportRel: string,
+  ): OracleRailRollupInput {
+    // committed rail report (event-pointed path, else the supplied one).
     let reportRaw: string | null = null;
     try {
       const rp = path.join(meshPath, reportRel);
       if (fs.existsSync(rp)) { reportRaw = fs.readFileSync(rp, 'utf8'); }
     } catch { /* missing → exporter flags */ }
 
-    // No rail evidence at all → omit the section.
-    if (!railEvent && !reportRaw) { return undefined; }
-
-    // 3. input bytes the report cites (for re-hash). Missing bytes are
-    // verdict-critical in the exporter, so don't fabricate — just omit.
+    // input bytes the report cites (for re-hash). Missing bytes are verdict-
+    // critical in the exporter, so don't fabricate — just omit.
     const inputContents: Record<string, string> = {};
     if (reportRaw) {
       try {
@@ -1861,7 +1889,8 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       } catch { /* unparseable → exporter flags */ }
     }
 
-    // 4. inject the CI replay verdict if the replay job recorded one.
+    // inject the CI replay verdict if the replay job recorded one (per-rail
+    // suffix: <...>.rail-report.json → <...>.replay-verdict.json).
     let ciReplay: OracleRailReplayVerdict = { invoked: false, reason: 'model replay runs in CI (oracle-rails-replay)' };
     const verdictRel = reportRel.replace(/\.rail-report\.json$/, '.replay-verdict.json');
     try {
@@ -5267,7 +5296,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     // injects the CI model-replay verdict; mismatch/replay-fail FAILs the
     // rollup, CI-not-invoked → PARTIAL (see computeOracleRailStatus).
     const whyRunId = (startedActions.find(s => s.phase === 'why')?.action['runId'] as string | undefined) ?? null;
-    const oracleRails = this.assembleOracleRails(meshPath, okrId, whyRunId);
+    const oracleRailsList = this.assembleOracleRails(meshPath, okrId, whyRunId);
 
     const rollupInput: OkrRollupInput = {
       okrId,
@@ -5293,7 +5322,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       // when a phase's sources match the OKR-level canonical state.
       repoInfo: repoInfo ?? null,
       implementationChain: implChainInput,
-      oracleRails,
+      oracleRailsList,
     };
 
     const markdown = buildOkrRollupMarkdown(rollupInput);

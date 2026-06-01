@@ -74,6 +74,14 @@ inputs:
       RECORDER — it never runs a rail.
     required: false
     default: ""
+  rail-report-paths:
+    description: |
+      OPTIONAL (Phase 3+). Newline-separated list of durable rail report paths
+      when a phase produced MORE THAN ONE rail (e.g. WHY: pii + injection). Each
+      becomes its own rail_decision, idempotency-keyed on report_path. Combined
+      with rail-report-path (both honored + de-duplicated). Empty means no-op.
+    required: false
+    default: ""
 
 runs:
   using: "composite"
@@ -306,6 +314,7 @@ runs:
         TO_STATUS='${{ inputs.next-meta-status }}' \
         META_ROLLED="$([ "$META_ROLL_OUTCOME" = "rolled" ] && echo true || echo false)" \
         RAIL_REPORT_PATH='${{ inputs.rail-report-path }}' \
+        RAIL_REPORT_PATHS='${{ inputs.rail-report-paths }}' \
           node "$GITHUB_ACTION_PATH/scripts/append-workflow-events.mjs"
 
         # ── 4. Commit + push with retry. ────────────────────────────

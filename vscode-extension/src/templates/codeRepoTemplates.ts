@@ -531,6 +531,19 @@ export function generateOracleRailRequirements(extensionPath: string): string {
 }
 
 /**
+ * Oracle & Privacy Rails (Phase 3) — INJECTION rail (Llama Prompt Guard 2 86M).
+ * Same trust model as the PII rail: fetched from the default branch by the PR
+ * gate + WHY finalize, replayed by oracle-rails-replay.yml. Fails CLOSED when
+ * absent, so these MUST be in the canonical deploy set. Read verbatim.
+ */
+export function generateOracleInjectionScript(extensionPath: string): string {
+  return readScaffoldFile(extensionPath, 'workflows', 'scripts', 'oracle-rails', 'inject_check.py');
+}
+export function generateOracleInjectionConfig(extensionPath: string): string {
+  return readScaffoldFile(extensionPath, 'workflows', 'scripts', 'oracle-rails', 'injection.json');
+}
+
+/**
  * Canonical list of every workflow Looking Glass writes into the mesh repo's
  * .github/workflows/ directory. Order is deterministic — used for both write
  * and existence checks so the UI's deployed/not-deployed state is consistent.
@@ -581,6 +594,13 @@ export const MESH_WORKFLOWS: MeshWorkflowSpec[] = [
   { relativePath: '.github/workflows/scripts/oracle-rails/oracle_rail.py',      generate: generateOracleRailScript },
   { relativePath: '.github/workflows/scripts/oracle-rails/pii.json',            generate: generateOracleRailConfig },
   { relativePath: '.github/workflows/scripts/oracle-rails/requirements.txt',    generate: generateOracleRailRequirements },
+
+  // ── Oracle & Privacy Rails (Phase 3) — injection rail (Prompt Guard 2) ─
+  // Same fail-closed contract as the PII rail above. inject_check.py shares
+  // requirements.txt with oracle_rail.py (both pip-installed by the workflow),
+  // so only the script + its config deploy here.
+  { relativePath: '.github/workflows/scripts/oracle-rails/inject_check.py',     generate: generateOracleInjectionScript },
+  { relativePath: '.github/workflows/scripts/oracle-rails/injection.json',      generate: generateOracleInjectionConfig },
 
   // No transitional workflows remain. WHY + HOW + WHAT are owned end-
   // to-end by per-agent workflows above. The prior bus / state-machine

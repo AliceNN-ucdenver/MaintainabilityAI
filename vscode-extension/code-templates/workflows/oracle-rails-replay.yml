@@ -70,8 +70,20 @@ jobs:
           while IFS= read -r REPORT; do
             [ -z "$REPORT" ] && continue
             [ -f "$REPORT" ] || continue
-            CONFIG="$SCRIPTS/pii.json"
-            if [ -f ".caterpillar/guardrails/oracle/pii.json" ]; then CONFIG=".caterpillar/guardrails/oracle/pii.json"; fi
+            # Dispatch by the report's own `rail` field — pii → oracle_rail.py /
+            # pii.json, injection → inject_check.py / injection.json. A mesh
+            # operator override (.caterpillar/guardrails/oracle/<rail>.json) wins.
+            RAIL=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('rail',''))" "$REPORT")
+            case "$RAIL" in
+              pii)       SCRIPT="oracle_rail.py";  CONF="pii.json" ;;
+              injection) SCRIPT="inject_check.py"; CONF="injection.json" ;;
+              *)
+                echo "::warning::$REPORT has unknown rail '$RAIL' — cannot replay"
+                printf '%s\n' '{"invoked":true,"ok":false,"reason":"rail-replay-unknown-rail"}' > "${REPORT%.rail-report.json}.replay-verdict.json"
+                FAIL=1; WROTE=1; continue ;;
+            esac
+            CONFIG="$SCRIPTS/$CONF"
+            if [ -f ".caterpillar/guardrails/oracle/$CONF" ]; then CONFIG=".caterpillar/guardrails/oracle/$CONF"; fi
             # Re-hash targets are the inputs the report itself cites.
             mapfile -t INPUTS < <(python3 -c "import json,sys; print(chr(10).join(i['path'] for i in json.load(open(sys.argv[1])).get('inputs',[])))" "$REPORT")
             VERDICT_PATH="${REPORT%.rail-report.json}.replay-verdict.json"
@@ -81,7 +93,7 @@ jobs:
               FAIL=1; WROTE=1; continue
             fi
             set +e
-            python3 "$SCRIPTS/oracle_rail.py" verify --config "$CONFIG" --report "$REPORT" --inputs "${INPUTS[@]}"
+            python3 "$SCRIPTS/$SCRIPT" verify --config "$CONFIG" --report "$REPORT" --inputs "${INPUTS[@]}"
             CODE=$?
             set -e
             case "$CODE" in

@@ -20,3 +20,15 @@ click==8.3.0
 # The #sha256 fragment is a per-link check; it does NOT enable global
 # --require-hashes, so the plain version pins above still install normally.
 en_core_web_lg @ https://github.com/explosion/spacy-models/releases/download/en_core_web_lg-3.8.0/en_core_web_lg-3.8.0-py3-none-any.whl#sha256=293e9547a655b25499198ab15a525b05b9407a75f10255e405e8c3854329ab63
+
+# ── Phase 3 — injection rail (inject_check.py): Llama Prompt Guard 2 86M ──
+# CPU-only torch (no CUDA) keeps the CI install lean; transformers loads the
+# pinned model by HF commit SHA (recorded in injection.json → rail report, so a
+# model drift surfaces as rail-replay-mismatch). Versions pinned for the same
+# replay-determinism reason as the Presidio block above.
+transformers==4.46.3
+torch==2.5.1
+# Prompt Guard 2 weights are fetched from the Hugging Face Hub at first run and
+# cached (the replay workflow caches ~/.cache/huggingface). The model REVISION
+# (HF commit SHA) is pinned in injection.json, not here — pip installs the
+# library; transformers retrieves the exact pinned snapshot.

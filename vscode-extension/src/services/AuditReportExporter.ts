@@ -1226,14 +1226,24 @@ export interface OkrRollupInput {
    */
   repoInfo: { owner: string; repo: string } | null;
   /**
-   * Oracle & Privacy Rails (Phase 2) — optional. When set, the rollup renders
-   * the "Oracle rails (evidence boundary)" subsection: the exporter re-derives
-   * the committed report + input byte hashes and renders the injected CI model-
-   * replay verdict. Undefined → section omitted (pre-rail OKRs / phases that ran
-   * no rail). Caller assembles from the chain's rail_decision event + the
-   * committed rail report + input bytes + the CI replay verdict.
+   * Oracle & Privacy Rails (Phase 2) — optional, SINGLE rail (back-compat). When
+   * set, the rollup renders the "Oracle rails (evidence boundary)" subsection:
+   * the exporter re-derives the committed report + input byte hashes and renders
+   * the injected CI model-replay verdict. Undefined → section omitted (pre-rail
+   * OKRs / phases that ran no rail). Caller assembles from the chain's
+   * rail_decision event + the committed rail report + input bytes + the CI
+   * replay verdict. Phase 3+: prefer `oracleRailsList` for N rails; when both are
+   * set, `oracleRails` is treated as one more entry in the list.
    */
   oracleRails?: OracleRailRollupInput;
+  /**
+   * Oracle & Privacy Rails (Phase 3+) — MULTIPLE rails (pii + injection + …).
+   * Each entry is an independent rail with its own rail_decision event, report,
+   * inputs, and CI replay verdict. The rollup folds EVERY rail's status into the
+   * verdict (any FAIL → FAIL; any PARTIAL → PARTIAL) and renders one subsection
+   * per rail. Order is preserved for display.
+   */
+  oracleRailsList?: OracleRailRollupInput[];
   /**
    * D-PR8 — per-target-repo implementation rows sourced from
    * design-fan-out.yaml + each impl PR body's YAML frontmatter
@@ -1568,11 +1578,17 @@ export function computeOkrRollupVerdict(input: OkrRollupInput): {
   verdict: OkrRollupVerdict;
   reason: string;
 } {
-  // Oracle & Privacy Rails (Hatter-side) — computed once; folded into the FAIL
-  // and PARTIAL sections below so the rollup verdict can NEVER contradict the
-  // rendered "Oracle rails" section (same honesty contract as the Red Queen
-  // rollup). Both this and renderOracleRailsSubsection read computeOracleRailStatus.
-  const railStatus = input.oracleRails ? computeOracleRailStatus(input.oracleRails) : null;
+  // Oracle & Privacy Rails (Hatter-side) — computed once PER RAIL; folded into
+  // the FAIL and PARTIAL sections below so the rollup verdict can NEVER
+  // contradict the rendered "Oracle rails" sections (same honesty contract as
+  // the Red Queen rollup). Both this and the render path read
+  // computeOracleRailStatus over the SAME normalized rail list (pii + injection
+  // + …). First failing rail wins the reason; the rail is named so the message
+  // is unambiguous when N rails are present.
+  const rails = normalizeOracleRails(input);
+  const railStatuses = rails.map((r, i) => ({ name: railName(r, i), status: computeOracleRailStatus(r) }));
+  const railFail = railStatuses.find(r => r.status.status === 'fail');
+  const railPartial = railStatuses.find(r => r.status.status === 'partial');
 
   // FAIL precedence — check every present phase for any failure signal.
   for (const p of input.phases) {
@@ -1655,8 +1671,8 @@ export function computeOkrRollupVerdict(input: OkrRollupInput): {
   // hash, input hash incl. missing bytes, or event↔report field mismatch) OR a
   // failed CI model replay must FAIL the rollup, never PASS under a "MISMATCH
   // ✗" section. Local "replay not invoked" is PARTIAL, handled below.
-  if (railStatus && railStatus.status === 'fail') {
-    return { verdict: 'FAIL', reason: `Oracle rails FAIL — ${railStatus.reasons.join('; ')}` };
+  if (railFail) {
+    return { verdict: 'FAIL', reason: `Oracle rails FAIL (${railFail.name}) — ${railFail.status.reasons.join('; ')}` };
   }
 
   // PARTIAL — at least one expected phase not started yet (or runner not
@@ -1698,8 +1714,8 @@ export function computeOkrRollupVerdict(input: OkrRollupInput): {
   }
   // Oracle & Privacy Rails PARTIAL — deterministic checks green but the CI
   // model replay was not invoked (e.g. local export). Honest: not PASS.
-  if (railStatus && railStatus.status === 'partial') {
-    return { verdict: 'PARTIAL', reason: `Oracle rails PARTIAL — ${railStatus.reasons.join('; ')}` };
+  if (railPartial) {
+    return { verdict: 'PARTIAL', reason: `Oracle rails PARTIAL (${railPartial.name}) — ${railPartial.status.reasons.join('; ')}` };
   }
 
   // All 3 phases present and no FAIL — but each phase's runner must have
@@ -2129,6 +2145,31 @@ function makeRailStatus(p: Partial<OracleRailStatus> & { status: OracleRailStatu
   };
 }
 
+/**
+ * Normalize the two rollup-input shapes into one ordered rail list:
+ * `oracleRailsList` entries first (Phase 3+), then the single `oracleRails`
+ * (Phase 2 back-compat) appended if set. Either/both/neither may be present.
+ * De-duplication is intentionally NOT done here — a caller that sets both the
+ * same rail twice gets it rendered twice (caller bug, surfaced not hidden).
+ */
+export function normalizeOracleRails(
+  input: { oracleRails?: OracleRailRollupInput; oracleRailsList?: OracleRailRollupInput[] },
+): OracleRailRollupInput[] {
+  const list = [...(input.oracleRailsList ?? [])];
+  if (input.oracleRails) { list.push(input.oracleRails); }
+  return list;
+}
+
+/** A rail's name for display/verdict messages — the event's `rail`, the
+ * report's `rail`, or a positional fallback. Never throws. */
+function railName(input: OracleRailRollupInput, index: number): string {
+  if (input.railEvent?.rail) { return input.railEvent.rail; }
+  if (input.reportRaw) {
+    try { const r = JSON.parse(input.reportRaw) as { rail?: string }; if (r.rail) { return r.rail; } } catch { /* fall through */ }
+  }
+  return `rail#${index + 1}`;
+}
+
 export function computeOracleRailStatus(input: OracleRailRollupInput): OracleRailStatus {
   const { railEvent, reportRaw, inputContents, ciReplay } = input;
   const modelReplay: OracleRailStatus['modelReplay'] = ciReplay.invoked ? (ciReplay.ok ? 'pass' : 'fail') : 'not-invoked';
@@ -2197,17 +2238,44 @@ export function computeOracleRailStatus(input: OracleRailRollupInput): OracleRai
   });
 }
 
-export function renderOracleRailsSubsection(input: OracleRailRollupInput): string {
+/**
+ * Render the "Oracle rails" block — one subsection per rail in the normalized
+ * list (pii + injection + …). Returns '' when no rail has evidence, so the
+ * markdown omits the heading entirely. The shared section heading is printed
+ * once; each rail gets a named sub-row group.
+ */
+export function renderOracleRailsBlock(
+  input: { oracleRails?: OracleRailRollupInput; oracleRailsList?: OracleRailRollupInput[] },
+): string {
+  const rails = normalizeOracleRails(input);
+  const rendered = rails
+    .map((r, i) => renderOracleRailsSubsection(r, { railLabel: railName(r, i), heading: false }))
+    .filter(s => s !== '');
+  if (rendered.length === 0) { return ''; }
+  const header = '## Oracle rails (evidence boundary)\n\n'
+    + '_Exporter re-derives bytes; CI replays the model; neither trusts the stored report alone._\n';
+  return '\n\n' + header + rendered.join('\n') + '\n';
+}
+
+export function renderOracleRailsSubsection(
+  input: OracleRailRollupInput,
+  opts: { railLabel?: string; heading?: boolean } = {},
+): string {
   const s = computeOracleRailStatus(input);
   if (s.status === 'absent') { return ''; } // no rail evidence → omit section
   const { railEvent, reportRaw, ciReplay } = input;
+  const heading = opts.heading !== false; // default true → standalone single-rail render
+  const label = opts.railLabel ?? (railEvent?.rail ?? 'rail');
 
   const badge = s.status === 'pass' ? '✓ PASS' : s.status === 'partial' ? '⚠ PARTIAL' : '❌ FAIL';
   const lines: string[] = [];
-  lines.push('## Oracle rails (evidence boundary)');
-  lines.push('');
-  lines.push('_Exporter re-derives bytes; CI replays the model; neither trusts the stored report alone._');
-  lines.push('');
+  if (heading) {
+    lines.push('## Oracle rails (evidence boundary)');
+    lines.push('');
+    lines.push('_Exporter re-derives bytes; CI replays the model; neither trusts the stored report alone._');
+    lines.push('');
+  }
+  lines.push(`### ${label}`);
   lines.push(`- status: ${badge}`);
 
   if (railEvent && !reportRaw) {
@@ -2385,7 +2453,7 @@ _Cited check is a textual reference of the SR-NN string in the artifact body —
 
   // Oracle & Privacy Rails (Phase 2) — pure byte re-derivation + injected CI
   // model-replay verdict; '' when the OKR ran no rail (section omitted).
-  const oracleRailsBlock = input.oracleRails ? renderOracleRailsSubsection(input.oracleRails) : '';
+  const oracleRailsBlock = renderOracleRailsBlock(input);
 
   return `# OKR Audit Rollup — ${input.okrId}
 

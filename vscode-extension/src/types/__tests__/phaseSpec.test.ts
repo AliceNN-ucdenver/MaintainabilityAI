@@ -1101,6 +1101,10 @@ describe('Oracle & Privacy Rails — PII rail helpers in the deploy set (redeplo
       '.github/workflows/scripts/oracle-rails/oracle_rail.py',
       '.github/workflows/scripts/oracle-rails/pii.json',
       '.github/workflows/scripts/oracle-rails/requirements.txt',
+      // Phase 3 — injection rail (Prompt Guard 2). Same fail-closed contract:
+      // absent on the default branch ⇒ the rail cannot run ⇒ must be deployed.
+      '.github/workflows/scripts/oracle-rails/inject_check.py',
+      '.github/workflows/scripts/oracle-rails/injection.json',
     ];
     for (const rp of required) {
       expect(paths, `${rp} missing from MESH_WORKFLOWS — redeploy would skip it`).toContain(rp);

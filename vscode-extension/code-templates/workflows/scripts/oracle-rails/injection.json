@@ -1,0 +1,27 @@
+{
+  "schema_version": "oracle-injection-config.v1",
+  "_note": "Injection rail (Hatter-side evidence boundary). Scores UNTRUSTED external evidence (provider snippets + source registry) with Llama Prompt Guard 2 86M for prompt injection. The agent-authored synthesis doc is NOT scanned (benign security prose). A mesh operator may override this file at .caterpillar/guardrails/oracle/injection.json; the workflow prefers that path when present. config_sha256 in the rail report pins whichever config ran.",
+  "model_id": "meta-llama/Llama-Prompt-Guard-2-86M",
+  "_model_revision_note": "Pin to a HF COMMIT SHA so replay retrieves the EXACT same weights, not 'latest compatible'. Filled at the live cert run once the snapshot is cached + the SHA is read from the resolved snapshot; until then the rail records revision honestly as the resolved tag and the replay compares model identity field-for-field.",
+  "model_revision": null,
+  "block_threshold": 0.9,
+  "review_threshold": 0.5,
+  "block_on_needs_review": true,
+  "min_unit_chars": 24,
+  "_benign_context_note": "A unit scoring >= block_threshold is demoted to needs_review (never hard-blocked) when its surrounding window is QUOTED / CITED / CODE-FENCED — the corpus discussing an example attack, not delivering one. This is the injection analogue of the PII rail's benign-identifier carve-out and is what keeps a security-research corpus from hard-failing wholesale. Tune against the fixture corpus; never blind.",
+  "benign_context_markers": [
+    "example of",
+    "for example",
+    "e.g.",
+    "such as",
+    "attackers might",
+    "an attacker could",
+    "payload:",
+    "example attack",
+    "sample prompt",
+    "demonstrat",
+    "illustrat",
+    "proof of concept",
+    "poc:"
+  ]
+}

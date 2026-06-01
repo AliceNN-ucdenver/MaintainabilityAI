@@ -319,19 +319,30 @@ async function main() {
     }
   }
 
-  // ── rail_decision: chain-visible pointer to a replayable rail report ────
+  // ── rail_decision: chain-visible pointer(s) to replayable rail report(s) ─
   // Oracle & Privacy Rails (Hatter-side, NOT Red Queen). Emitted ONLY when a
-  // phase finalize job (today: WHY) produced a durable rail report and handed
-  // us its path via RAIL_REPORT_PATH. Generic + no-op for phases that run no
-  // rail. Unsigned, workflow-origin, re-derivable — the rollup re-runs the
-  // pinned rail over committed bytes and never trusts this event.
+  // phase finalize job (today: WHY) produced durable rail report(s) and handed
+  // us their path(s). Phase 2 passed ONE via RAIL_REPORT_PATH; Phase 3+ passes
+  // N (pii + injection + …) via RAIL_REPORT_PATHS (newline-separated). Both are
+  // honored; each path becomes its own rail_decision, idempotency-keyed on
+  // report_path so a re-run is a no-op and a second rail does not disturb the
+  // first. Generic + no-op for phases that run no rail. Unsigned, workflow-
+  // origin, re-derivable — the rollup re-runs each pinned rail over committed
+  // bytes and never trusts these events.
   let appendedRail = false;
-  const RAIL_REPORT_PATH = process.env.RAIL_REPORT_PATH || '';
-  if (RAIL_REPORT_PATH && fs.existsSync(RAIL_REPORT_PATH)) {
+  const railPaths = [
+    ...(process.env.RAIL_REPORT_PATHS || '').split(/[\n:]+/),
+    process.env.RAIL_REPORT_PATH || '',
+  ].map(s => s.trim()).filter((p, i, a) => p && a.indexOf(p) === i); // dedupe + drop empties
+  for (const railReportPath of railPaths) {
+    if (!fs.existsSync(railReportPath)) {
+      ghNotice(`rail report not on disk, skipping: ${railReportPath}`);
+      continue;
+    }
     let railPayload;
-    try { railPayload = computeRailReportPayload(RAIL_REPORT_PATH, { mergeSha: MERGE_SHA, prNumber: PR_NUMBER, okrId: OKR_ID, runId: RUN_ID, phase: PHASE }); }
-    catch (err) { ghError('rail report unusable', `${RAIL_REPORT_PATH}: ${err.message}`); process.exit(1); }
-    events = readJsonlEvents(jsonlPath); // re-read after artifact/transition appends
+    try { railPayload = computeRailReportPayload(railReportPath, { mergeSha: MERGE_SHA, prNumber: PR_NUMBER, okrId: OKR_ID, runId: RUN_ID, phase: PHASE }); }
+    catch (err) { ghError('rail report unusable', `${railReportPath}: ${err.message}`); process.exit(1); }
+    events = readJsonlEvents(jsonlPath); // re-read after artifact/transition/prior-rail appends
     const rdCheck = checkRailDecisionIdempotency(events, railPayload);
     if (rdCheck.status === 'match') {
       ghNotice(`rail_decision already present + matches at event ${rdCheck.event_id} (rail=${railPayload.rail} verdict=${railPayload.verdict} report_sha=${(railPayload.report_sha256 || '').slice(0, 16)}…) — idempotent no-op`);

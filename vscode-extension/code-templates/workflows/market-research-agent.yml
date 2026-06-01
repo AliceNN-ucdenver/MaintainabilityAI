@@ -927,6 +927,92 @@ jobs:
             echo "::error::Oracle PII rail could not run (exit $CODE) — fails closed; evidence cannot be certified PII-clean"
           fi
 
+      # ── Oracle & Privacy Rails — INJECTION rail (Phase 3, closes T3-6) ──────
+      # Scans the UNTRUSTED external evidence (source registry — the retrieved
+      # snippet text) for prompt injection with Llama Prompt Guard 2 86M. Scan
+      # target by design = snippets/source-registry ONLY, NOT the agent-authored
+      # research-doc (benign security prose). Same trust posture as the PII rail:
+      # trusted helper fetched from the default branch; PR head is DATA only;
+      # banded policy with a quoted/cited/fenced benign-context carve-out so a
+      # security-research corpus does not hard-fail wholesale. Reuses the Python
+      # env + pip cache the PII rail set up (transformers/torch are in the shared
+      # requirements.txt). PR audit VERIFIES + GATES; finalize RECORDS.
+      - name: Oracle injection rail (gate)
+        id: inject-rail
+        if: steps.gate.outputs.skip != 'true' && steps.structure.outputs.doc_found == 'true'
+        env:
+          OKR_ID: ${{ steps.ctx.outputs.okr_id }}
+          RUN_ID: ${{ steps.ctx.outputs.run_id }}
+          REGISTRY_PATH: okrs/${{ steps.ctx.outputs.okr_id }}/audit/sources/${{ steps.ctx.outputs.run_id }}.source-registry.json
+        run: |
+          set -uo pipefail
+          # No untrusted snippet surface (registry absent) → nothing to scan.
+          if [ ! -f "$REGISTRY_PATH" ]; then
+            echo "::notice::Oracle injection rail: no source registry at $REGISTRY_PATH — no untrusted snippets to scan"
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+            echo "reason=no source registry (nothing to scan)" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          DIR="$RUNNER_TEMP/oracle-rails"
+          mkdir -p "$DIR"
+          # Trusted helper + config from the default branch — fail CLOSED if
+          # missing. requirements.txt was already fetched + installed by the PII
+          # rail step above; re-fetch defensively in case ordering changes.
+          FETCH_OK=true
+          for f in inject_check.py injection.json requirements.txt; do
+            if ! gh api -H "Accept: application/vnd.github.raw" \
+              "repos/${{ github.repository }}/contents/.github/workflows/scripts/oracle-rails/$f?ref=${{ github.event.repository.default_branch }}" \
+              > "$DIR/$f"; then
+              FETCH_OK=false
+            fi
+          done
+          if [ "$FETCH_OK" != "true" ]; then
+            echo "::error::Oracle injection rail helpers not deployed to .github/workflows/scripts/oracle-rails/ on ${{ github.event.repository.default_branch }}. Redeploy mesh workflows from Looking Glass. The injection rail cannot be skipped."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            echo "reason=injection rail helper scripts missing from mesh" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          python3 -m pip install --disable-pip-version-check -r "$DIR/requirements.txt"
+          # Config override (default branch, trusted) → bundled default.
+          CONFIG="$DIR/injection.json"
+          if gh api -H "Accept: application/vnd.github.raw" \
+            "repos/${{ github.repository }}/contents/.caterpillar/guardrails/oracle/injection.json?ref=${{ github.event.repository.default_branch }}" \
+            > "$DIR/injection.override.json" 2>/dev/null; then
+            CONFIG="$DIR/injection.override.json"
+            echo "::notice::Oracle injection rail using mesh config override"
+          else
+            echo "::notice::Oracle injection rail using bundled default config"
+          fi
+          set +e
+          OUT=$(python3 "$DIR/inject_check.py" run \
+            --config "$CONFIG" \
+            --report "$RUNNER_TEMP/oracle-injection.rail-report.json" \
+            --inputs "$REGISTRY_PATH" \
+            --okr-id "$OKR_ID" --run-id "$RUN_ID" --phase why 2>/tmp/inject-err.txt)
+          CODE=$?
+          set -e
+          cat /tmp/inject-err.txt || true
+          printf 'injection rail stdout: %s\n' "$OUT"
+          REPORT_FILE="$RUNNER_TEMP/oracle-injection.rail-report.json"
+          SUMMARY=$(python3 -c "import json,sys;r=json.load(open(sys.argv[1]));rows=r.get('blocked_entities') or r.get('needs_review_entities') or [];print('; '.join(sorted({'@'+(e.get('input') or '?')+':'+str(e.get('line','?'))+':'+str(e.get('col','?'))+' ['+str(e.get('shape',''))+']' for e in rows})) or 'none')" "$REPORT_FILE" 2>/dev/null || echo "see workflow log")
+          if [ "$CODE" -eq 0 ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+            echo "reason=clean (verdict=pass)" >> "$GITHUB_OUTPUT"
+            echo "::notice::Oracle injection rail passed (verdict=pass)"
+          elif [ "$CODE" -eq 2 ]; then
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            echo "reason=prompt injection in retrieved evidence: $SUMMARY" >> "$GITHUB_OUTPUT"
+            echo "::error::Oracle injection rail BLOCKED — prompt injection detected in retrieved evidence: $SUMMARY"
+          elif [ "$CODE" -eq 3 ]; then
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            echo "reason=needs_review (ambiguous injection signal): $SUMMARY" >> "$GITHUB_OUTPUT"
+            echo "::error::Oracle injection rail NEEDS REVIEW (blocking per policy): $SUMMARY"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            echo "reason=rail-not-invoked (Prompt Guard 2/model/config unloadable, exit $CODE)" >> "$GITHUB_OUTPUT"
+            echo "::error::Oracle injection rail could not run (exit $CODE) — fails closed; evidence cannot be certified injection-clean"
+          fi
+
       - name: Decide verdict
         id: verdict
         if: steps.gate.outputs.skip != 'true'
@@ -1130,6 +1216,17 @@ jobs:
           PII_REASON='${{ steps.pii-rail.outputs.reason }}'
           if [ "$VERDICT" = "ok" ] && [ "$DOC_FOUND" = "true" ] && [ "$PII_OK" != "true" ]; then
             VERDICT="degraded"; REASON="Oracle PII rail: ${PII_REASON:-failed}"
+            EVIDENCE_FAIL="true"
+          fi
+
+          # Oracle & Privacy Rails — INJECTION rail (Phase 3). Same fail-closed
+          # gate as PII: a blocked / needs_review / not-invoked injection rail
+          # degrades the evidence verdict. Independent of PII so either rail can
+          # fail the PR on its own.
+          INJECT_OK='${{ steps.inject-rail.outputs.ok }}'
+          INJECT_REASON='${{ steps.inject-rail.outputs.reason }}'
+          if [ "$VERDICT" = "ok" ] && [ "$DOC_FOUND" = "true" ] && [ "$INJECT_OK" != "true" ]; then
+            VERDICT="degraded"; REASON="Oracle injection rail: ${INJECT_REASON:-failed}"
             EVIDENCE_FAIL="true"
           fi
 
@@ -1392,6 +1489,49 @@ jobs:
           echo "report_path=$REPORT" >> "$GITHUB_OUTPUT"
           echo "::notice::Oracle PII rail PASS at finalize — report written to $REPORT"
 
+      - name: Produce durable Oracle injection rail report
+        id: inject-rail-finalize
+        if: steps.ctx.outputs.okr_id != '' && steps.ctx.outputs.run_id != ''
+        env:
+          OKR_ID: ${{ steps.ctx.outputs.okr_id }}
+          RUN_ID: ${{ steps.ctx.outputs.run_id }}
+          REGISTRY_PATH: okrs/${{ steps.ctx.outputs.okr_id }}/audit/sources/${{ steps.ctx.outputs.run_id }}.source-registry.json
+        run: |
+          set -uo pipefail
+          SCRIPTS=".github/workflows/scripts/oracle-rails"
+          # No untrusted snippet surface → no injection report (no-op; the PII
+          # report still finalizes). The finalize recorder simply skips a path
+          # that does not exist on disk.
+          if [ ! -f "$REGISTRY_PATH" ]; then
+            echo "::notice::no source registry at $REGISTRY_PATH — no injection evidence to record"
+            echo "report_path=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ ! -f "$SCRIPTS/inject_check.py" ]; then
+            echo "::error::Oracle injection rail helpers missing on main ($SCRIPTS) — redeploy mesh workflows from Looking Glass."
+            exit 1
+          fi
+          python3 -m pip install --disable-pip-version-check -r "$SCRIPTS/requirements.txt"
+          CONFIG="$SCRIPTS/injection.json"
+          if [ -f ".caterpillar/guardrails/oracle/injection.json" ]; then CONFIG=".caterpillar/guardrails/oracle/injection.json"; fi
+          REPORT="okrs/${OKR_ID}/audit/rails/${RUN_ID}.injection.rail-report.json"
+          set +e
+          python3 "$SCRIPTS/inject_check.py" run \
+            --config "$CONFIG" --report "$REPORT" \
+            --inputs "$REGISTRY_PATH" \
+            --okr-id "$OKR_ID" --run-id "$RUN_ID" --phase why
+          CODE=$?
+          set -e
+          # Same finalize-requires-pass contract as the PII rail: the PR-audit
+          # gate blocks any non-pass pre-merge, so a merged run should be clean.
+          # (0=pass, 2=blocked, 3=needs_review, 5=not-invoked.)
+          if [ "$CODE" -ne 0 ] || [ ! -f "$REPORT" ]; then
+            echo "::error::Oracle injection rail did not PASS at finalize (exit $CODE) — finalize aborts. Investigate a bypass/override or policy/model change before finalizing."
+            exit 1
+          fi
+          echo "report_path=$REPORT" >> "$GITHUB_OUTPUT"
+          echo "::notice::Oracle injection rail PASS at finalize — report written to $REPORT"
+
       # Refactor 3c — delegate to the canonical finalize composite action.
       # PHASE SPEC — see vscode-extension/src/types/phaseSpec.ts.
       # If you rename a label / agent / phase here, update phaseSpec.ts too.
@@ -1414,10 +1554,13 @@ jobs:
           # the phase artifact path so finalize can hash + append
           # artifact_written with idempotency + verify-before-commit.
           artifact-path: okrs/${{ steps.ctx.outputs.okr_id }}/why/research-doc.md
-          # Oracle & Privacy Rails: hand the durable rail report this WHY job
-          # just produced to the generic recorder, which emits the unsigned
-          # workflow-origin rail_decision pointer (empty → no-op).
+          # Oracle & Privacy Rails: hand the durable rail report(s) this WHY job
+          # just produced to the generic recorder, which emits one unsigned
+          # workflow-origin rail_decision pointer per report (empty → no-op).
+          # PII via the single-path input (back-compat); injection via the
+          # Phase-3 multi-path input. Both honored + de-duplicated by the recorder.
           rail-report-path: ${{ steps.pii-rail-finalize.outputs.report_path }}
+          rail-report-paths: ${{ steps.inject-rail-finalize.outputs.report_path }}
 
       # ── Oracle & Privacy Rails — trigger the model-replay leg ──────────────
       # The finalize action commits the durable rail-report.json to main with the
@@ -1428,7 +1571,7 @@ jobs:
       # over the committed report + cited bytes and records match / replay-
       # mismatch / not-invoked — the authoritative third leg of "replay, not sign".
       - name: Dispatch Oracle rails model-replay
-        if: steps.pii-rail-finalize.outputs.report_path != ''
+        if: steps.pii-rail-finalize.outputs.report_path != '' || steps.inject-rail-finalize.outputs.report_path != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |

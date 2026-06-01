@@ -17,6 +17,7 @@ import {
   parseImplementationChainBlock,
   parseRunnerVerdictFromStdout,
   renderOracleRailsSubsection,
+  renderOracleRailsBlock,
   verifyImplementationChainEntry,
   type AuditReportInput,
   type AuditReportInputSources,
@@ -1544,6 +1545,63 @@ describe('computeOkrRollupVerdict', () => {
     expect(out.verdict).toBe('PASS');
   });
 
+  // ── Phase 3: multiple rails (pii + injection) via oracleRailsList ───────
+  const okInjectionReport = JSON.stringify({
+    schema_version: 'oracle-rail-report.v1', rail: 'injection', okr_id: 'OKR-X', run_id: 'WHY-1',
+    phase: 'why', config_sha256: 'cfg', verdict: 'pass', inputs: [],
+  });
+  const injectionEventFor = (reportRaw: string): NonNullable<OracleRailRollupInput['railEvent']> => ({
+    schema_version: 'oracle-rail-report.v1', rail: 'injection', verdict: 'pass',
+    okr_id: 'OKR-X', run_id: 'WHY-1', phase: 'why', config_sha256: 'cfg',
+    report_path: 'okrs/OKR-X/audit/rails/WHY-1.injection.rail-report.json',
+    report_sha256: railSha(reportRaw), merge_commit_sha: 'm'.repeat(40), pr_number: 7,
+  });
+  const passPii: OracleRailRollupInput = {
+    railEvent: railEventFor(okRailReport), reportRaw: okRailReport, inputContents: {},
+    ciReplay: { invoked: true, ok: true },
+  };
+  const passInjection: OracleRailRollupInput = {
+    railEvent: injectionEventFor(okInjectionReport), reportRaw: okInjectionReport, inputContents: {},
+    ciReplay: { invoked: true, ok: true },
+  };
+
+  it('multi-rail: PASS when both pii + injection rails pass', () => {
+    const out = computeOkrRollupVerdict(makeInput({ oracleRailsList: [passPii, passInjection] }));
+    expect(out.verdict).toBe('PASS');
+  });
+
+  it('multi-rail: FAIL names the failing rail when injection fails but pii passes', () => {
+    const failInjection: OracleRailRollupInput = {
+      railEvent: injectionEventFor(okInjectionReport), reportRaw: okInjectionReport, inputContents: {},
+      ciReplay: { invoked: true, ok: false, reason: 'rail-replay-mismatch' },
+    };
+    const out = computeOkrRollupVerdict(makeInput({ oracleRailsList: [passPii, failInjection] }));
+    expect(out.verdict).toBe('FAIL');
+    expect(out.reason).toContain('injection');
+    expect(out.reason).toContain('rail-replay-mismatch');
+  });
+
+  it('multi-rail: PARTIAL when one rail has CI replay not invoked', () => {
+    const partialInjection: OracleRailRollupInput = {
+      railEvent: injectionEventFor(okInjectionReport), reportRaw: okInjectionReport, inputContents: {},
+      ciReplay: { invoked: false, reason: 'local export' },
+    };
+    const out = computeOkrRollupVerdict(makeInput({ oracleRailsList: [passPii, partialInjection] }));
+    expect(out.verdict).toBe('PARTIAL');
+    expect(out.reason).toContain('injection');
+  });
+
+  it('multi-rail: oracleRails (single) + oracleRailsList compose into one list', () => {
+    // back-compat single + a list entry both fold; the single failing one wins.
+    const failSingle: OracleRailRollupInput = {
+      railEvent: { ...railEventFor(okRailReport), report_sha256: 'abc' },
+      reportRaw: null, inputContents: {}, ciReplay: { invoked: false, reason: 'n/a' },
+    };
+    const out = computeOkrRollupVerdict(makeInput({ oracleRailsList: [passInjection], oracleRails: failSingle }));
+    expect(out.verdict).toBe('FAIL');
+    expect(out.reason).toContain('Oracle rails FAIL');
+  });
+
   it('FAIL when keys=mismatch breaks atomicity even if runner not invoked', () => {
     const out = computeOkrRollupVerdict(makeInput({
       phases: [
@@ -2358,5 +2416,47 @@ describe('renderOracleRailsSubsection (Oracle & Privacy Rails — pure re-deriva
   it('computeOracleRailStatus: partial when deterministic green but CI replay not invoked', () => {
     const s = computeOracleRailStatus(makeInput({ ciReplay: { invoked: false, reason: 'local' } }));
     expect(s.status).toBe('partial');
+  });
+
+  // ── Phase 3: multi-rail block render ────────────────────────────────────
+  function makeInjectionInput(over: Partial<OracleRailRollupInput> = {}): OracleRailRollupInput {
+    const reportRaw = JSON.stringify({
+      schema_version: 'oracle-rail-report.v1', rail: 'injection', policy: 'banded',
+      okr_id: 'OKR-X', run_id: 'WHY-1', phase: 'why', config_sha256: 'cfg', verdict: 'pass',
+      inputs: [{ path: REG, sha256: sha(regBytes) }],
+      counts: { blocked: 0, needs_review: 0, scanned: 12 },
+    });
+    return {
+      railEvent: {
+        schema_version: 'oracle-rail-report.v1', rail: 'injection', verdict: 'pass',
+        okr_id: 'OKR-X', run_id: 'WHY-1', phase: 'why', config_sha256: 'cfg',
+        report_path: 'okrs/OKR-X/audit/rails/WHY-1.injection.rail-report.json',
+        report_sha256: sha(reportRaw), merge_commit_sha: 'm'.repeat(40), pr_number: 7,
+      },
+      reportRaw,
+      inputContents: { [REG]: regBytes },
+      ciReplay: { invoked: true, ok: true },
+      ...over,
+    };
+  }
+
+  it('renderOracleRailsBlock: one heading + one named subsection per rail', () => {
+    const md = renderOracleRailsBlock({ oracleRailsList: [makeInput(), makeInjectionInput()] });
+    // Single shared section heading...
+    expect(md.match(/## Oracle rails \(evidence boundary\)/g)?.length).toBe(1);
+    // ...and a named ### sub-row group for each rail.
+    expect(md).toContain('### pii');
+    expect(md).toContain('### injection');
+  });
+
+  it('renderOracleRailsBlock: empty when no rail has evidence', () => {
+    expect(renderOracleRailsBlock({})).toBe('');
+    expect(renderOracleRailsBlock({ oracleRailsList: [] })).toBe('');
+  });
+
+  it('renderOracleRailsBlock: back-compat single oracleRails still renders', () => {
+    const md = renderOracleRailsBlock({ oracleRails: makeInput() });
+    expect(md).toContain('## Oracle rails (evidence boundary)');
+    expect(md).toContain('### pii');
   });
 });
