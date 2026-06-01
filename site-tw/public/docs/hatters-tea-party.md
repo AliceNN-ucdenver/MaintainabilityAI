@@ -5,7 +5,7 @@
     <div class="docs-eyebrow">Vision · In Development <span class="docs-hero-meta">~14 min read</span></div>
     <h1 class="docs-hero-title">The Hatter's Tea Party</h1>
     <p class="docs-hero-copy">
-      The Hatter is the chain signer. The agents around the table turn a one-line objective into evidence-grounded research, an expert-refined product spec, and a code-grounded design. Every artifact is signed by the agent that produced it, with an ephemeral key only that session ever held. The chain is stitched end to end: planning events in the governance mesh, implementation events in each target repo, joined at the implementation PR's merge commit SHA.
+      The Hatter hosts the signed planning chain. The agents around the table turn a one-line objective into evidence-grounded research, an expert-refined product spec, and a code-grounded design. Every artifact is signed by the agent that produced it, with an ephemeral key only that session ever held. The chain is stitched end to end: planning events in the governance mesh, implementation events in each target repo, joined at the implementation PR's merge commit SHA.
     </p>
     <p class="docs-hero-copy">
       <strong>A stitched audit trail per OKR. One human gate per phase. Zero credential reissuance between agents.</strong> Trust earned, not granted.
