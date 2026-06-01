@@ -1839,9 +1839,21 @@ function sourceRegistryEntry(source: RankedSource): Record<string, unknown> {
   };
 }
 
+// A source with no excerpt has nothing the groundedness rail can read, so a
+// claim resting only on it is reported UNRESOLVED (a grounding gap, not a model
+// verdict). Annotate the premise row at generation time — `premise: checkable`
+// vs a loud `metadata-only` warning — so the synthesis agent reads the citable
+// quality as a first-class field instead of inferring it from a bare sentinel
+// string. The `establishes:` clause stays intact (the agent edits its text).
 function renderSourcePremisesMarkdown(sources: RankedSource[]): string {
   return sources
-    .map(s => `- **${s.id}**: [${s.title}](${s.url}) establishes: ${s.excerpt || 'source returned without excerpt'}`)
+    // Match the groundedness rail's resolution rule exactly: it only treats an
+    // excerpt as readable when it has non-empty `.strip()` text, so a
+    // whitespace-only excerpt is metadata-only here too — otherwise a row could
+    // claim `checkable` and then be reported UNRESOLVED by the rail.
+    .map(s => s.excerpt.trim()
+      ? `- **${s.id}**: [${s.title}](${s.url}) establishes: ${s.excerpt} _(premise: checkable)_`
+      : `- **${s.id}**: [${s.title}](${s.url}) establishes: source returned without excerpt — ⚠️ **metadata-only** (no checkable excerpt; use as a discovery lead or weak corroboration only — never the sole basis for a factual support-claim or a HIGH/MEDIUM-confidence conclusion)`)
     .join('\n');
 }
 

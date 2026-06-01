@@ -523,6 +523,39 @@ test('dedupe-and-rank merges per-provider arrays into a ranked list', async () =
   }
 });
 
+test('dedupe-and-rank tags premise rows with checkable vs metadata-only quality', async () => {
+  // A source that returned no excerpt (empty content) has nothing the
+  // groundedness rail can read — its premise row must be marked metadata-only
+  // so the synthesis agent sees citable quality first-class, not by inferring
+  // from a bare sentinel (issue #187 follow-up — source-priority discipline).
+  const r = await runSkill('dedupe-and-rank', {
+    results: [
+      { provider: 'tavily', fromQuery: 'q1', title: 'HasExcerpt', url: 'https://a.com', content: 'a verifiable snippet', score: 0.9 },
+      { provider: 'tavily', fromQuery: 'q2', title: 'TitleOnly', url: 'https://b.com', content: '', score: 0.8 },
+      // whitespace-only excerpt: the rail won't resolve it (it strips), so the
+      // marker must agree and call it metadata-only — not falsely checkable.
+      { provider: 'tavily', fromQuery: 'q3', title: 'BlankExcerpt', url: 'https://c.com', content: '   \n\t ', score: 0.7 },
+    ],
+    topN: 50,
+  });
+  assert.equal(r.ok, true);
+  if (!r.ok) { return; }
+  const md = r.sourcePremisesMarkdown as string;
+  const lines = md.split('\n');
+  const checkable = lines.find(l => l.includes('HasExcerpt'));
+  const metaOnly = lines.find(l => l.includes('TitleOnly'));
+  const blank = lines.find(l => l.includes('BlankExcerpt'));
+  // the excerpt-bearing source is tagged checkable, never metadata-only
+  assert.ok(checkable?.includes('_(premise: checkable)_'), `checkable row missing marker: ${checkable}`);
+  assert.ok(!checkable?.includes('metadata-only'), 'checkable row must not be flagged metadata-only');
+  // the excerptless source is flagged loudly and is NOT marked checkable
+  assert.ok(metaOnly?.includes('⚠️ **metadata-only**'), `metadata-only row missing warning: ${metaOnly}`);
+  assert.ok(!metaOnly?.includes('_(premise: checkable)_'), 'metadata-only row must not claim to be checkable');
+  // whitespace-only excerpt matches the rail's strip() semantics → metadata-only
+  assert.ok(blank?.includes('⚠️ **metadata-only**'), `whitespace-only excerpt must be metadata-only: ${blank}`);
+  assert.ok(!blank?.includes('_(premise: checkable)_'), 'whitespace-only excerpt must not claim to be checkable');
+});
+
 test('dedupe-and-rank writes a hash-addressed source registry when session context is present', async () => {
   const mesh = tmpMesh();
   try {
