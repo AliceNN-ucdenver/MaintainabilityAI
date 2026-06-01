@@ -601,8 +601,12 @@ def cmd_run(args) -> int:
     )
     _write_report(args.report, report)
     # Explainable findings (NO raw claim / excerpt text) — claim id, scores,
-    # cited/best source, line, shape.
-    for label, key in (("CONTRADICTED", "contradicted_claims"), ("UNSUPPORTED", "unsupported_claims")):
+    # cited/best source, line, shape. A contradiction (source REFUTES the claim)
+    # is the serious signal; a non-entailment is the honest, weaker statement
+    # "strict NLI did not find the cited snippets to logically entail this whole
+    # conclusion" — which, on prescriptive/synthesized conclusions, is expected
+    # and NOT an accusation that the conclusion is false. Labels say exactly that.
+    for label, key in (("CONTRADICTED", "contradicted_claims"), ("NOT-ENTAILED (strict NLI)", "unsupported_claims")):
         for r in report.get(key, []):
             print(
                 f"::warning::oracle-groundedness-rail {r['claim']} {label} "
@@ -620,6 +624,19 @@ def cmd_run(args) -> int:
         f"avg_contra={s.get('avg_contradiction', '?')}",
         file=sys.stderr,
     )
+    # When the picture is "high neutral, ~zero contradiction", say plainly that
+    # this is a unit mismatch (whole prescriptive conclusions vs atomic factual
+    # claims), not refuted evidence — so an advisory reader doesn't misread it.
+    avg_neutral = float(s.get("avg_neutral", 0.0) or 0.0)
+    contradicted = int(report.get("counts", {}).get("contradicted", 0))
+    if contradicted == 0 and avg_neutral >= 0.7:
+        print(
+            "::notice::oracle-groundedness-rail interpretation — high neutral + zero contradiction: "
+            "strict NLI does not entail whole prescriptive conclusions from descriptive snippets. "
+            "Nothing is refuted. This is a known unit mismatch (planned fix: NLI over atomic factual "
+            "support claims, not the synthesized conclusion). Advisory only.",
+            file=sys.stderr,
+        )
     print(json.dumps({"verdict": report["verdict"], "counts": report["counts"]}))
     if report["verdict"] == VERDICT_FAIL:
         return 2
