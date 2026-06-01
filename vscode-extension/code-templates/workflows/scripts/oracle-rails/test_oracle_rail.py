@@ -12,9 +12,10 @@ import unittest
 from oracle_rail import (
     Detection, classify, compute_verdict, build_report, compare_reports,
     canonical_hash, token_shape, is_benign_identifier, mask_urls_for_pii,
-    detect_url_secrets,
+    detect_url_secrets, extract_registry_units,
     SECRET_PATTERNS, CANDIDATE_PATTERNS, SECRET_CANDIDATE,
     BLOCK, REDACT, NEEDS_REVIEW, IGNORE,
+    UNIT_DOC_BODY, UNIT_EVIDENCE, UNIT_PUBLIC_METADATA, UNIT_LOCATOR,
     VERDICT_FAIL, VERDICT_PASS, VERDICT_NEEDS_REVIEW,
 )
 
@@ -28,8 +29,10 @@ CONFIG = {
 }
 
 
-def det(entity_type, score=0.9, start=0, end=10, input_index=0, context_marker=""):
-    return Detection(entity_type, score, start, end, input_index, context_marker)
+def det(entity_type, score=0.9, start=0, end=10, input_index=0, context_marker="",
+        unit_kind="doc_body", field=""):
+    return Detection(entity_type, score, start, end, input_index, context_marker,
+                     unit_kind=unit_kind, field=field)
 
 
 class TestClassify(unittest.TestCase):
@@ -92,7 +95,8 @@ class TestReport(unittest.TestCase):
         r = self._report([det("US_SSN", start=5, end=16), det("PERSON", score=0.3)])
         blob = json.dumps(r)
         for row in r["blocked_entities"] + r["needs_review_entities"]:
-            self.assertEqual(set(row) - {"context_marker"}, {"type", "ref", "score", "disposition", "input", "line", "col", "shape"})
+            # `context_marker` + `field` are optional; everything else is fixed.
+            self.assertEqual(set(row) - {"context_marker", "field"}, {"type", "ref", "score", "disposition", "input", "line", "col", "shape", "unit_kind"})
         self.assertNotIn("value", blob)
         self.assertNotIn("\"text\"", blob)
         # ref is a safe locator (input:start-end), no raw content
@@ -361,6 +365,131 @@ class TestUrlMasking(unittest.TestCase):
     def test_plain_url_without_secret_does_not_emit_secret(self):
         text = "https://patents.google.com/patent/US8547169 and https://medium.com/@nazeer.td/post"
         self.assertEqual(detect_url_secrets(text, 0, "source-registry.json", []), [])
+
+
+class TestProvenanceAwarePolicy(unittest.TestCase):
+    """Regressions from the WHY run where a whole-blob scan over-blocked. Policy
+    is now (entity, unit_kind)-aware; context is field-scoped."""
+
+    CFG = {
+        "score_threshold": 0.5,
+        "block_everywhere": ["US_SSN", "CREDIT_CARD", "ORACLE_SECRET", "IP_ADDRESS"],
+        "contact_pii": ["EMAIL_ADDRESS", "PHONE_NUMBER"],
+        "tiers": {"allow_redact": ["PERSON", "ORGANIZATION", "DATE_TIME", "URL"]},
+    }
+
+    # (1) Public footer email inside a retrieved source excerpt → redact, NOT block.
+    def test_public_footer_email_in_evidence_redacts_not_blocks(self):
+        d = det("EMAIL_ADDRESS", start=0, end=20, unit_kind=UNIT_EVIDENCE,
+                field="source_registry.sources[S19].excerpt")
+        self.assertEqual(classify(d, self.CFG), REDACT)
+
+    # ...but the SAME email in the agent-authored doc body still hard-blocks.
+    def test_email_in_doc_body_still_blocks(self):
+        d = det("EMAIL_ADDRESS", start=0, end=20, unit_kind=UNIT_DOC_BODY)
+        self.assertEqual(classify(d, self.CFG), BLOCK)
+
+    # ...and an email in a genuinely sensitive context (leaked dataset) blocks
+    # even in evidence.
+    def test_email_in_evidence_with_sensitive_marker_blocks(self):
+        d = det("EMAIL_ADDRESS", start=0, end=20, unit_kind=UNIT_EVIDENCE,
+                context_marker="leaked", field="source_registry.sources[S5].excerpt")
+        self.assertEqual(classify(d, self.CFG), BLOCK)
+
+    # (2) Patent published_at + inventor name do NOT escalate from credential
+    # words in a DIFFERENT field — context is field-scoped, so a metadata-unit
+    # detection carries no marker from a sibling excerpt.
+    def test_metadata_person_without_in_unit_marker_redacts(self):
+        d = det("PERSON", start=0, end=12, unit_kind=UNIT_PUBLIC_METADATA,
+                context_marker="", field="source_registry.sources[S7].authors[0]")
+        self.assertEqual(classify(d, self.CFG), REDACT)
+        d2 = det("DATE_TIME", start=0, end=10, unit_kind=UNIT_PUBLIC_METADATA,
+                 context_marker="", field="source_registry.sources[S7].published_at")
+        self.assertEqual(classify(d2, self.CFG), REDACT)
+
+    # (3) A year (DATE_TIME) in agent prose that also mentions "bearer token"
+    # must NOT escalate to needs_review — dates are inherently low-risk.
+    def test_date_near_credential_word_in_prose_does_not_escalate(self):
+        cfg = {**self.CFG, "never_escalate": ["DATE_TIME", "AGE", "URL"]}
+        d = det("DATE_TIME", start=0, end=4, unit_kind=UNIT_DOC_BODY,
+                context_marker="bearer ")   # marker present in-unit, but date is low-risk
+        self.assertEqual(classify(d, cfg), REDACT)
+
+    # ...whereas a PERSON in the same sensitive context DOES still escalate.
+    def test_person_near_credential_word_still_escalates(self):
+        cfg = {**self.CFG, "never_escalate": ["DATE_TIME", "AGE", "URL"]}
+        d = det("PERSON", start=0, end=12, unit_kind=UNIT_DOC_BODY, context_marker="leaked")
+        self.assertEqual(classify(d, cfg), NEEDS_REVIEW)
+
+    # Secrets still block everywhere, including public-metadata units.
+    def test_secret_blocks_in_any_unit_kind(self):
+        for kind in (UNIT_DOC_BODY, UNIT_EVIDENCE, UNIT_PUBLIC_METADATA, UNIT_LOCATOR):
+            d = det("ORACLE_SECRET", start=0, end=40, unit_kind=kind)
+            self.assertEqual(classify(d, self.CFG), BLOCK, f"should block in {kind}")
+
+    # (public_contact_metadata_redacted count is surfaced for audit honesty)
+    def test_report_counts_public_contact_redactions(self):
+        r = build_report(
+            okr_id="X", run_id="WHY-1", phase="why", inputs=[],
+            model={}, thresholds={}, config=self.CFG,
+            detections=[
+                det("EMAIL_ADDRESS", start=0, end=20, unit_kind=UNIT_EVIDENCE,
+                    field="source_registry.sources[S19].excerpt"),       # redact (public contact)
+                det("PERSON", start=30, end=40, unit_kind=UNIT_PUBLIC_METADATA,
+                    field="source_registry.sources[S7].authors[0]"),     # redact (not contact)
+            ],
+        )
+        self.assertEqual(r["counts"]["public_contact_metadata_redacted"], 1)
+        self.assertEqual(r["counts"]["redacted"], 2)
+        self.assertEqual(r["verdict"], VERDICT_PASS)
+
+    # (4) HTML-entity-encoded URL is masked so generic PII recognizers don't trip.
+    def test_html_encoded_url_is_masked(self):
+        text = "see https:&#x2F;&#x2F;news.ycombinator.com&#x2F;item?id=123 for more"
+        masked = mask_urls_for_pii(text)
+        self.assertNotIn("ycombinator", masked)        # host blanked
+        self.assertIn("see ", masked)                   # surrounding text intact
+        self.assertEqual(len(masked), len(text))         # offsets preserved
+
+    # An encoded URL carrying a secret query param still blocks.
+    def test_encoded_url_secret_still_blocks(self):
+        text = "ref https:&#x2F;&#x2F;x.test&#x2F;a?token=ghp_" + "a" * 36
+        hits = detect_url_secrets(text, 0, "source-registry.json", [])
+        self.assertTrue(any(h.entity_type == "ORACLE_SECRET" for h in hits))
+
+
+class TestRegistryUnitExtraction(unittest.TestCase):
+    """The registry is parsed into typed field-scoped units, not one text blob."""
+
+    REG = json.dumps({
+        "schema_version": "x", "sources": [
+            {"source_id": "S1", "excerpt": "a recommendation systems overview snippet",
+             "title": "Movie Rec API", "authors": ["Jane Doe", "John Roe"],
+             "published_at": "2026-05-01", "url": "https://example.com/x",
+             "queries": "agent generated query string here"},
+        ]
+    })
+
+    def test_typed_units_with_field_paths(self):
+        units = extract_registry_units(self.REG, {})
+        by_field = {u.field: u for u in units}
+        self.assertEqual(by_field["source_registry.sources[S1].excerpt"].kind, UNIT_EVIDENCE)
+        self.assertEqual(by_field["source_registry.sources[S1].title"].kind, UNIT_EVIDENCE)
+        self.assertEqual(by_field["source_registry.sources[S1].authors[0]"].kind, UNIT_PUBLIC_METADATA)
+        self.assertEqual(by_field["source_registry.sources[S1].published_at"].kind, UNIT_PUBLIC_METADATA)
+        self.assertEqual(by_field["source_registry.sources[S1].url"].kind, UNIT_LOCATOR)
+
+    def test_each_field_is_its_own_unit(self):
+        # No unit's text spans two fields — the basis for field-scoped context.
+        units = extract_registry_units(self.REG, {})
+        self.assertIn("a recommendation systems overview snippet",
+                      [u.text for u in units])
+        self.assertNotIn(True, [("\n" in u.text and "excerpt" in u.text) for u in units])
+
+    def test_unparseable_registry_falls_back_to_one_unit(self):
+        units = extract_registry_units("not json at all", {})
+        self.assertEqual(len(units), 1)
+        self.assertEqual(units[0].kind, UNIT_EVIDENCE)
 
 
 if __name__ == "__main__":

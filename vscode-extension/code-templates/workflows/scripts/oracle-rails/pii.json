@@ -10,23 +10,27 @@
     "US_PASSPORT": 6,
     "US_BANK_NUMBER": 6
   },
-  "_note": "Tiered PII policy for a public-figure research domain. PERSON / public ORG / public LOCATION are legitimate content (redact + record); contact/identity/secret PII hard-fails; an allowed entity in a sensitive context escalates to needs_review. A mesh operator may override this file at .caterpillar/guardrails/oracle/pii.json; the workflow prefers that path when present. config_sha256 in the rail report pins whichever config ran.",
+  "_note": "PROVENANCE-AWARE tiered PII policy for a public-figure research domain. Disposition depends on (entity, scan-unit): the agent-authored research doc is strict; a retrieved source registry is parsed into typed field-scoped units (excerpt/title=evidence, authors/dates=public_metadata, url=locator) so policy can treat public-source-contact boilerplate differently from the agent's own claims, and so a sensitive word in one field cannot escalate an entity in another. A mesh operator may override this file at .caterpillar/guardrails/oracle/pii.json; config_sha256 in the report pins whichever ran.",
+  "_block_everywhere_note": "Confirmed-dangerous classes that hard-fail in EVERY unit kind — a leaked credential / SSN / bank id / IP is never public boilerplate.",
+  "block_everywhere": [
+    "US_SSN",
+    "CREDIT_CARD",
+    "CRYPTO",
+    "IBAN_CODE",
+    "US_BANK_NUMBER",
+    "US_ITIN",
+    "US_PASSPORT",
+    "US_DRIVER_LICENSE",
+    "MEDICAL_LICENSE",
+    "IP_ADDRESS",
+    "ORACLE_SECRET"
+  ],
+  "_contact_pii_note": "Email / phone: hard-block in the agent's doc body or a sensitive context (leaked dataset, auth log); REDACT + record in a retrieved source's evidence/metadata, where they are public-contact boilerplate (journal footers, author contacts). Counted as public_contact_metadata_redacted for audit honesty.",
+  "contact_pii": [
+    "EMAIL_ADDRESS",
+    "PHONE_NUMBER"
+  ],
   "tiers": {
-    "block": [
-      "US_SSN",
-      "CREDIT_CARD",
-      "CRYPTO",
-      "IBAN_CODE",
-      "US_BANK_NUMBER",
-      "US_ITIN",
-      "US_PASSPORT",
-      "US_DRIVER_LICENSE",
-      "MEDICAL_LICENSE",
-      "EMAIL_ADDRESS",
-      "PHONE_NUMBER",
-      "IP_ADDRESS",
-      "ORACLE_SECRET"
-    ],
     "allow_redact": [
       "PERSON",
       "LOCATION",
@@ -37,6 +41,12 @@
       "AGE"
     ]
   },
+  "_never_escalate_note": "Inherently low-risk allow-redact classes that never escalate to needs_review on a nearby sensitive marker — a year (DATE_TIME) in prose that happens to discuss 'bearer tokens' is not itself sensitive. PERSON / ORGANIZATION / LOCATION still escalate in a sensitive context.",
+  "never_escalate": [
+    "DATE_TIME",
+    "AGE",
+    "URL"
+  ],
   "sensitive_context_markers": [
     "audit/keys",
     ".env",

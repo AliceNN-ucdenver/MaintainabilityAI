@@ -86,11 +86,41 @@ CANDIDATE_PATTERNS = [
 # Entity emitted for CANDIDATE_PATTERNS — deliberately NOT in any block tier.
 SECRET_CANDIDATE = "ORACLE_SECRET_CANDIDATE"
 
+# Scan-unit kinds — WHERE the text came from. Policy is provenance-aware: the
+# same entity (e.g. EMAIL_ADDRESS) is treated differently in agent-authored doc
+# body vs. public source-contact metadata in the registry.
+UNIT_DOC_BODY = "doc_body"            # agent-authored research doc — strict
+UNIT_EVIDENCE = "evidence"            # retrieved snippet/excerpt/title — evidence policy
+UNIT_PUBLIC_METADATA = "public_metadata"  # authors/dates/published_at — public metadata policy
+UNIT_LOCATOR = "locator"              # url/canonical_url — URL/locator policy
+UNIT_AGENT_METADATA = "agent_metadata"    # agent-generated query strings — low-signal
+
+# Entity classes that are dangerous REGARDLESS of where they appear — these
+# hard-block in every unit kind (a leaked credential / bank id / SSN is never
+# "public boilerplate").
+_BLOCK_EVERYWHERE = {
+    "US_SSN", "CREDIT_CARD", "CRYPTO", "IBAN_CODE", "US_BANK_NUMBER",
+    "US_ITIN", "US_PASSPORT", "US_DRIVER_LICENSE", "MEDICAL_LICENSE",
+    "IP_ADDRESS", "ORACLE_SECRET",
+}
+# Contact PII that hard-blocks in the agent's OWN doc + sensitive contexts, but
+# is public-contact boilerplate (redact + record) in a retrieved source's
+# evidence/metadata — the IJFMR-journal-footer-email case.
+_CONTACT_PII = {"EMAIL_ADDRESS", "PHONE_NUMBER"}
+
 # Generic PII recognizers are noisy on source URLs (e.g. medium.com/@author
 # looks like EMAIL_ADDRESS, US patent ids look like government identifiers).
 # Preserve offsets by replacing URL characters with spaces before Presidio runs,
 # then run a narrow URL-secret pass over the original bytes.
 URL_RE = re.compile(r"https?://[^\s\"'<>)\]]+")
+
+# HTML-entity-encoded URLs (HN/Tavily snippets often encode slashes/colons as
+# &#x2F; / &#47; / &amp;): mask them like raw URLs so generic PII recognizers
+# don't trip on the encoded host/path, while URL-secret detection still applies.
+ENCODED_URL_RE = re.compile(
+    r"https?(?:&#x3[aA];|&#58;|:)(?:&#x2[fF];|&#47;|/){2}"      # scheme + ://
+    r"(?:&#x2[fF];|&#47;|&#x3[aA];|&#58;|&amp;|[^\s\"'<>)\]])+",  # host/path (encoded or literal)
+)
 
 # Benign identifier shapes the high-entropy candidate must NOT flag as a secret.
 _BENIGN_ID_PATTERNS = [
@@ -117,7 +147,13 @@ def is_benign_identifier(token: str) -> bool:
 class Detection:
     """One PII hit. `context_marker` is the sensitive-context signal that
     surrounds the hit (set by the caller from the line/window/path), or ''.
-    The raw matched value is intentionally NOT carried here — only the span."""
+    The raw matched value is intentionally NOT carried here — only the span.
+
+    `unit_kind` records WHERE the text came from so policy can be provenance-
+    aware (e.g. a public-contact email in a source excerpt is redact-and-record,
+    while the same email in the agent-authored doc body hard-blocks). `field` is
+    the safe field path for the report (e.g. `source_registry.sources[S19].excerpt`).
+    """
     entity_type: str
     score: float
     start: int
@@ -128,6 +164,8 @@ class Detection:
     line: int = 0
     col: int = 0
     shape: str = ""  # safe structural fingerprint (no raw value) — see token_shape()
+    unit_kind: str = "doc_body"  # doc_body | evidence | public_metadata | locator | agent_metadata
+    field: str = ""              # safe field path, no raw value
 
 
 def token_shape(text: str, start: int, end: int) -> str:
@@ -157,13 +195,15 @@ def mask_urls_for_pii(text: str) -> str:
 
     This prevents generic PII recognizers from treating source locators as PII
     while keeping line/column math stable for all non-URL detections. Real
-    URL-embedded secrets are handled by `detect_url_secrets` below.
+    URL-embedded secrets are handled by `detect_url_secrets` below. Both raw
+    (`https://…`) and HTML-entity-encoded (`https:&#x2F;&#x2F;…`) URLs are masked.
     """
     chars = list(text)
-    for m in URL_RE.finditer(text):
-        for i in range(m.start(), m.end()):
-            if chars[i] not in "\r\n":
-                chars[i] = " "
+    for rgx in (URL_RE, ENCODED_URL_RE):
+        for m in rgx.finditer(text):
+            for i in range(m.start(), m.end()):
+                if chars[i] not in "\r\n":
+                    chars[i] = " "
     return "".join(chars)
 
 
@@ -174,29 +214,39 @@ def detect_url_secrets(text: str, input_index: int, path: str, markers: list[str
     `...?api_key=...` or `...?token=...` is still a hard-blocking credential leak.
     """
     detections: list[Detection] = []
-    for url in URL_RE.finditer(text):
-        url_text = url.group(0)
-        for _name, rgx, score in SECRET_PATTERNS:
-            for hit in re.finditer(rgx, url_text):
-                start = url.start() + hit.start()
-                end = url.start() + hit.end()
-                detections.append(Detection(
-                    entity_type="ORACLE_SECRET",
-                    score=float(score),
-                    start=start,
-                    end=end,
-                    input_index=input_index,
-                    context_marker=_context_marker(text, start, end, path, markers),
-                    input_path=path,
-                    line=text.count("\n", 0, start) + 1,
-                    col=start - text.rfind("\n", 0, start),
-                    shape=token_shape(text, start, end),
-                ))
+    seen: set[tuple[int, int]] = set()
+    for url_rgx in (URL_RE, ENCODED_URL_RE):
+        for url in url_rgx.finditer(text):
+            url_text = url.group(0)
+            for _name, rgx, score in SECRET_PATTERNS:
+                for hit in re.finditer(rgx, url_text):
+                    start = url.start() + hit.start()
+                    end = url.start() + hit.end()
+                    if (start, end) in seen:  # raw + encoded regexes can overlap
+                        continue
+                    seen.add((start, end))
+                    detections.append(Detection(
+                        entity_type="ORACLE_SECRET",
+                        score=float(score),
+                        start=start,
+                        end=end,
+                        input_index=input_index,
+                        context_marker=_context_marker(text, start, end, path, markers),
+                        input_path=path,
+                        line=text.count("\n", 0, start) + 1,
+                        col=start - text.rfind("\n", 0, start),
+                        shape=token_shape(text, start, end),
+                        unit_kind=UNIT_LOCATOR,
+                        field="locator",
+                    ))
     return detections
 
 
 def classify(det: Detection, config: dict) -> str:
-    """Map one detection to a disposition under the tiered policy. Pure."""
+    """Map one detection to a disposition under the PROVENANCE-AWARE tiered
+    policy. Pure. Disposition depends on (entity_type, unit_kind): the same
+    entity is dangerous in the agent-authored doc body but public-contact
+    boilerplate in a retrieved source's evidence/metadata."""
     if det.score < float(config.get("score_threshold", 0.5)):
         return IGNORE
     # Per-entity minimum match length — drops short-token false positives from
@@ -206,19 +256,42 @@ def classify(det: Detection, config: dict) -> str:
     floor = int(config.get("min_chars", {}).get(det.entity_type, 0))
     if floor and (det.end - det.start) < floor:
         return IGNORE
+
+    block_everywhere = set(config.get("block_everywhere", sorted(_BLOCK_EVERYWHERE)))
+    contact_pii = set(config.get("contact_pii", sorted(_CONTACT_PII)))
+    allow_redact = set(config.get("tiers", {}).get("allow_redact", []))
+    # Where strict (doc-body) policy applies: the agent's own artifact, plus any
+    # unit sitting in a genuinely sensitive context (leaked dataset, auth log).
+    strict = (det.unit_kind == UNIT_DOC_BODY) or bool(det.context_marker)
+
     # A high-entropy candidate is NOT a confirmed secret: it only escalates to
-    # needs_review inside a sensitive context (auth keys, leaked dataset, etc.);
-    # otherwise it is a benign long identifier and is ignored. NEVER hard-blocked.
+    # needs_review inside a sensitive context; otherwise ignored. NEVER blocked.
     if det.entity_type == SECRET_CANDIDATE:
         return NEEDS_REVIEW if det.context_marker else IGNORE
-    tiers = config.get("tiers", {})
-    if det.entity_type in set(tiers.get("block", [])):
+
+    # Confirmed-dangerous classes (secrets, SSN, card, bank, gov-IDs, IP): block
+    # regardless of provenance — these are never "public boilerplate".
+    if det.entity_type in block_everywhere:
         return BLOCK
-    if det.entity_type in set(tiers.get("allow_redact", [])):
-        # Context escalation: an allowed entity in a sensitive context
-        # (auth log, audit keys, leaked dataset, unrelated registry snippet)
-        # is no longer obviously legitimate → human review.
+
+    # Contact PII (email / phone): hard-block in the agent's doc body or a
+    # sensitive context; in a retrieved source's evidence/metadata it is public
+    # contact boilerplate → redact + record (the journal-footer-email case).
+    if det.entity_type in contact_pii:
+        return BLOCK if strict else REDACT
+
+    # Remaining allow-redact classes (PERSON / ORG / LOCATION / DATE_TIME / URL /
+    # AGE / NRP): redact + record; escalate to needs_review only when a sensitive
+    # marker is present IN THE SAME UNIT (field-scoped, so unrelated fields in a
+    # JSON object can't contaminate each other). Inherently low-risk classes
+    # (dates, ages, URLs) never escalate on context alone — a year appearing in
+    # prose that also discusses "bearer tokens" is not itself sensitive.
+    if det.entity_type in allow_redact:
+        never_escalate = set(config.get("never_escalate", ["DATE_TIME", "AGE", "URL"]))
+        if det.entity_type in never_escalate:
+            return REDACT
         return NEEDS_REVIEW if det.context_marker else REDACT
+
     # Unknown entity type above threshold → conservative review, never silent-allow.
     return NEEDS_REVIEW
 
@@ -232,7 +305,11 @@ def compute_verdict(dispositions: list[str]) -> str:
 
 
 def _safe_ref(det: Detection) -> str:
-    """A location locator with NO raw value — `input#start-end`."""
+    """A location locator with NO raw value. Offsets are unit-local now, so the
+    field path is part of the ref to keep it unique across fields of the same
+    source — `input#field#start-end` (field omitted for whole-doc scans)."""
+    if det.field and det.field != "doc_body":
+        return f"{det.input_index}:{det.field}:{det.start}-{det.end}"
     return f"{det.input_index}:{det.start}-{det.end}"
 
 
@@ -245,8 +322,11 @@ def _finding_row(det: Detection, disposition: str) -> dict:
         "line": det.line,
         "col": det.col,
         "shape": det.shape,
+        "unit_kind": det.unit_kind,
         "ref": _safe_ref(det),
     }
+    if det.field:
+        row["field"] = det.field
     if det.context_marker:
         row["context_marker"] = det.context_marker
     return row
@@ -277,6 +357,15 @@ def build_report(*, okr_id: str, run_id: str, phase: str, inputs: list[dict],
     allowed_type_counts: dict[str, int] = {}
     for r in by_disp[REDACT]:
         allowed_type_counts[r["type"]] = allowed_type_counts.get(r["type"], 0) + 1
+    # Audit honesty: surface how many redactions were public-contact boilerplate
+    # (email/phone in a retrieved source's evidence/metadata, NOT in the agent's
+    # doc body). These would have hard-blocked under the old whole-blob policy;
+    # naming the count makes the provenance-aware allowance auditable.
+    contact_pii = set(_CONTACT_PII)
+    public_contact_redacted = sum(
+        1 for r in by_disp[REDACT]
+        if r["type"] in contact_pii and r.get("unit_kind") not in (UNIT_DOC_BODY, None)
+    )
 
     return {
         "schema_version": SCHEMA_VERSION,
@@ -294,6 +383,7 @@ def build_report(*, okr_id: str, run_id: str, phase: str, inputs: list[dict],
             "blocked": len(by_disp[BLOCK]),
             "needs_review": len(by_disp[NEEDS_REVIEW]),
             "redacted": len(by_disp[REDACT]),
+            "public_contact_metadata_redacted": public_contact_redacted,
         },
         "blocked_entities": by_disp[BLOCK],
         "needs_review_entities": by_disp[NEEDS_REVIEW],
@@ -411,8 +501,108 @@ def _context_marker(text: str, start: int, end: int, path: str, markers: list[st
     return ""
 
 
+# Source-registry field → scan-unit kind. A field absent from this map is
+# scanned as evidence (conservative default — a new text field gets the same
+# treatment as an excerpt, not silently ignored).
+_REGISTRY_FIELD_KIND = {
+    "excerpt": UNIT_EVIDENCE, "title": UNIT_EVIDENCE, "abstract": UNIT_EVIDENCE,
+    "snippet": UNIT_EVIDENCE, "content": UNIT_EVIDENCE,
+    "authors": UNIT_PUBLIC_METADATA, "published_at": UNIT_PUBLIC_METADATA,
+    "retrieved_at": UNIT_PUBLIC_METADATA, "provider": UNIT_PUBLIC_METADATA,
+    "salience_score": UNIT_PUBLIC_METADATA,
+    "url": UNIT_LOCATOR, "canonical_url": UNIT_LOCATOR,
+    "queries": UNIT_AGENT_METADATA,
+}
+
+
+def _looks_like_source_registry(text: str) -> bool:
+    """The Hatter source registry shape — a JSON object with a `sources` array."""
+    return text.lstrip().startswith("{") and '"sources"' in text
+
+
+@dataclass(frozen=True)
+class ScanUnit:
+    """One field-scoped piece of text to run Presidio over independently, so a
+    sensitive marker in one field can't escalate an entity in another. `text` is
+    the unit's own bytes; `kind`/`field` flow into every Detection it produces."""
+    text: str
+    kind: str
+    field: str
+
+
+def extract_registry_units(text: str, config: dict) -> list[ScanUnit]:
+    """Parse a source registry into typed, field-scoped scan units. Each string
+    field of each source becomes its own unit with a provenance kind + a safe
+    field path (`source_registry.sources[S19].excerpt`). Non-string fields and
+    empties are skipped. Pure + deterministic so replay reproduces the unit set.
+
+    Falls back to a single whole-text evidence unit if the JSON can't be parsed
+    (fail-safe: still scan it, just without field scoping)."""
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        return [ScanUnit(text=text, kind=UNIT_EVIDENCE, field="source_registry")]
+    units: list[ScanUnit] = []
+
+    def _emit(value: Any, kind: str, field_path: str) -> None:
+        if isinstance(value, str) and value.strip():
+            units.append(ScanUnit(text=value, kind=kind, field=field_path))
+        elif isinstance(value, list):
+            for i, item in enumerate(value):
+                _emit(item, kind, f"{field_path}[{i}]")
+
+    for src in data.get("sources", []) or []:
+        sid = str(src.get("source_id") or src.get("id") or "?")
+        for key, value in src.items():
+            if key in ("source_id", "id"):
+                continue
+            kind = _REGISTRY_FIELD_KIND.get(key, UNIT_EVIDENCE)
+            _emit(value, kind, f"source_registry.sources[{sid}].{key}")
+    return units
+
+
+def _scan_text(analyzer, unit_text: str, kind: str, field_path: str, *,
+               idx: int, path: str, threshold: float, markers: list[str],
+               lang: str) -> list[Detection]:
+    """Run Presidio over ONE unit's text (offsets are unit-local — the report's
+    `field` carries provenance, and ref is unit-relative). URL spans are masked
+    first; URL secrets are detected separately over the raw unit bytes."""
+    pii_text = mask_urls_for_pii(unit_text)
+    out: list[Detection] = []
+    # URL secrets are dangerous regardless of unit kind; tag them with this unit.
+    for d in detect_url_secrets(unit_text, idx, path, markers):
+        out.append(Detection(
+            entity_type=d.entity_type, score=d.score, start=d.start, end=d.end,
+            input_index=idx, context_marker=d.context_marker, input_path=path,
+            line=d.line, col=d.col, shape=d.shape, unit_kind=kind, field=field_path,
+        ))
+    for r in analyzer.analyze(text=pii_text, language=lang, score_threshold=threshold):
+        if r.entity_type == SECRET_CANDIDATE and is_benign_identifier(pii_text[int(r.start):int(r.end)]):
+            continue
+        out.append(Detection(
+            entity_type=r.entity_type,
+            score=float(r.score),
+            start=int(r.start),
+            end=int(r.end),
+            input_index=idx,
+            # Field-scoped context: the marker window is THIS unit's text only,
+            # so a credential word in one field can't escalate another field.
+            context_marker=_context_marker(pii_text, r.start, r.end, path, markers),
+            input_path=path,
+            line=pii_text.count("\n", 0, int(r.start)) + 1,
+            col=int(r.start) - pii_text.rfind("\n", 0, int(r.start)),
+            shape=token_shape(pii_text, int(r.start), int(r.end)),
+            unit_kind=kind,
+            field=field_path,
+        ))
+    return out
+
+
 def analyze_inputs(input_paths: list[str], config: dict) -> tuple[list[Detection], dict]:
-    """Run Presidio over each input file. Returns (detections, model_meta).
+    """Run Presidio field-aware over each input. Returns (detections, model_meta).
+    The agent-authored research doc is scanned whole-text under strict doc_body
+    policy; a source registry is parsed into typed field-scoped units so policy
+    can be provenance-aware and context windows can't cross field boundaries.
     Raises RailNotInvocable if the model can't load."""
     analyzer = _load_analyzer(config)
     model = _model_meta(analyzer, config)
@@ -423,25 +613,17 @@ def analyze_inputs(input_paths: list[str], config: dict) -> tuple[list[Detection
     for idx, path in enumerate(input_paths):
         with open(path, "r", encoding="utf-8", errors="replace") as fh:
             text = fh.read()
-        pii_text = mask_urls_for_pii(text)
-        results = analyzer.analyze(text=pii_text, language=lang, score_threshold=threshold)
-        detections.extend(detect_url_secrets(text, idx, path, markers))
-        for r in results:
-            # Drop high-entropy candidates that are actually benign governance /
-            # source identifiers (OKR-/WHY- ids, UUIDs, SHAs, arXiv/DOI, slugs).
-            if r.entity_type == SECRET_CANDIDATE and is_benign_identifier(pii_text[int(r.start):int(r.end)]):
-                continue
-            detections.append(Detection(
-                entity_type=r.entity_type,
-                score=float(r.score),
-                start=int(r.start),
-                end=int(r.end),
-                input_index=idx,
-                context_marker=_context_marker(pii_text, r.start, r.end, path, markers),
-                input_path=path,
-                line=pii_text.count("\n", 0, int(r.start)) + 1,
-                col=int(r.start) - pii_text.rfind("\n", 0, int(r.start)),
-                shape=token_shape(pii_text, int(r.start), int(r.end)),
+        if _looks_like_source_registry(text):
+            for unit in extract_registry_units(text, config):
+                detections.extend(_scan_text(
+                    analyzer, unit.text, unit.kind, unit.field,
+                    idx=idx, path=path, threshold=threshold, markers=markers, lang=lang,
+                ))
+        else:
+            # Agent-authored doc (research-doc.md) — strict whole-text policy.
+            detections.extend(_scan_text(
+                analyzer, text, UNIT_DOC_BODY, "doc_body",
+                idx=idx, path=path, threshold=threshold, markers=markers, lang=lang,
             ))
     return detections, model
 
