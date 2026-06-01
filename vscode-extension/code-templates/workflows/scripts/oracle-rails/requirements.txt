@@ -40,3 +40,11 @@ torch==2.5.1
 # workflow caches that directory so a re-run is offline; the FIRST run on a cold
 # cache downloads the model. The model may require HF authentication (gated Meta
 # repo) — verify access before promoting the rail to a required CI gate.
+
+# ── Phase 4 — groundedness rail (groundedness.py): NLI cross-encoder ──
+# Reuses the transformers + torch pins above. The chosen model
+# (MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli) is a DeBERTa-v3 SentencePiece
+# tokenizer, which transformers loads via the `tiktoken`-free sentencepiece /
+# protobuf path — both required for the fast+slow tokenizer to construct.
+sentencepiece==0.2.0
+protobuf==5.28.3

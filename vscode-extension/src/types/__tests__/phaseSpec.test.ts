@@ -1105,6 +1105,9 @@ describe('Oracle & Privacy Rails — PII rail helpers in the deploy set (redeplo
       // absent on the default branch ⇒ the rail cannot run ⇒ must be deployed.
       '.github/workflows/scripts/oracle-rails/inject_check.py',
       '.github/workflows/scripts/oracle-rails/injection.json',
+      // Phase 4 — groundedness rail (NLI cross-encoder). Same contract.
+      '.github/workflows/scripts/oracle-rails/groundedness.py',
+      '.github/workflows/scripts/oracle-rails/groundedness.json',
     ];
     for (const rp of required) {
       expect(paths, `${rp} missing from MESH_WORKFLOWS — redeploy would skip it`).toContain(rp);

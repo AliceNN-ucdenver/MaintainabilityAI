@@ -86,8 +86,9 @@ jobs:
             # operator override (.caterpillar/guardrails/oracle/<rail>.json) wins.
             RAIL=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('rail',''))" "$REPORT")
             case "$RAIL" in
-              pii)       SCRIPT="oracle_rail.py";  CONF="pii.json" ;;
-              injection) SCRIPT="inject_check.py"; CONF="injection.json" ;;
+              pii)          SCRIPT="oracle_rail.py";  CONF="pii.json" ;;
+              injection)    SCRIPT="inject_check.py"; CONF="injection.json" ;;
+              groundedness) SCRIPT="groundedness.py"; CONF="groundedness.json" ;;
               *)
                 echo "::warning::$REPORT has unknown rail '$RAIL' — cannot replay"
                 printf '%s\n' '{"invoked":true,"ok":false,"reason":"rail-replay-unknown-rail"}' > "${REPORT%.rail-report.json}.replay-verdict.json"

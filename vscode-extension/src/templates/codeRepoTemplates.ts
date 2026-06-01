@@ -551,6 +551,18 @@ export function generateOracleInjectionConfig(extensionPath: string): string {
 export function generateOracleInjectionCertWorkflow(extensionPath: string): string {
   return readScaffoldFile(extensionPath, 'workflows', 'oracle-injection-cert.yml');
 }
+/**
+ * Oracle & Privacy Rails (Phase 4) — GROUNDEDNESS rail (NLI cross-encoder).
+ * Same fail-closed / replay-verified contract as the PII + injection rails:
+ * fetched from the default branch by the PR gate + WHY finalize, replayed by
+ * oracle-rails-replay.yml. Ships advisory first. Read verbatim.
+ */
+export function generateOracleGroundednessScript(extensionPath: string): string {
+  return readScaffoldFile(extensionPath, 'workflows', 'scripts', 'oracle-rails', 'groundedness.py');
+}
+export function generateOracleGroundednessConfig(extensionPath: string): string {
+  return readScaffoldFile(extensionPath, 'workflows', 'scripts', 'oracle-rails', 'groundedness.json');
+}
 
 /**
  * Canonical list of every workflow Looking Glass writes into the mesh repo's
@@ -612,6 +624,12 @@ export const MESH_WORKFLOWS: MeshWorkflowSpec[] = [
   { relativePath: '.github/workflows/scripts/oracle-rails/injection.json',      generate: generateOracleInjectionConfig },
   // Cert (5b) — manual dispatch only; runs the deployed rail over fixtures.
   { relativePath: '.github/workflows/oracle-injection-cert.yml',                generate: generateOracleInjectionCertWorkflow },
+
+  // ── Oracle & Privacy Rails (Phase 4) — groundedness rail (NLI) ─────────
+  // Same fail-closed / replay contract; shares requirements.txt (transformers +
+  // torch + sentencepiece). Ships advisory until the cert pins the NLI model.
+  { relativePath: '.github/workflows/scripts/oracle-rails/groundedness.py',     generate: generateOracleGroundednessScript },
+  { relativePath: '.github/workflows/scripts/oracle-rails/groundedness.json',   generate: generateOracleGroundednessConfig },
 
   // No transitional workflows remain. WHY + HOW + WHAT are owned end-
   // to-end by per-agent workflows above. The prior bus / state-machine

@@ -1,0 +1,18 @@
+{
+  "schema_version": "oracle-groundedness-config.v1",
+  "_note": "Groundedness rail (Hatter-side evidence boundary, Phase 4). PAIRING rail: reads the WHY research-doc's Formal Conclusions (C<n> hypotheses) and pairs each against the registry excerpt text of the S-tags it cites (premises), running a local NLI cross-encoder (entailment / neutral / contradiction). A claim is scored by the BEST entailment across its cited sources (max-pool) so legitimate cross-source synthesis is not punished. A mesh operator may override this file at .caterpillar/guardrails/oracle/groundedness.json; the workflow prefers that path when present. config_sha256 in the rail report pins whichever config ran.",
+  "model_family": "nli-cross-encoder",
+  "model_id": "MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli",
+  "_model_revision_note": "Pin to a HF COMMIT SHA so replay retrieves the EXACT same weights, not 'latest compatible'. Resolved + recorded at the cert run (read resolved_revision from the rail report, then set it here). Until then model_revision is null AND require_pinned_revision is false → the rail is ADVISORY: it runs + records but the WHY gate does not hard-fail on it. To PROMOTE contradiction-blocking: set model_revision to the SHA AND require_pinned_revision to true in the same change.",
+  "model_revision": null,
+  "_require_pinned_note": "true → groundedness.py refuses to run on an unpinned tag (replay determinism). false → advisory-only. Phase 4 ships advisory first; promote after the cert corpus tunes thresholds.",
+  "require_pinned_revision": false,
+  "_policy_note": "TIERED (DECIDED 2026-06-01). contradiction (a cited source REFUTES the claim) is the serious signal; unsupported (no entailment, no contradiction) is review, not fail, because the source may be silent/narrow or the conclusion legitimately synthesizes across sources. entailment by >=1 cited source passes.",
+  "entail_threshold": 0.6,
+  "contra_threshold": 0.6,
+  "block_on_contradiction": false,
+  "block_on_neutral": false,
+  "neutral_disposition": "needs_review",
+  "_premise_fields_note": "Registry field(s) that carry the snippet/premise text the model reads, in preference order. The Hatter source registry uses `excerpt`.",
+  "premise_fields": ["excerpt", "snippet", "content", "abstract"]
+}

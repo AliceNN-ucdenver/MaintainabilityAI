@@ -2103,7 +2103,11 @@ interface ParsedRailReport {
   okr_id?: string; run_id?: string; phase?: string; config_sha256?: string;
   verdict?: string; policy?: string;
   inputs?: Array<{ path: string; sha256: string }>;
-  counts?: { blocked?: number; needs_review?: number; redacted?: number };
+  counts?: {
+    blocked?: number; needs_review?: number; redacted?: number; scanned?: number;
+    // Phase 4 groundedness counts (pairing rail).
+    contradicted?: number; unsupported?: number; entailed?: number; claims?: number;
+  };
   allowed_entities?: Array<{ type: string; count: number }>;
 }
 
@@ -2311,9 +2315,21 @@ export function renderOracleRailsSubsection(
   lines.push(`- verdict: ${r.verdict ?? '—'}`);
   lines.push(`- policy: ${r.policy ?? '—'}`);
   lines.push(`- rail: ${ev.rail}`);
-  lines.push(`- blocked: ${r.counts?.blocked ?? 0}`);
-  lines.push(`- needs_review: ${r.counts?.needs_review ?? 0}`);
-  lines.push(`- redacted classes: ${(r.allowed_entities ?? []).map(e => e.type).join(', ') || 'none'}`);
+  // Rail-aware count lines — groundedness is a pairing rail with its own count
+  // shape (contradicted/unsupported/entailed); pii/injection keep theirs.
+  if (ev.rail === 'groundedness') {
+    lines.push(`- contradicted: ${r.counts?.contradicted ?? 0}`);
+    lines.push(`- unsupported: ${r.counts?.unsupported ?? 0}`);
+    lines.push(`- entailed: ${r.counts?.entailed ?? 0} of ${r.counts?.claims ?? 0} conclusions`);
+  } else {
+    lines.push(`- blocked: ${r.counts?.blocked ?? 0}`);
+    lines.push(`- needs_review: ${r.counts?.needs_review ?? 0}`);
+    if (ev.rail === 'pii') {
+      lines.push(`- redacted classes: ${(r.allowed_entities ?? []).map(e => e.type).join(', ') || 'none'}`);
+    } else {
+      lines.push(`- scanned: ${r.counts?.scanned ?? 0}`);
+    }
+  }
   return '\n\n' + lines.join('\n') + '\n';
 }
 

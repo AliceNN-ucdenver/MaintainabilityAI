@@ -1030,6 +1030,95 @@ jobs:
             echo "::error::Oracle injection rail could not run (exit $CODE) — fails closed; evidence cannot be certified injection-clean"
           fi
 
+      # ── Oracle & Privacy Rails — GROUNDEDNESS rail (Phase 4) ────────────────
+      # PAIRING rail: checks each Formal Conclusion (C<n>) is entailed by the
+      # registry excerpt of the S-tags it cites, with a local NLI cross-encoder.
+      # Contradiction = a cited source REFUTES the claim (serious); unsupported =
+      # neither entailed nor contradicted (needs_review, not fail — protects
+      # cross-source synthesis). Ships ADVISORY first (block_on_contradiction
+      # false until cert pins the model). Needs BOTH the research doc + registry.
+      - name: Oracle groundedness rail (gate)
+        id: grounded-rail
+        if: steps.gate.outputs.skip != 'true' && steps.structure.outputs.doc_found == 'true'
+        env:
+          OKR_ID: ${{ steps.ctx.outputs.okr_id }}
+          RUN_ID: ${{ steps.ctx.outputs.run_id }}
+          DOC_PATH: okrs/${{ steps.ctx.outputs.okr_id }}/why/research-doc.md
+          REGISTRY_PATH: okrs/${{ steps.ctx.outputs.okr_id }}/audit/sources/${{ steps.ctx.outputs.run_id }}.source-registry.json
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          set -uo pipefail
+          # Groundedness needs both the conclusions (doc) and the premises
+          # (registry). Without the registry there is nothing to ground against.
+          if [ ! -f "$DOC_PATH" ] || [ ! -f "$REGISTRY_PATH" ]; then
+            echo "::notice::Oracle groundedness rail: doc or source registry absent — nothing to ground"
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+            echo "reason=no doc/registry pair (nothing to ground)" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          DIR="$RUNNER_TEMP/oracle-rails"
+          mkdir -p "$DIR"
+          FETCH_OK=true
+          for f in groundedness.py groundedness.json requirements.txt; do
+            if ! gh api -H "Accept: application/vnd.github.raw" \
+              "repos/${{ github.repository }}/contents/.github/workflows/scripts/oracle-rails/$f?ref=${{ github.event.repository.default_branch }}" \
+              > "$DIR/$f"; then
+              FETCH_OK=false
+            fi
+          done
+          if [ "$FETCH_OK" != "true" ]; then
+            echo "::error::Oracle groundedness rail helpers not deployed on ${{ github.event.repository.default_branch }}. Redeploy mesh workflows from Looking Glass."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            echo "reason=groundedness rail helper scripts missing from mesh" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          python3 -m pip install --disable-pip-version-check -r "$DIR/requirements.txt"
+          CONFIG="$DIR/groundedness.json"
+          if gh api -H "Accept: application/vnd.github.raw" \
+            "repos/${{ github.repository }}/contents/.caterpillar/guardrails/oracle/groundedness.json?ref=${{ github.event.repository.default_branch }}" \
+            > "$DIR/groundedness.override.json" 2>/dev/null; then
+            CONFIG="$DIR/groundedness.override.json"
+            echo "::notice::Oracle groundedness rail using mesh config override"
+          else
+            echo "::notice::Oracle groundedness rail using bundled default config"
+          fi
+          # ADVISORY mode: a gate only when the model is pinned AND
+          # require_pinned_revision is true AND block_on_contradiction is true.
+          ADVISORY=$(python3 -c "import json,sys; c=json.load(open(sys.argv[1])); print('false' if (c.get('model_revision') and c.get('require_pinned_revision', True) and c.get('block_on_contradiction', True)) else 'true')" "$CONFIG" 2>/dev/null || echo "true")
+          echo "advisory=$ADVISORY" >> "$GITHUB_OUTPUT"
+          if [ "$ADVISORY" = "true" ]; then
+            echo "::notice::Oracle groundedness rail is ADVISORY — runs + records but does not hard-fail this PR. Pin model_revision + require_pinned_revision:true + block_on_contradiction:true to promote contradiction-blocking."
+          fi
+          set +e
+          OUT=$(python3 "$DIR/groundedness.py" run \
+            --config "$CONFIG" \
+            --report "$RUNNER_TEMP/oracle-groundedness.rail-report.json" \
+            --inputs "$DOC_PATH" "$REGISTRY_PATH" \
+            --okr-id "$OKR_ID" --run-id "$RUN_ID" --phase why 2>/tmp/grounded-err.txt)
+          CODE=$?
+          set -e
+          cat /tmp/grounded-err.txt || true
+          printf 'groundedness rail stdout: %s\n' "$OUT"
+          REPORT_FILE="$RUNNER_TEMP/oracle-groundedness.rail-report.json"
+          SUMMARY=$(python3 -c "import json,sys;r=json.load(open(sys.argv[1]));print('contradicted='+str(r.get('counts',{}).get('contradicted',0))+' unsupported='+str(r.get('counts',{}).get('unsupported',0))+' entailed='+str(r.get('counts',{}).get('entailed',0)))" "$REPORT_FILE" 2>/dev/null || echo "see workflow log")
+          if [ "$CODE" -eq 0 ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+            echo "reason=groundedness: $SUMMARY" >> "$GITHUB_OUTPUT"
+            echo "::notice::Oracle groundedness rail recorded ($SUMMARY)"
+          elif [ "$CODE" -eq 2 ]; then
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            echo "reason=conclusion contradicted by its cited source: $SUMMARY" >> "$GITHUB_OUTPUT"
+            echo "::error::Oracle groundedness rail BLOCKED — a conclusion is contradicted by a source it cites: $SUMMARY"
+          elif [ "$CODE" -eq 3 ]; then
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            echo "reason=unsupported conclusion (blocking per policy): $SUMMARY" >> "$GITHUB_OUTPUT"
+            echo "::error::Oracle groundedness rail NEEDS REVIEW (blocking per policy): $SUMMARY"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            echo "reason=rail-not-invoked (NLI model/config unloadable, exit $CODE)" >> "$GITHUB_OUTPUT"
+            echo "::error::Oracle groundedness rail could not run (exit $CODE) — fails closed; evidence cannot be certified grounded"
+          fi
+
       - name: Decide verdict
         id: verdict
         if: steps.gate.outputs.skip != 'true'
@@ -1252,6 +1341,21 @@ jobs:
               echo "::warning::Oracle injection rail (ADVISORY, not gating): ${INJECT_REASON:-failed}"
             else
               VERDICT="degraded"; REASON="Oracle injection rail: ${INJECT_REASON:-failed}"
+              EVIDENCE_FAIL="true"
+            fi
+          fi
+
+          # Oracle & Privacy Rails — GROUNDEDNESS rail (Phase 4). Same advisory-
+          # aware gate as injection: a non-pass degrades the verdict only when the
+          # rail is a required gate; advisory runs warn but do not block.
+          GROUNDED_OK='${{ steps.grounded-rail.outputs.ok }}'
+          GROUNDED_REASON='${{ steps.grounded-rail.outputs.reason }}'
+          GROUNDED_ADVISORY='${{ steps.grounded-rail.outputs.advisory }}'
+          if [ "$VERDICT" = "ok" ] && [ "$DOC_FOUND" = "true" ] && [ "$GROUNDED_OK" != "true" ]; then
+            if [ "$GROUNDED_ADVISORY" = "true" ]; then
+              echo "::warning::Oracle groundedness rail (ADVISORY, not gating): ${GROUNDED_REASON:-failed}"
+            else
+              VERDICT="degraded"; REASON="Oracle groundedness rail: ${GROUNDED_REASON:-failed}"
               EVIDENCE_FAIL="true"
             fi
           fi
@@ -1572,6 +1676,55 @@ jobs:
           echo "report_path=$REPORT" >> "$GITHUB_OUTPUT"
           echo "::notice::Oracle injection rail finalize (exit $CODE, advisory=$ADVISORY) — report written to $REPORT"
 
+      - name: Produce durable Oracle groundedness rail report
+        id: grounded-rail-finalize
+        if: steps.ctx.outputs.okr_id != '' && steps.ctx.outputs.run_id != ''
+        env:
+          OKR_ID: ${{ steps.ctx.outputs.okr_id }}
+          RUN_ID: ${{ steps.ctx.outputs.run_id }}
+          DOC_PATH: okrs/${{ steps.ctx.outputs.okr_id }}/why/research-doc.md
+          REGISTRY_PATH: okrs/${{ steps.ctx.outputs.okr_id }}/audit/sources/${{ steps.ctx.outputs.run_id }}.source-registry.json
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          set -uo pipefail
+          SCRIPTS=".github/workflows/scripts/oracle-rails"
+          # Needs both doc + registry; absent either → no-op (no report to record).
+          if [ ! -f "$DOC_PATH" ] || [ ! -f "$REGISTRY_PATH" ]; then
+            echo "::notice::no doc/registry pair — no groundedness evidence to record"
+            echo "report_path=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ ! -f "$SCRIPTS/groundedness.py" ]; then
+            echo "::error::Oracle groundedness rail helpers missing on main ($SCRIPTS) — redeploy mesh workflows from Looking Glass."
+            exit 1
+          fi
+          python3 -m pip install --disable-pip-version-check -r "$SCRIPTS/requirements.txt"
+          CONFIG="$SCRIPTS/groundedness.json"
+          if [ -f ".caterpillar/guardrails/oracle/groundedness.json" ]; then CONFIG=".caterpillar/guardrails/oracle/groundedness.json"; fi
+          ADVISORY=$(python3 -c "import json,sys; c=json.load(open(sys.argv[1])); print('false' if (c.get('model_revision') and c.get('require_pinned_revision', True) and c.get('block_on_contradiction', True)) else 'true')" "$CONFIG" 2>/dev/null || echo "true")
+          REPORT="okrs/${OKR_ID}/audit/rails/${RUN_ID}.groundedness.rail-report.json"
+          set +e
+          python3 "$SCRIPTS/groundedness.py" run \
+            --config "$CONFIG" --report "$REPORT" \
+            --inputs "$DOC_PATH" "$REGISTRY_PATH" \
+            --okr-id "$OKR_ID" --run-id "$RUN_ID" --phase why
+          CODE=$?
+          set -e
+          if [ ! -f "$REPORT" ]; then
+            echo "::error::Oracle groundedness rail produced no report (exit $CODE) — finalize aborts; cannot record a rail that did not run."
+            exit 1
+          fi
+          if [ "$CODE" -ne 0 ]; then
+            if [ "$ADVISORY" = "true" ]; then
+              echo "::warning::Oracle groundedness rail non-pass (exit $CODE) but ADVISORY — recording the report; not aborting finalize."
+            else
+              echo "::error::Oracle groundedness rail did not PASS at finalize (exit $CODE) — finalize aborts. Investigate a bypass/override or policy/model change before finalizing."
+              exit 1
+            fi
+          fi
+          echo "report_path=$REPORT" >> "$GITHUB_OUTPUT"
+          echo "::notice::Oracle groundedness rail finalize (exit $CODE, advisory=$ADVISORY) — report written to $REPORT"
+
       # Refactor 3c — delegate to the canonical finalize composite action.
       # PHASE SPEC — see vscode-extension/src/types/phaseSpec.ts.
       # If you rename a label / agent / phase here, update phaseSpec.ts too.
@@ -1597,10 +1750,13 @@ jobs:
           # Oracle & Privacy Rails: hand the durable rail report(s) this WHY job
           # just produced to the generic recorder, which emits one unsigned
           # workflow-origin rail_decision pointer per report (empty → no-op).
-          # PII via the single-path input (back-compat); injection via the
-          # Phase-3 multi-path input. Both honored + de-duplicated by the recorder.
+          # PII via the single-path input (back-compat); injection + groundedness
+          # via the multi-path input (newline-separated; the recorder splits on
+          # newlines, de-duplicates, and skips empty/absent paths).
           rail-report-path: ${{ steps.pii-rail-finalize.outputs.report_path }}
-          rail-report-paths: ${{ steps.inject-rail-finalize.outputs.report_path }}
+          rail-report-paths: |
+            ${{ steps.inject-rail-finalize.outputs.report_path }}
+            ${{ steps.grounded-rail-finalize.outputs.report_path }}
 
       # ── Oracle & Privacy Rails — trigger the model-replay leg ──────────────
       # The finalize action commits the durable rail-report.json to main with the
@@ -1611,7 +1767,7 @@ jobs:
       # over the committed report + cited bytes and records match / replay-
       # mismatch / not-invoked — the authoritative third leg of "replay, not sign".
       - name: Dispatch Oracle rails model-replay
-        if: steps.pii-rail-finalize.outputs.report_path != '' || steps.inject-rail-finalize.outputs.report_path != ''
+        if: steps.pii-rail-finalize.outputs.report_path != '' || steps.inject-rail-finalize.outputs.report_path != '' || steps.grounded-rail-finalize.outputs.report_path != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
