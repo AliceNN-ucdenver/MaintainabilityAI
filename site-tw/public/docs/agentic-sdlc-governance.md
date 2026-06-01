@@ -174,8 +174,8 @@ The mesh you are about to see does not work that way.
 <div class="docs-grid docs-grid-wide">
   <div class="docs-card docs-card-violet">
     <div class="docs-card-kicker">Promise 1</div>
-    <div class="docs-heading">One signed audit trail per OKR</div>
-    <div class="docs-copy">Every artifact (research, product spec, code design) is signed by the agent that produced it, with an ephemeral Ed25519 keypair generated for that session alone. Per-epoch keys mean even revise rounds sign with a fresh key. The chain verifies end to end, from objective to merged pull request.</div>
+    <div class="docs-heading">One stitched audit trail per OKR</div>
+    <div class="docs-copy">Every artifact (research, product spec, code design) is signed by the agent that produced it, with an ephemeral Ed25519 keypair generated for that session alone. Per-epoch keys mean even revise rounds sign with a fresh key. The planning chain lives in the mesh and each implementation chain in its target repo, stitched at the merge commit SHA; the Oracle rail verdicts over the evidence are replayed, not signed. It all verifies end to end, from objective to merged pull request.</div>
   </div>
   <div class="docs-card docs-card-amber">
     <div class="docs-card-kicker">Promise 2</div>
@@ -446,7 +446,7 @@ Three things make it coherent. A **substrate** (Looking Glass) that everyone rea
   <rect x="56" y="250" width="318" height="22" rx="6" fill="rgba(165,180,252,0.10)" stroke="rgba(165,180,252,0.25)"/>
   <text x="215" y="265" text-anchor="middle" fill="#e2e8f0" font-size="10" font-family="system-ui, sans-serif">Why · Market research (4 oracles + gap loop)</text>
   <rect x="56" y="275" width="318" height="18" rx="5" fill="rgba(251,191,36,0.10)" stroke="rgba(251,191,36,0.35)"/>
-  <text x="215" y="287" text-anchor="middle" fill="#fcd34d" font-size="8.5" font-family="system-ui, sans-serif">↳ Oracle Rails · PII + injection gate on the evidence</text>
+  <text x="215" y="287" text-anchor="middle" fill="#fcd34d" font-size="8.5" font-family="system-ui, sans-serif">↳ Oracle Rails · PII + injection gate · groundedness (advisory)</text>
   <rect x="56" y="296" width="318" height="20" rx="6" fill="rgba(165,180,252,0.10)" stroke="rgba(165,180,252,0.25)"/>
   <text x="215" y="310" text-anchor="middle" fill="#e2e8f0" font-size="10" font-family="system-ui, sans-serif">How · PRD (mesh-grounded gate · ask-experts)</text>
   <rect x="56" y="318" width="318" height="20" rx="6" fill="rgba(165,180,252,0.10)" stroke="rgba(165,180,252,0.25)"/>
@@ -488,7 +488,7 @@ Two roles, one control plane, every artifact audit-chained from intent to shippe
     <div class="docs-heading">The Hatter's Tea Party</div>
     <p class="docs-copy">Turn an OKR into a code-grounded design, with provenance every reviewer can verify. The Hatter takes a one-line intent, grounds it in evidence, runs it past mesh-anchored experts, and lands a cross-cutting design that's been reviewed against the actual repos it will change. It reads real file contents from each brownfield repo, so the design cites paths that exist and quotes code the agent actually saw.</p>
     <ul class="markdown-list list-disc">
-      <li class="docs-list-item">Market research across four oracles: web, academic papers, patents, developer community, plus a Jobs-to-be-Done lens. Every hit (title, URL, snippet) lands in the audit chain, so a reviewer can verify a source citation resolves to a real result, not a hallucinated one.</li>
+      <li class="docs-list-item">Market research across four oracles: web, academic papers, patents, developer community, plus a Jobs-to-be-Done lens. Bounded result previews land in the signed audit events, and the deduped citable sources land in a hash-pinned source registry — so a reviewer can verify a source citation resolves to a real result, not a hallucinated one.</li>
       <li class="docs-list-item">PRD refined by mesh-anchored clarifying questions; reviewers score it for mesh-grounding</li>
       <li class="docs-list-item">Cross-cutting code design grounded against every indexed target repo (the heaviest gate in the pipeline). The agent reads actual file contents from each brownfield clone, and the workflow rejects the design if it cites any file path that does not exist in the repo's inventory.</li>
       <li class="docs-list-item"><strong>Audit Report Export:</strong> internal auditor closeout report ships now (one-click export of a markdown closeout per OKR action with a cryptographic pass/fail verdict, requirement traceability, and an event timeline). <em>The redacted external one-zip regulator bundle is the next act.</em></li>
@@ -1332,9 +1332,10 @@ Earlier we said most agentic systems break the chain of trust. Here is how we do
   </g>
   <g transform="translate(586,56)">
     <rect x="0" y="0" width="186" height="84" rx="10" fill="rgba(196,181,253,0.10)" stroke="rgba(196,181,253,0.4)"/>
-    <text x="93" y="38" text-anchor="middle" fill="#c4b5fd" font-size="22" font-weight="800" font-family="system-ui, sans-serif">✓ checked</text>
-    <text x="93" y="56" text-anchor="middle" fill="#ddd6fe" font-size="10" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">AUDIT CONTRACTS</text>
-    <text x="93" y="72" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">sources, reqs, paths, SHA</text>
+    <text x="93" y="36" text-anchor="middle" fill="#c4b5fd" font-size="22" font-weight="800" font-family="system-ui, sans-serif">✓ checked</text>
+    <text x="93" y="54" text-anchor="middle" fill="#ddd6fe" font-size="10" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">AUDIT CONTRACTS</text>
+    <text x="93" y="68" text-anchor="middle" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">sources · reqs · paths · SHA</text>
+    <text x="93" y="79" text-anchor="middle" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">replayed rail reports</text>
   </g>
   <rect x="28" y="160" width="744" height="44" rx="10" fill="rgba(99,102,241,0.10)" stroke="rgba(99,102,241,0.35)"/>
   <text x="400" y="180" text-anchor="middle" fill="#c7d2fe" font-size="11" font-weight="700" letter-spacing="2" font-family="system-ui, sans-serif">AUDIT GATES · WHY SOURCES · HOW REQUIREMENTS · WHAT PATHS · BUILD MERGE SHA</text>
@@ -1558,6 +1559,7 @@ These actors do not all attack the same layer. The point of the framework is tha
 | **EoP** | Tier bypass by faking BAR-score-raising artifacts | BAR pillar score is computed deterministically from real artifact presence (threat-model.yaml, controls block, ADRs). Inflation requires creating real artifacts that future agents will reference, so the gate becomes self-reinforcing | ✓ |
 | **EoP** | Prompt injection from a research-source page steers the agent | **Injection rail (Llama Prompt Guard 2 86M, shipped, required gate)** scores retrieved snippets / source registry and hard-fails the WHY PR on a confirmed injection, behind a deterministic guardrail envelope that quarantines unsafe-URL / non-allowlisted / high-marker results before synthesis. Replayed, not signed | ✓ |
 | **EoP** | Compromised prompt pack version applied silently | Hatter Tag records `prompt_pack_version` + SHA; pack-deployment signature verification not in scope today | 🛠 |
+| **Tamper** | Real, correctly-cited source — but the conclusion it supports isn't actually entailed by it (evidence laundering by misattribution) | **Groundedness rail (NLI cross-encoder, built · advisory):** pairs each formal conclusion against the registry excerpts it cites and checks entailment; a source that *contradicts* its claim is the blocking signal, an *unsupported* claim is needs-review. Records today; promotes to contradiction-blocking after a cert tunes thresholds. Replay-verified | ⚠ |
 | **ASTRIDE: A.prompt-injection** | Attacker-controlled web content steers a search agent | **Oracle &amp; Privacy Rails (shipped):** the Phase-1 guardrail envelope quarantines unsafe results deterministically, and the Phase-3 injection rail (Llama Prompt Guard 2 86M, required gate) scores the retrieved evidence and hard-fails on a confirmed injection — replay-verified at closeout. Hatter Tag still pins `mesh_sha` for provenance | ✓ |
 | **ASTRIDE: A.memory-poisoning** | Poisoned mesh artifact corrupts downstream runs | mesh_sha pinning lets `verify-chain` **detect** poisoned state across runs; **deterministic rejection of poisoned mesh artifacts is queued**. Detection only today | 🛠 |
 | **ASTRIDE: A.inter-agent-influence** | Upstream agent's output steers a downstream agent | Partial coverage via Caterpillar's Challenge cross-phase semantic-drift check (PRD vs research; design vs PRD); full coverage requires agent-to-agent provenance signing | 🛠 |
@@ -1638,7 +1640,7 @@ STRIDE alone doesn't cover agent-specific failure modes like goal drift, evidenc
 | Content-first risk scanning on extracted tool args | Pure-data skills return structured JSON the parent agent inspects; no prompt-vs-data conflation | ✓ |
 | **Red Queen pre-side-effect decision log** | Claude Code and Copilot hooks validate Edit / Write / Bash before the action proceeds. Built-in rails emit stable rule IDs (`TIER-*`, `CTRL-*`, `SEC-*`, `CALM-*`, `PLAT-*`), and `customRules[]` lets teams add their own regex-scoped rule IDs. Every hook decision appends a fail-soft JSONL line with verdict, rule ID, tool, path, and session context | ✓ |
 | **Override attribution at action time** | When `REDQUEEN_TOOL_APPROVED`, `REDQUEEN_PLAN_APPROVED`, or `toolInput.redqueenApproved` flips a deny into an allow, the audit line records `override: true`, `bypassedRuleId`, and `approvalSource`. An override no longer looks like an ordinary allow | ✓ |
-| Signed Red Queen enforcement chain | Red Queen decisions are durable local JSONL today, but they are not yet hash-chained and Ed25519-signed under the Hatter trust contract. Queen's Next Act adds the signed Red Queen chain, the `redqueen-action` required status check, and cross-chain inclusion proofs tying planning intent to action enforcement | 🛠 |
+| Signed Red Queen enforcement chain | **Shipped (prefix sealing, cert-verified celeb-api PR #14):** the implementation agent's last governed action seals the prefix of the Red Queen decision log (covered bytes + sha256) onto the per-event Ed25519 implementation chain, and the provenance gate re-hashes that prefix at the merge SHA — a mismatch fails the PR; the post-seal commit-time tail is reported as an honest, named advisory. **Remaining (Queen's Next Act):** the standalone `redqueen-action` required status check (AST + contract diffs), cross-chain inclusion proofs, and SIEM / CloudEvents export | ✓ / 🛠 |
 
 </details>
 

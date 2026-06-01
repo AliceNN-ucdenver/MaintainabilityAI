@@ -18,7 +18,7 @@
   </div>
   <figure class="docs-hero-figure">
     <img src="/images/tea-party.png" alt="The Hatter's Tea Party, host of governed intent" class="docs-hero-art" />
-    <figcaption class="docs-visual-caption">The Hatter hosts the tea party of governed intent. Six teacups. One signed chain. No riddles.</figcaption>
+    <figcaption class="docs-visual-caption">The Hatter hosts the tea party of governed intent. Six teacups. One stitched chain — signed planning, replayed rails. No riddles.</figcaption>
   </figure>
 </div>
 
@@ -284,18 +284,19 @@ This stage does the opposite. It pulls from **four independent kinds of evidence
 
 ### How it's guarded
 
-The Why stage has no human-style reviewer because research is descriptive, not a design decision. There is no "architect's call" to grade. Instead the merge gate is mechanical: before the document can advance, the system independently confirms four things.
+The Why stage has no human-style reviewer because research is descriptive, not a design decision. There is no "architect's call" to grade. Instead the merge gate is mechanical: before the document can advance, the system independently runs **six blocking checks plus one advisory evidence check**.
 
-| Check | What it confirms |
-|---|---|
-| **The agent actually searched** | The run's activity log shows successful calls to each evidence source, not a silent fall-back to reading already-committed files |
-| **The document is structurally complete** | All ten required sections are present, in the canonical order |
-| **Every claim is sourced** | Every formal conclusion in the document cites at least one evidence tag, and each cited source tag must match the hash-pinned source registry |
-| **The synthesis is on-topic** | The document's executive summary is semantically close to the original objective. This catches an agent that drifted onto an adjacent topic |
-| **No prompt injection in the evidence** | A local prompt-injection model (Llama Prompt Guard 2) scores the retrieved snippets and the source registry. A crafted "ignore your instructions"-style payload smuggled into a search result hard-fails the merge before it can steer the next stage. A quoted or code-fenced example of an attack is recognized as *discussion*, not an attack |
-| **No PII or secrets leaked in** | A local PII model (Microsoft Presidio) scans the research doc and registry. Contact / identity / secret classes (SSN, card, private email, IP, tokens) hard-fail; public-figure names are allowed and recorded with a redaction summary; an ambiguous case in a sensitive context goes to human review |
+| Check | What it confirms | Gate |
+|---|---|---|
+| **The agent actually searched** | The run's activity log shows successful calls to each evidence source, not a silent fall-back to reading already-committed files | blocks |
+| **The document is structurally complete** | All ten required sections are present, in the canonical order | blocks |
+| **Every claim is sourced** | Every formal conclusion in the document cites at least one evidence tag, and each cited source tag must match the hash-pinned source registry | blocks |
+| **The synthesis is on-topic** | The document's executive summary is semantically close to the original objective. This catches an agent that drifted onto an adjacent topic | blocks |
+| **No prompt injection in the evidence** | A local prompt-injection model (Llama Prompt Guard 2) scores the retrieved snippets and the source registry. A crafted "ignore your instructions"-style payload smuggled into a search result hard-fails the merge before it can steer the next stage. A quoted or code-fenced example of an attack is recognized as *discussion*, not an attack | blocks |
+| **No PII or secrets leaked in** | A local PII model (Microsoft Presidio) scans the research doc and registry. Contact / identity / secret classes (SSN, card, private email, IP, tokens) hard-fail; public-figure names are allowed and recorded with a redaction summary; an ambiguous case in a sensitive context goes to human review | blocks |
+| **Conclusions are grounded in their sources** | A local NLI model pairs each formal conclusion against the source excerpts it cites and checks the claim is actually *entailed* by them — catching a confident conclusion that cites a real source which doesn't support it. Ships **advisory** today (records every conclusion's grounding; not yet blocking) until a cert tunes its thresholds; a source that *contradicts* its claim is the signal it will block on first | advisory |
 
-Only when all six pass does the system apply the green-flag label that unlocks merge. If any fail, it applies a specific failure label naming exactly which check failed, so a reviewer knows where to look. The repository's branch protection refuses merges without the green flag, so the gate is structural, not procedural.
+Only when all six blocking checks pass does the system apply the green-flag label that unlocks merge; the groundedness check records its verdict alongside but does not yet gate. If any blocking check fails, the system applies a specific failure label naming exactly which one, so a reviewer knows where to look. The repository's branch protection refuses merges without the green flag, so the gate is structural, not procedural.
 
 ### Why the audit is trustworthy
 

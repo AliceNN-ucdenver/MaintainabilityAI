@@ -114,10 +114,11 @@
     <path d="M24 40 L24 29 Q24 21 32 21 Q40 21 40 29 L40 40 M20 40 L44 40" fill="none" stroke="#fbbf24" stroke-width="1.5" stroke-linecap="round"/>
     <text x="52" y="37" class="pillarName">Oracle Rails</text>
     <text x="18" y="72" class="chip" fill="#fcd34d">Govern evidence</text>
-    <text x="18" y="102" class="pillarSub">Guardrail envelope. PII</text>
-    <text x="18" y="120" class="pillarSub">rail (Presidio). Injection</text>
-    <text x="18" y="138" class="pillarSub">rail (Prompt Guard 2),</text>
-    <text x="18" y="156" class="pillarSub">a gate. Replay, not sign.</text>
+    <text x="18" y="100" class="pillarSub">Guardrail envelope. PII</text>
+    <text x="18" y="118" class="pillarSub">rail (Presidio). Injection</text>
+    <text x="18" y="136" class="pillarSub">rail (Prompt Guard 2),</text>
+    <text x="18" y="154" class="pillarSub">a gate. Groundedness</text>
+    <text x="18" y="172" class="pillarSub">(NLI, advisory). Replay.</text>
   </g>
 
   <g transform="translate(1006,320)">
