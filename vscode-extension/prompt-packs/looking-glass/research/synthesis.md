@@ -21,7 +21,9 @@ reliably consumable by the downstream PRD agent.
 - `{ranked_sources}` — list of `RankedSource` (title, url, retrieved_at,
   salience_score, provider, excerpt) — the only sources you may cite
 - `{source_premises_markdown}` — deterministic `S[N]` premise rows from
-  `dedupe-and-rank`; use verbatim when present
+  `dedupe-and-rank`; use verbatim when present. Each row carries a premise-
+  quality marker (`_(premise: checkable)_` or `⚠️ metadata-only`) — honor it
+  per the source-priority ladder below.
 - `{references_markdown}` — deterministic reference rows from the same
   source registry; use verbatim when present
 - `{gap_analysis_ran}` — `true` if `gap-analysis` followed-up; `false`
@@ -77,11 +79,23 @@ not change the title, URL, or `S[N]` binding.
 Format each entry exactly like this:
 
 ```
-- **S1**: [<source title>](<URL>) establishes: <specific claim with data/quote from the excerpt>
-- **S2**: [<source title>](<URL>) establishes: <specific claim with data/quote>
+- **S1**: [<source title>](<URL>) establishes: <specific claim with data/quote from the excerpt> _(premise: checkable)_
+- **S2**: [<source title>](<URL>) establishes: <specific claim with data/quote> _(premise: checkable)_
 ```
 
 (Continue for all relevant sources — web, academic, patent, community.)
+
+**Premise quality marker.** Each generated row is tagged with its citable
+quality so you don't have to infer it:
+
+- `_(premise: checkable)_` — the source returned an excerpt/snippet/abstract.
+  This is the only kind of source a downstream rail can actually read, so it
+  is the only kind that can *ground* a factual claim.
+- `⚠️ metadata-only` — the source resolved to a title/URL only, with no
+  excerpt. There is nothing to check against, so a claim resting **only** on a
+  metadata-only source is reported `UNRESOLVED` by the groundedness rail (a
+  grounding *gap*, distinct from "not entailed"). Follow the source-priority
+  ladder below before citing one.
 
 ### `## Executive Summary`
 
@@ -190,13 +204,50 @@ hand-type or reformat URLs from memory.
 
 ---
 
+## Source priority — checkable evidence first
+
+Not every ranked `S[N]` is equally citable. A source's *premise quality*
+(the `_(premise: checkable)_` vs `⚠️ metadata-only` marker on its Source
+Premises row) decides what weight it can carry. Apply this ladder when
+choosing what to cite for Formal Conclusions, support claims, and any
+HIGH/MEDIUM-confidence finding:
+
+1. **Prefer checkable sources.** Ground Formal Conclusions and every factual
+   sub-claim on sources that returned an excerpt/snippet/abstract — the text
+   a reader (and the groundedness rail) can actually verify the claim against.
+2. **Metadata-only sources are context, not proof.** A title/URL-only source
+   may be cited as a discovery lead, for landscape/coverage signal, or as weak
+   corroboration *alongside* a checkable source — never on its own for a fact.
+3. **Never make a metadata-only source the sole basis** for a factual claim or
+   a `HIGH`/`MEDIUM`-confidence conclusion. A claim whose only citations are
+   metadata-only is ungroundable — the rail reports it `UNRESOLVED`, a gap, not
+   support.
+4. **If only metadata-only sources support a point**, do one of: (a) record it
+   under `## Evidence Gaps` as needing a quotable source, (b) downgrade the
+   conclusion to `LOW` confidence, or (c) if a follow-up loop is available,
+   run a bounded gap query to obtain a checkable source. Do not cite the bare
+   title and present it as established.
+
+This is about *grounding quality*, not source count — two metadata-only
+sources still ground nothing.
+
 ## Traceability rules (enforced)
+
+These are checked by the deterministic structural validator — a synthesis
+that violates one is rejected and retried:
 
 - Every claim in any narrative section must include an `S[N]` citation.
 - Each `C[N]` must cite ≥2 `S[N]` (unless `LOW` confidence — then ≥1).
 - Each `Recommendation` must cite ≥1 `C[N]` and ≥1 `S[N]`.
 - Confidence rating present on every `C[N]`: `**HIGH**` / `**MEDIUM**`
   / `**LOW**` — bolded literally.
+
+The source-priority ladder above (checkable vs metadata-only) is **author
+discipline**, not a validator gate — the groundedness rail observes it
+advisorily downstream. A `HIGH`/`MEDIUM` conclusion grounded only on
+metadata-only sources is not auto-rejected, but it *will* be reported
+`UNRESOLVED`, so downgrade it to `LOW` and record the gap rather than
+overstate confidence.
 
 ## Anti-hallucination guardrails
 
