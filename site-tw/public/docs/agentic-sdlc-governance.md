@@ -551,12 +551,12 @@ The trust model is **replay, not sign.** Agent and runtime events are signed (Kn
     <div class="docs-proof-evidence"><strong>Cert-verified:</strong> hostile fixture blocked (exit 2), benign fixture clean (exit 0); promoted to a required gate.</div>
   </div>
   <div class="docs-proof-row">
-    <span class="docs-proof-status docs-proof-status-queued">🛠 Next act</span>
+    <span class="docs-proof-status docs-proof-status-partial">⚠ Built · advisory</span>
     <div>
-      <p class="docs-proof-title">Phase 4 — Groundedness rail (local embeddings + NLI)</p>
-      <p class="docs-proof-body">Checks each conclusion in the synthesis is actually entailed by a source it cites — catching confident-but-unsupported claims that the citation check alone (does the citation resolve to a real result?) can't see. Local model, replay-verified like the rest. Model choice is the open decision.</p>
+      <p class="docs-proof-title">Phase 4 — Groundedness rail (NLI cross-encoder)</p>
+      <p class="docs-proof-body">The semantic layer above provenance. The citation check proves a conclusion <em>cites</em> a real source; this proves the cited source actually <em>says</em> what the conclusion claims — conclusion ⊨ cited source. It is a <strong>pairing rail</strong>: it reads the synthesis doc's Formal Conclusions (the hypotheses) and pairs each against the registry excerpt of the S-tags it cites (the premises), running a local NLI cross-encoder (<a href="https://huggingface.co/MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli">DeBERTa MNLI/FEVER/ANLI</a>). A claim entailed by <em>any one</em> cited source passes, so legitimate cross-source synthesis isn't punished. Policy is tiered: a source that <strong>contradicts</strong> its claim is the serious signal; <strong>unsupported</strong> (neither entailed nor contradicted) is needs-review, not failure.</p>
     </div>
-    <div class="docs-proof-evidence"><strong>Queued.</strong> Phases 1–3 ship today.</div>
+    <div class="docs-proof-evidence"><strong>Built, shipping advisory:</strong> it runs + records on every WHY run but does not yet hard-fail. The cert pins the model and promotes contradiction-blocking; until then it is honest visibility, not a gate.</div>
   </div>
 </div>
 
@@ -1787,11 +1787,11 @@ We publish this list because honest design beats marketing claims. Every status 
     </div>
   </div>
   <div class="docs-gap-row">
-    <span class="docs-gap-status docs-gap-status-queued">🛠 Queued</span>
+    <span class="docs-gap-status docs-gap-status-queued">⚠ Built · advisory</span>
     <div>
-      <p class="docs-gap-title">Groundedness rail (Oracle &amp; Privacy Rails, Phase 4)</p>
-      <p class="docs-gap-body">Phases 1–3 of the Oracle &amp; Privacy Rails ship today: the deterministic guardrail envelope, the PII rail (Presidio), and the injection rail (Llama Prompt Guard 2, a required gate). Phase 4 adds a groundedness rail — local embeddings + NLI — that checks each conclusion in the research synthesis is actually entailed by a source it cites, catching confident-but-unsupported claims the citation check alone can't.</p>
-      <p class="docs-gap-next"><strong>Next:</strong> finalize the local alignment model (AlignScore-class vs a lighter NLI cross-encoder), then the same replay-verified gate treatment as the PII + injection rails.</p>
+      <p class="docs-gap-title">Built (advisory): Groundedness rail (Oracle &amp; Privacy Rails, Phase 4)</p>
+      <p class="docs-gap-body">All four Oracle &amp; Privacy Rails are now built: the deterministic guardrail envelope, the PII rail (Presidio), the injection rail (Llama Prompt Guard 2, a required gate), and the groundedness rail. The groundedness rail is the semantic layer above provenance — a <strong>pairing rail</strong> that pairs each Formal Conclusion (hypothesis) against the registry excerpt of the S-tags it cites (premise) and runs a local NLI cross-encoder (DeBERTa MNLI/FEVER/ANLI), so a claim entailed by any one cited source passes. It runs + records on every WHY run today under a <strong>tiered</strong> policy (contradiction is the serious signal; unsupported is needs-review). It is <strong>advisory</strong>: the model isn't pinned yet, so it does not hard-fail the PR.</p>
+      <p class="docs-gap-next"><strong>Next (cert → promote):</strong> a fixture corpus + a live WHY sample tune the entailment/contradiction thresholds, then pin the model commit and promote <em>contradiction</em> to blocking — same replay-verified gate treatment as the PII + injection rails. <em>Unsupported</em> stays needs-review (it must not punish legitimate cross-source synthesis).</p>
     </div>
   </div>
   <div class="docs-gap-row">
@@ -1799,7 +1799,7 @@ We publish this list because honest design beats marketing claims. Every status 
     <div>
       <p class="docs-gap-title">Shipped: Prompt injection from external research (Oracle &amp; Privacy Rails, Phase 3)</p>
       <p class="docs-gap-body">A Tavily / arXiv / Hacker News result carrying crafted prompt-injection text can no longer steer the market-research-agent unnoticed. Two layers now guard it: a deterministic <strong>guardrail envelope</strong> in the research-runner (Phase 1) that quarantines results with unsafe URLs, non-allowlisted providers, or high-confidence injection markers before synthesis; and an <strong>injection rail</strong> (Phase 3) that scores the retrieved snippets / source registry with <a href="https://huggingface.co/meta-llama/Llama-Prompt-Guard-2-86M">Llama Prompt Guard 2 86M</a> and hard-fails the WHY PR on a confirmed injection. The rail is <strong>a required gate</strong>, pinned to a specific Hugging Face commit, with a quoted/cited/code-fenced carve-out so a security-research corpus that <em>discusses</em> injection isn't flagged for <em>delivering</em> it. Verdicts are <strong>replayed, not signed</strong>: the closeout re-runs the pinned model over the committed bytes and compares — a mismatch fails the rollup, never a silent pass.</p>
-      <p class="docs-gap-next"><strong>Remaining (Phase 4):</strong> a groundedness rail (local embeddings + NLI) proving each conclusion is entailed by a cited source. Queued below.</p>
+      <p class="docs-gap-next"><strong>Phase 4:</strong> a groundedness rail (NLI cross-encoder) proving each conclusion is entailed by a cited source — now built and shipping advisory (see below).</p>
     </div>
   </div>
   <div class="docs-gap-row">
