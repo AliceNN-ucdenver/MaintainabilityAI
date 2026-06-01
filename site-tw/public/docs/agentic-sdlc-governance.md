@@ -1159,8 +1159,6 @@ Each persona writes a structured self-review block on the PR and signs a `self_r
     </g>
     <text x="50" y="22" fill="#dcfce7" font-size="13" font-weight="700" font-family="system-ui, sans-serif">🛡  Knight's Seal v1</text>
     <text x="50" y="38" fill="#86efac" font-size="10" font-family="system-ui, sans-serif">per-event Ed25519 signature · per-session epoch key · verifier replays on every PR</text>
-    <rect x="420" y="14" width="84" height="22" rx="11" fill="rgba(134,239,172,0.20)" stroke="rgba(134,239,172,0.65)"/>
-    <text x="462" y="29" text-anchor="middle" fill="#86efac" font-size="9.5" font-weight="700" letter-spacing="0.5" font-family="system-ui, sans-serif">✓ SHIPPED</text>
   </g>
 
   <!-- ── Down arrow ────────────────────────────────────────────── -->
@@ -1175,7 +1173,7 @@ Each persona writes a structured self-review block on the PR and signs a `self_r
       <path d="M 4 6 L 14 6 M 4 10 L 14 10 M 4 14 L 12 14 M 4 18 L 10 18" stroke="#a5b4fc" stroke-width="1"/>
     </g>
     <text x="50" y="17" fill="#e0e7ff" font-size="12" font-weight="700" font-family="system-ui, sans-serif">📄  Audit Report Export</text>
-    <text x="50" y="30" fill="#a5b4fc" font-size="9.5" font-family="system-ui, sans-serif">internal markdown closeout · runner verdict + control map + timeline (shipped) · redacted external zip (next act)</text>
+    <text x="50" y="30" fill="#a5b4fc" font-size="9.5" font-family="system-ui, sans-serif">internal closeout: verdict + control map + timeline (shipped) · redacted external zip (next act)</text>
   </g>
 </svg>
 
@@ -1409,8 +1407,8 @@ These actors do not all attack the same layer. The point of the framework is tha
   <text x="337" y="151" text-anchor="middle" fill="#fcd34d" font-size="9" font-weight="600" font-family="system-ui, sans-serif">cosign anchoring (v2)</text>
   <rect x="408" y="108" width="110" height="22" rx="6" fill="rgba(248,113,113,0.18)" stroke="rgba(248,113,113,0.4)"/>
   <text x="463" y="123" text-anchor="middle" fill="#fca5a5" font-size="9" font-weight="600" font-family="system-ui, sans-serif">LLM provider audit</text>
-  <rect x="408" y="136" width="110" height="22" rx="6" fill="rgba(248,113,113,0.18)" stroke="rgba(248,113,113,0.4)"/>
-  <text x="463" y="151" text-anchor="middle" fill="#fca5a5" font-size="9" font-weight="600" font-family="system-ui, sans-serif">PII classification</text>
+  <rect x="408" y="136" width="110" height="22" rx="6" fill="rgba(74,222,128,0.16)" stroke="rgba(74,222,128,0.4)"/>
+  <text x="463" y="151" text-anchor="middle" fill="#86efac" font-size="9" font-weight="600" font-family="system-ui, sans-serif">PII rail ✓</text>
   <rect x="408" y="164" width="110" height="22" rx="6" fill="rgba(248,113,113,0.18)" stroke="rgba(248,113,113,0.4)"/>
   <text x="463" y="179" text-anchor="middle" fill="#fca5a5" font-size="9" font-weight="600" font-family="system-ui, sans-serif">Export redaction</text>
   <rect x="535" y="108" width="110" height="22" rx="6" fill="rgba(74,222,128,0.16)" stroke="rgba(74,222,128,0.4)"/>
