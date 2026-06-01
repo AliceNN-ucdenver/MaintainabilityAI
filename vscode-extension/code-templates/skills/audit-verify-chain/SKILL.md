@@ -4,7 +4,7 @@ description: Replay the hash chain over an existing audit JSONL; returns the cha
 version: 0.1.0
 purity: pure-data
 runtime: research-runner
-command: npx @maintainabilityai/research-runner@~0.1.42 skill-audit-verify-chain
+command: npx @maintainabilityai/research-runner@~0.1.64 skill-audit-verify-chain
 ---
 
 # Audit Verify Chain Skill
@@ -42,7 +42,7 @@ Same rules as `verifyChain()` in `packages/research-runner/src/runner/audit-emit
 
 ```sh
 echo '{"okrId":"OKR-2026Q2-IMDB-001-celeb-api","runId":"HOW-2026-05-21-728gdt"}' \
-  | npx @maintainabilityai/research-runner@~0.1.42 skill-audit-verify-chain
+  | npx @maintainabilityai/research-runner@~0.1.64 skill-audit-verify-chain
 ```
 
 ## Error contract

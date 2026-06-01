@@ -4,7 +4,7 @@ description: Web search via Tavily's research-grade API. Returns ranked results 
 version: 0.1.0
 purity: pure-data
 runtime: research-runner
-command: npx @maintainabilityai/research-runner@~0.1.42 skill-tavily-search
+command: npx @maintainabilityai/research-runner@~0.1.64 skill-tavily-search
 secrets:
   - TAVILY_API_KEY
 ---
@@ -31,7 +31,7 @@ Call when the agent needs structured web search results for OKR / PRD research. 
 
 ```sh
 echo '{"queries":["celebrity data licensing GDPR 2026"],"maxResults":10}' \
-  | npx @maintainabilityai/research-runner@~0.1.42 skill-tavily-search
+  | npx @maintainabilityai/research-runner@~0.1.64 skill-tavily-search
 ```
 
 ## Implementation

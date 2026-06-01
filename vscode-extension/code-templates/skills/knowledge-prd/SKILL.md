@@ -4,7 +4,7 @@ description: Read the merged PRD for an OKR. Returns FRs / SRs / coverage table 
 version: 0.1.0
 purity: pure-data
 runtime: research-runner
-command: npx @maintainabilityai/research-runner@~0.1.42 skill-knowledge-prd
+command: npx @maintainabilityai/research-runner@~0.1.64 skill-knowledge-prd
 ---
 
 # Knowledge PRD Skill
@@ -30,7 +30,7 @@ The code-design agent's bridge from How → What. Parses the merged PRD at `okrs
 
 ```sh
 echo '{"okrId":"OKR-2026Q1-IMDB-001-celeb-api"}' \
-  | npx @maintainabilityai/research-runner@~0.1.42 skill-knowledge-prd
+  | npx @maintainabilityai/research-runner@~0.1.64 skill-knowledge-prd
 ```
 
 ## Implementation

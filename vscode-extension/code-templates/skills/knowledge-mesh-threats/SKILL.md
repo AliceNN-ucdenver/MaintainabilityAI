@@ -4,7 +4,7 @@ description: Query the mesh's threat library for entries matching a concern (e.g
 version: 0.1.0
 purity: pure-data
 runtime: research-runner
-command: npx @maintainabilityai/research-runner@~0.1.42 skill-knowledge-mesh-threats
+command: npx @maintainabilityai/research-runner@~0.1.64 skill-knowledge-mesh-threats
 ---
 
 # Knowledge Mesh Threats Skill
@@ -29,7 +29,7 @@ Returns STRIDE entries from `threats/` that match the concern. Used by `prd-agen
 
 ```sh
 echo '{"concern":"identity-disambiguation"}' \
-  | npx @maintainabilityai/research-runner@~0.1.42 skill-knowledge-mesh-threats
+  | npx @maintainabilityai/research-runner@~0.1.64 skill-knowledge-mesh-threats
 ```
 
 ## Implementation

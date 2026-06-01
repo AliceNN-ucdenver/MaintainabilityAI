@@ -4,7 +4,7 @@ description: Format a research run's signals as a Markdown comment for the OKR a
 version: 0.1.0
 purity: pure-data
 runtime: research-runner
-command: npx @maintainabilityai/research-runner@~0.1.42 skill-format-research-issue-update
+command: npx @maintainabilityai/research-runner@~0.1.64 skill-format-research-issue-update
 ---
 
 # Format Research Issue Update Skill
@@ -33,7 +33,7 @@ Called by `market-research-agent` (and re-runs) to post a clean progress comment
 
 ```sh
 echo '{"topic":"...", "runId":"...", "rankedSources":[...], "providerCounts":{...}, "meshContext":{...}}' \
-  | npx @maintainabilityai/research-runner@~0.1.42 skill-format-research-issue-update
+  | npx @maintainabilityai/research-runner@~0.1.64 skill-format-research-issue-update
 ```
 
 ## Implementation

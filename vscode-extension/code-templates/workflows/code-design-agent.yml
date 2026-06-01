@@ -253,7 +253,7 @@ jobs:
           # dispatcher (skill-* subcommand reads JSON stdin, writes JSON
           # stdout, exits non-zero on `ok: false`).
           RESULT=$(printf '{"okrId":"%s","runId":"%s"}' "$OKR_ID" "$RUN_ID" \
-            | npx -y @maintainabilityai/research-runner@~0.1.42 skill-audit-verify-chain 2>&1 || true)
+            | npx -y @maintainabilityai/research-runner@~0.1.64 skill-audit-verify-chain 2>&1 || true)
           echo "$RESULT" > /tmp/chain-verify.json
           # Robust parsing — runner emits one JSON object on stdout;
           # if the npx fetch failed the file may contain log noise, so

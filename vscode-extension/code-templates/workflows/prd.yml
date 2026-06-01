@@ -129,7 +129,7 @@ jobs:
         # Bug-R / R3 (Codex round-3) — pinned to tilde range; parity
         # test in phaseSpec.test.ts scans all forms (shell, array,
         # `npm install`) and forbids `@latest`.
-        run: npm install --no-save @maintainabilityai/research-runner@~0.1.42
+        run: npm install --no-save @maintainabilityai/research-runner@~0.1.64
 
       - name: Run PRD pipeline
         id: prd

@@ -4,7 +4,7 @@ description: Optional exemplar grounding for the code-design-agent. Clones + ind
 version: 0.1.0
 purity: pure-data
 runtime: research-runner
-command: npx @maintainabilityai/research-runner@~0.1.42 skill-knowledge-reference-repos
+command: npx @maintainabilityai/research-runner@~0.1.64 skill-knowledge-reference-repos
 ---
 
 # Knowledge Reference Repos Skill (D-PR3)

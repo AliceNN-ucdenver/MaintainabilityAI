@@ -4,7 +4,7 @@ description: Aggregated architecture context for a scope — CALM nodes + ADRs +
 version: 0.1.0
 purity: pure-data
 runtime: research-runner
-command: npx @maintainabilityai/research-runner@~0.1.42 skill-context-architecture
+command: npx @maintainabilityai/research-runner@~0.1.64 skill-context-architecture
 ---
 
 # Context Architecture Skill
@@ -33,7 +33,7 @@ Walks the mesh and assembles the structured-data input the Architect persona rea
 
 ```sh
 echo '{"platformId":"PLT-IMDB","barIds":["APP-IMDB-001","APP-IMDB-002"]}' \
-  | npx @maintainabilityai/research-runner@~0.1.42 skill-context-architecture
+  | npx @maintainabilityai/research-runner@~0.1.64 skill-context-architecture
 ```
 
 ## Implementation

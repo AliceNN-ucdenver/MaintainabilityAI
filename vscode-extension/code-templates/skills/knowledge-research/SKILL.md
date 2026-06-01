@@ -4,7 +4,7 @@ description: Read the merged research-doc.md for an OKR. Returns structured find
 version: 0.1.0
 purity: pure-data
 runtime: research-runner
-command: npx @maintainabilityai/research-runner@~0.1.42 skill-knowledge-research
+command: npx @maintainabilityai/research-runner@~0.1.64 skill-knowledge-research
 ---
 
 # Knowledge Research Skill
@@ -30,7 +30,7 @@ The PRD agent's bridge from Why → How. Reads the merged research artifact at `
 
 ```sh
 echo '{"okrId":"OKR-2026Q1-IMDB-001-celeb-api"}' \
-  | npx @maintainabilityai/research-runner@~0.1.42 skill-knowledge-research
+  | npx @maintainabilityai/research-runner@~0.1.64 skill-knowledge-research
 ```
 
 ## Implementation

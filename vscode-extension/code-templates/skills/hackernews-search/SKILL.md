@@ -4,7 +4,7 @@ description: Practitioner-community search via Hacker News Algolia API. Returns 
 version: 0.1.0
 purity: pure-data
 runtime: research-runner
-command: npx @maintainabilityai/research-runner@~0.1.42 skill-hackernews-search
+command: npx @maintainabilityai/research-runner@~0.1.64 skill-hackernews-search
 ---
 
 # Hacker News Search Skill
@@ -29,7 +29,7 @@ Call when the agent needs practitioner-grade qualitative signal (war stories, go
 
 ```sh
 echo '{"queries":["name dedup"]}' \
-  | npx @maintainabilityai/research-runner@~0.1.42 skill-hackernews-search
+  | npx @maintainabilityai/research-runner@~0.1.64 skill-hackernews-search
 ```
 
 ## Implementation

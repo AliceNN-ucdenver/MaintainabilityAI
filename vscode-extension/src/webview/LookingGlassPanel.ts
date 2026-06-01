@@ -5047,7 +5047,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     return new Promise<RunnerVerifyVerdict>((resolve) => {
       // execFile doesn't pipe stdin — use spawn so we can write the
       // okrId/runId JSON to the runner's stdin (per SKILL.md contract).
-      const child = childSpawn('npx', ['-y', '@maintainabilityai/research-runner@~0.1.42', 'skill-audit-verify-chain'], {
+      const child = childSpawn('npx', ['-y', '@maintainabilityai/research-runner@~0.1.64', 'skill-audit-verify-chain'], {
         cwd: meshPath,
       });
       let stdout = '';

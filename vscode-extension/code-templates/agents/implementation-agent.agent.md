@@ -85,7 +85,7 @@ export OKR_ID="<okr_id from the landing issue HTML comment>" \
 Pipe JSON stdin to the pinned runner inside `execute`:
 
 ```sh
-echo '{"<input>":...}' | npx -y @maintainabilityai/research-runner@~0.1.42 skill-<name>
+echo '{"<input>":...}' | npx -y @maintainabilityai/research-runner@~0.1.64 skill-<name>
 ```
 
 This is the ONLY invocation that signs the chain. **Do NOT use Copilot's `skill_use` tool for governed skills** — it leaves the chain empty.
@@ -95,7 +95,7 @@ This is the ONLY invocation that signs the chain. **Do NOT use Copilot's `skill_
 - **Ground on your repo first** — `skill-knowledge-code` (clone + classify), then `skill-knowledge-code-read` for specific files. Brownfield: read the files you will change. Greenfield: read the scaffold seed. Both: read the fan-out-delivered design at `docs/code-design-spec.md`.
   ```sh
   echo '{"okrId":"'"$OKR_ID"'","repoUrl":"<this repo url>","repoStatus":"<create|connected>"}' \
-    | npx -y @maintainabilityai/research-runner@~0.1.42 skill-knowledge-code
+    | npx -y @maintainabilityai/research-runner@~0.1.64 skill-knowledge-code
   ```
 - **Persona self-review** (each round) — `skill-self-review-impl-architect` then `skill-self-review-impl-security` (see the Tweedles loop below for inputs).
 - **Emit each persona score** — `skill-audit-emit-event` (see the loop).
@@ -130,10 +130,10 @@ For each round N (cap is tier-dependent — `self-review-impl-architect` returns
 1. **Switch to Architect persona.** Invoke via the runner CLI (§2 — this is what signs the chain):
    ```sh
    echo '{"okrId":"'"$OKR_ID"'","runId":"'"$RUN_ID"'","round":'N',"tier":"<governance_tier from the landing issue HTML comment, e.g. supervised>"}' \
-     | npx -y @maintainabilityai/research-runner@~0.1.42 skill-self-review-impl-architect
+     | npx -y @maintainabilityai/research-runner@~0.1.64 skill-self-review-impl-architect
    ```
    The skill returns `{ shouldProceed, maxAutoRounds, promptPack }` — `promptPack` is read from `.cheshire/prompts/implementation/architect-review.md` in your repo (the Cheshire scaffold installs a starter pack on first fan-out; overwrite it locally to tune review criteria). Re-read your changes through that pack. Score the implementation against the design's contracts + the repo's existing architecture conventions.
-2. Emit the score via the runner CLI: `echo '{"event_kind":"self_review","phase":"implementation","payload":{"persona":"impl-architect","round":N,"score":<float 0.00-1.00>,"severity":"<PASS|MINOR|MAJOR|BLOCKING>","summary":"<one paragraph>"}}' | npx -y @maintainabilityai/research-runner@~0.1.42 skill-audit-emit-event`. (Codex-r5 Bug 2 — score scale + severity ladder match the planning phases (WHY/HOW/WHAT) so the rollup + UI metric extractors read all four phases uniformly. Same rubric: 1.00=PASS, 0.85-0.99=MINOR, 0.65-0.84=MAJOR, <0.65=BLOCKING.)
+2. Emit the score via the runner CLI: `echo '{"event_kind":"self_review","phase":"implementation","payload":{"persona":"impl-architect","round":N,"score":<float 0.00-1.00>,"severity":"<PASS|MINOR|MAJOR|BLOCKING>","summary":"<one paragraph>"}}' | npx -y @maintainabilityai/research-runner@~0.1.64 skill-audit-emit-event`. (Codex-r5 Bug 2 — score scale + severity ladder match the planning phases (WHY/HOW/WHAT) so the rollup + UI metric extractors read all four phases uniformly. Same rubric: 1.00=PASS, 0.85-0.99=MINOR, 0.65-0.84=MAJOR, <0.65=BLOCKING.)
 3. **Switch to Security persona.** Invoke `skill-self-review-impl-security` via the runner CLI with the same input shape (including the `tier` value from the landing issue). The skill returns the security pack from `.cheshire/prompts/implementation/security-review.md`. Score against OWASP + the OKR's BAR threat model + cross-repo contract trust boundaries.
 4. Emit the Security score the same way: `skill-audit-emit-event` with `payload: { persona: 'impl-security', round: N, score, severity, summary }`.
 5. **Decide.** If either persona scored `< 0.85` OR severity is `MAJOR`/`BLOCKING` → revise the implementation + start round N+1. (Mirrors the planning agents' convergence gate.)
@@ -234,7 +234,7 @@ The Architect/Security persona scores describe **what you actually produced**, n
 5. Stage `.maintainability/audit/events/<run-id>.jsonl` + `.maintainability/audit/keys/<run-id>.epoch-1.pub.pem` + `.redqueen/audit-log.jsonl` (the Red Queen decision trail) into the impl PR.
 6. **Sign the Red Queen enforcement chain** (Tier 2.5a) — your **LAST governed skill call**. The Red Queen PreToolUse hook wrote per-tool-call allow/deny decisions to `.redqueen/audit-log.jsonl` as **unsigned** plain JSON (it runs in a separate process with no signing key). Run this while the session env (`OKR_ID`/`RUN_ID`/`INTENT_THREAD_UUID`/`PHASE`) is still exported so the runner signs under the live per-epoch key; it rolls the log into one signed `redqueen_decisions` digest event on the IMPL chain, then re-stage the evidence:
    ```bash
-   echo '{}' | npx -y @maintainabilityai/research-runner@~0.1.42 skill-audit-sign-redqueen-decisions
+   echo '{}' | npx -y @maintainabilityai/research-runner@~0.1.64 skill-audit-sign-redqueen-decisions
    # Re-stage: the (now-attested) decision log + the events JSONL that now
    # carries the signed redqueen_decisions digest event.
    git add .redqueen/audit-log.jsonl

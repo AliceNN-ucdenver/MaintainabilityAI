@@ -246,7 +246,7 @@ jobs:
         run: |
           set -e
           RESULT=$(printf '{"okrId":"%s","runId":"%s"}' "$OKR_ID" "$RUN_ID" \
-            | npx -y @maintainabilityai/research-runner@~0.1.42 skill-audit-verify-chain 2>&1 || true)
+            | npx -y @maintainabilityai/research-runner@~0.1.64 skill-audit-verify-chain 2>&1 || true)
           echo "$RESULT" > /tmp/chain-verify.json
           python3 <<'PYEOF'
           import json, os

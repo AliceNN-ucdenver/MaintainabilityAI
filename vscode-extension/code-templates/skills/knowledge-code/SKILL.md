@@ -4,7 +4,7 @@ description: Per-repo grounding for the code-design-agent. Three modes per A12.v
 version: 0.2.0
 purity: pure-data
 runtime: research-runner
-command: npx @maintainabilityai/research-runner@~0.1.42 skill-knowledge-code
+command: npx @maintainabilityai/research-runner@~0.1.64 skill-knowledge-code
 ---
 
 # Knowledge Code Skill
@@ -122,7 +122,7 @@ for each file the agent wants to ground design on.
 
 ```sh
 echo '{"okrId":"OKR-2026Q2-IMDB-001-celeb-api","repoUrl":"https://github.com/acme/celeb-api","repoStatus":"create"}' \
-  | npx -y @maintainabilityai/research-runner@~0.1.42 skill-knowledge-code
+  | npx -y @maintainabilityai/research-runner@~0.1.64 skill-knowledge-code
 ```
 
 The agent prompt MUST use this invocation form, not Copilot's `skill_use`

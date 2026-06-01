@@ -4,7 +4,7 @@ description: Authoritative tier + prompt-pack handoff for the Security persona-s
 version: 0.1.0
 purity: pure-data
 runtime: research-runner
-command: npx @maintainabilityai/research-runner@~0.1.42 skill-self-review-impl-security
+command: npx @maintainabilityai/research-runner@~0.1.64 skill-self-review-impl-security
 ---
 
 # Self-Review Impl Security Skill
@@ -41,7 +41,7 @@ Same shape as `self-review-impl-architect`. Differences:
 
 ```sh
 echo '{"okrId":"OKR-X","runId":"IMPL-2026-05-28-celeb-api-abc123","round":1,"tier":"supervised"}' \
-  | npx -y @maintainabilityai/research-runner@~0.1.42 skill-self-review-impl-security
+  | npx -y @maintainabilityai/research-runner@~0.1.64 skill-self-review-impl-security
 ```
 
 ## Error contract

@@ -2072,7 +2072,7 @@ function renderChainVerifySheet(): string {
         Shape verification only — Ed25519 signature crypto AND per-event
         hash-chain replay both run in the runner (<code>skill-audit-verify-chain</code>),
         not here. For sign-off before fan-out, run:<br>
-        <code style="font-size: 0.85em; word-break: break-all;">printf '{"okrId":"${escapeHtml(data.okrId)}","runId":"${escapeHtml(data.runId)}"}' | npx -y @maintainabilityai/research-runner@~0.1.42 skill-audit-verify-chain</code>
+        <code style="font-size: 0.85em; word-break: break-all;">printf '{"okrId":"${escapeHtml(data.okrId)}","runId":"${escapeHtml(data.runId)}"}' | npx -y @maintainabilityai/research-runner@~0.1.64 skill-audit-verify-chain</code>
       </p>
     `;
   }

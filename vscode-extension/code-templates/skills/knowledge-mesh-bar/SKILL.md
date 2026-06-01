@@ -4,7 +4,7 @@ description: Read a BAR's CALM model + threats + ADRs + app.yaml from the mesh b
 version: 0.1.0
 purity: pure-data
 runtime: research-runner
-command: npx @maintainabilityai/research-runner@~0.1.42 skill-knowledge-mesh-bar
+command: npx @maintainabilityai/research-runner@~0.1.64 skill-knowledge-mesh-bar
 ---
 
 # Knowledge Mesh BAR Skill
@@ -29,7 +29,7 @@ Returns everything the parent agent needs to reason about ONE BAR. Per §5.5.2 t
 
 ```sh
 echo '{"barId":"APP-IMDB-002"}' \
-  | npx @maintainabilityai/research-runner@~0.1.42 skill-knowledge-mesh-bar
+  | npx @maintainabilityai/research-runner@~0.1.64 skill-knowledge-mesh-bar
 ```
 
 ## Implementation

@@ -4,7 +4,7 @@ description: Read a Platform's CALM model + cross-BAR design from the mesh by pl
 version: 0.1.0
 purity: pure-data
 runtime: research-runner
-command: npx @maintainabilityai/research-runner@~0.1.42 skill-knowledge-mesh-platform
+command: npx @maintainabilityai/research-runner@~0.1.64 skill-knowledge-mesh-platform
 ---
 
 # Knowledge Mesh Platform Skill
@@ -29,7 +29,7 @@ Returns the platform's cross-BAR architecture + decisions. Used when an OKR span
 
 ```sh
 echo '{"platformId":"PLT-IMDB"}' \
-  | npx @maintainabilityai/research-runner@~0.1.42 skill-knowledge-mesh-platform
+  | npx @maintainabilityai/research-runner@~0.1.64 skill-knowledge-mesh-platform
 ```
 
 ## Implementation

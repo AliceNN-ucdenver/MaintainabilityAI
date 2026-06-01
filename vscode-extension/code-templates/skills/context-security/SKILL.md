@@ -4,7 +4,7 @@ description: Aggregated security context for a scope — STRIDE threats + OWASP 
 version: 0.1.0
 purity: pure-data
 runtime: research-runner
-command: npx @maintainabilityai/research-runner@~0.1.42 skill-context-security
+command: npx @maintainabilityai/research-runner@~0.1.64 skill-context-security
 ---
 
 # Context Security Skill
@@ -33,7 +33,7 @@ The security-side companion to `context-architecture`. Walks the mesh and assemb
 
 ```sh
 echo '{"platformId":"PLT-IMDB","barIds":["APP-IMDB-002"]}' \
-  | npx @maintainabilityai/research-runner@~0.1.42 skill-context-security
+  | npx @maintainabilityai/research-runner@~0.1.64 skill-context-security
 ```
 
 ## Implementation

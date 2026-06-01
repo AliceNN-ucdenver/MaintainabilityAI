@@ -4,7 +4,7 @@ description: Read the OKR card by id from the mesh. Returns the BTABoK 9-section
 version: 0.1.0
 purity: pure-data
 runtime: research-runner
-command: npx @maintainabilityai/research-runner@~0.1.42 skill-knowledge-okr
+command: npx @maintainabilityai/research-runner@~0.1.64 skill-knowledge-okr
 ---
 
 # Knowledge OKR Skill
@@ -29,7 +29,7 @@ The agent's canonical input on every run. Per §5.5.1, every `.agent.md` MUST ex
 
 ```sh
 echo '{"okrId":"OKR-2026Q1-IMDB-001-celeb-api"}' \
-  | npx @maintainabilityai/research-runner@~0.1.42 skill-knowledge-okr
+  | npx @maintainabilityai/research-runner@~0.1.64 skill-knowledge-okr
 ```
 
 ## Implementation

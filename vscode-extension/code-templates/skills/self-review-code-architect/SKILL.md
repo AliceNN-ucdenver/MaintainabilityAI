@@ -4,7 +4,7 @@ description: Authoritative tier + prompt-pack handoff for the Code-Architect per
 version: 0.1.0
 purity: pure-data
 runtime: research-runner
-command: npx @maintainabilityai/research-runner@~0.1.42 skill-self-review-code-architect
+command: npx @maintainabilityai/research-runner@~0.1.64 skill-self-review-code-architect
 ---
 
 # Self-Review Code-Architect Skill (Phase D)
@@ -51,7 +51,7 @@ body, mismatches surface as contract violations.
 
 ```sh
 echo '{"okrId":"OKR-2026Q2-IMDB-001-celeb-api","runId":"WHAT-2026-05-23-abc123","round":1}' \
-  | npx -y @maintainabilityai/research-runner@~0.1.42 skill-self-review-code-architect
+  | npx -y @maintainabilityai/research-runner@~0.1.64 skill-self-review-code-architect
 ```
 
 ## Implementation

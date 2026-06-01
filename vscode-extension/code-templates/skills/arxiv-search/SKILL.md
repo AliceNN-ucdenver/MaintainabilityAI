@@ -4,7 +4,7 @@ description: Academic paper search via arXiv. Returns ranked paper results per q
 version: 0.1.0
 purity: pure-data
 runtime: research-runner
-command: npx @maintainabilityai/research-runner@~0.1.42 skill-arxiv-search
+command: npx @maintainabilityai/research-runner@~0.1.64 skill-arxiv-search
 ---
 
 # arXiv Search Skill
@@ -29,7 +29,7 @@ Call when the agent needs peer-reviewed / preprint academic sources for research
 
 ```sh
 echo '{"queries":["named entity disambiguation knowledge graph"]}' \
-  | npx @maintainabilityai/research-runner@~0.1.42 skill-arxiv-search
+  | npx @maintainabilityai/research-runner@~0.1.64 skill-arxiv-search
 ```
 
 ## Implementation

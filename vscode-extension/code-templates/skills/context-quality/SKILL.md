@@ -4,7 +4,7 @@ description: Aggregated quality context for a scope — quality attribute defini
 version: 0.1.0
 purity: pure-data
 runtime: research-runner
-command: npx @maintainabilityai/research-runner@~0.1.42 skill-context-quality
+command: npx @maintainabilityai/research-runner@~0.1.64 skill-context-quality
 ---
 
 # Context Quality Skill
@@ -31,7 +31,7 @@ Surfaces non-functional grounding (latency, availability, observability) so the 
 
 ```sh
 echo '{"platformId":"PLT-IMDB","barIds":["APP-IMDB-001","APP-IMDB-002"]}' \
-  | npx @maintainabilityai/research-runner@~0.1.42 skill-context-quality
+  | npx @maintainabilityai/research-runner@~0.1.64 skill-context-quality
 ```
 
 ## Implementation

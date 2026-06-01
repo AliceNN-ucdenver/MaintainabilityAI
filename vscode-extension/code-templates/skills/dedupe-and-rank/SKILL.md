@@ -4,7 +4,7 @@ description: Merge ProviderResult arrays from all search Skills, dedupe by URL, 
 version: 0.1.0
 purity: pure-data
 runtime: research-runner
-command: npx @maintainabilityai/research-runner@~0.1.42 skill-dedupe-and-rank
+command: npx @maintainabilityai/research-runner@~0.1.64 skill-dedupe-and-rank
 ---
 
 # Dedupe + Rank Skill
@@ -33,11 +33,11 @@ Call after invoking all four search Skills (tavily / arxiv / uspto / hackernews)
 ```sh
 # Canonical — grouped by provider (preferred; rank weights cross-provider agreement).
 echo '{"results":[[...tavily...],[...arxiv...],[...uspto...],[...hn...]]}' \
-  | npx @maintainabilityai/research-runner@~0.1.42 skill-dedupe-and-rank
+  | npx @maintainabilityai/research-runner@~0.1.64 skill-dedupe-and-rank
 
 # Also accepted — flat list (handler flattens internally for the grouped case).
 echo '{"results":[...all results concatenated...]}' \
-  | npx @maintainabilityai/research-runner@~0.1.42 skill-dedupe-and-rank
+  | npx @maintainabilityai/research-runner@~0.1.64 skill-dedupe-and-rank
 ```
 
 ## Source registry contract

@@ -4,7 +4,7 @@ description: Reads bounded file contents (≤10 KB) from the brownfield clone re
 version: 0.1.0
 purity: pure-data
 runtime: research-runner
-command: npx @maintainabilityai/research-runner@~0.1.42 skill-knowledge-code-read
+command: npx @maintainabilityai/research-runner@~0.1.64 skill-knowledge-code-read
 ---
 
 # Knowledge Code Read Skill

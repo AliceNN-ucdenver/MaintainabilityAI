@@ -890,7 +890,7 @@ The Looking Glass exporter could not shell out to \`skill-audit-verify-chain\`. 
 
 \`\`\`sh
 printf '{"okrId":"${okrId}","runId":"${runId}"}' \\
-  | npx -y @maintainabilityai/research-runner@~0.1.42 skill-audit-verify-chain
+  | npx -y @maintainabilityai/research-runner@~0.1.64 skill-audit-verify-chain
 \`\`\``;
 }
 
@@ -1107,7 +1107,7 @@ To re-verify from a fresh shell:
 
 \`\`\`sh
 printf '{"okrId":"${input.okrId}","runId":"${input.runId}"}' \\
-  | npx -y @maintainabilityai/research-runner@~0.1.42 skill-audit-verify-chain
+  | npx -y @maintainabilityai/research-runner@~0.1.64 skill-audit-verify-chain
 \`\`\`
 `;
 }
@@ -1864,7 +1864,7 @@ function renderVerifierNotesPerPhase(input: OkrRollupInput): string {
 
 \`\`\`sh
 printf '{"okrId":"${input.okrId}","runId":"${p.runId}"}' \\
-  | npx -y @maintainabilityai/research-runner@~0.1.42 skill-audit-verify-chain
+  | npx -y @maintainabilityai/research-runner@~0.1.64 skill-audit-verify-chain
 \`\`\``).join('\n\n');
 }
 

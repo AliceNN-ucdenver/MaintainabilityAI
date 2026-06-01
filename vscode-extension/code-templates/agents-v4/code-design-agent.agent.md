@@ -81,7 +81,7 @@ You will be invoked on a GitHub issue carrying the `oraculum-design` label.
 **How to invoke every skill.** Pipe JSON stdin to the runner CLI inside `execute`:
 
 ```sh
-echo '{"<input>":...}' | npx -y @maintainabilityai/research-runner@~0.1.42 skill-<name>
+echo '{"<input>":...}' | npx -y @maintainabilityai/research-runner@~0.1.64 skill-<name>
 ```
 
 This is the ONLY invocation that emits an audit `skill_call` event. Do NOT use Copilot's `skill_use` tool; it only loads SKILL.md into context and leaves the chain empty.
@@ -249,7 +249,7 @@ This is the ONLY invocation that emits an audit `skill_call` event. Do NOT use C
           payload: { round: $round, persona: "code-architect",
                      score: ($score | tonumber), severity: $severity,
                      prompt_pack: "code-design/architecture-review.md" }}' \
-      | npx -y @maintainabilityai/research-runner@~0.1.42 skill-audit-emit-event
+      | npx -y @maintainabilityai/research-runner@~0.1.64 skill-audit-emit-event
     ```
 
     The runner signs the event under your per-epoch private key. If you skip this call, the chain will lack signed `self_review` events and the verdict will degrade.

@@ -4,7 +4,7 @@ description: Authoritative tier + prompt-pack handoff for the Code-Security pers
 version: 0.1.0
 purity: pure-data
 runtime: research-runner
-command: npx @maintainabilityai/research-runner@~0.1.42 skill-self-review-code-security
+command: npx @maintainabilityai/research-runner@~0.1.64 skill-self-review-code-security
 ---
 
 # Self-Review Code-Security Skill (Phase D)
@@ -43,7 +43,7 @@ step. Called once per round before writing the
 
 ```sh
 echo '{"okrId":"OKR-2026Q2-IMDB-001-celeb-api","runId":"WHAT-2026-05-23-abc123","round":1}' \
-  | npx -y @maintainabilityai/research-runner@~0.1.42 skill-self-review-code-security
+  | npx -y @maintainabilityai/research-runner@~0.1.64 skill-self-review-code-security
 ```
 
 ## Implementation

@@ -32,7 +32,7 @@ import { createHash } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-const RUNNER_PKG = process.env.RUNNER_PKG_SPEC || '@maintainabilityai/research-runner@~0.1.42';
+const RUNNER_PKG = process.env.RUNNER_PKG_SPEC || '@maintainabilityai/research-runner@~0.1.64';
 
 function ghError(title, message) {
   process.stderr.write(`::error title=${title}::${message}\n`);

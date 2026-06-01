@@ -65,7 +65,7 @@ You will be invoked on a GitHub issue carrying the `oraculum-research` label (th
 
    The `run_id` is the action's identity in `okr.yaml.actions[]`. The finalize workflow uses this exact value to flip `actions[].status` on PR merge via `yq select(.runId == "<value>")`. **Never invent or generate your own `run_id`.** A made-up `run_id` makes finalize a no-op — `action.status` stays `in_progress` forever and the OKR is stuck. If both the HTML markers AND the Dispatch context table are absent, post a comment naming what's missing and stop. Do NOT parse the human-readable objective/summary prose for either id.
 
-1b. **Export the session context as env vars** before any `npx @maintainabilityai/research-runner@~0.1.42 skill-*` call:
+1b. **Export the session context as env vars** before any `npx @maintainabilityai/research-runner@~0.1.64 skill-*` call:
    ```sh
    export OKR_ID="<okr_id from step 1>" \
           RUN_ID="<run_id from step 1>" \
@@ -77,7 +77,7 @@ You will be invoked on a GitHub issue carrying the `oraculum-research` label (th
 **How to "call" / "invoke" any skill below.** Every skill in this run MUST be invoked by piping JSON stdin into the runner CLI inside your `execute` shell:
 
 ```sh
-echo '{"<input>":...}' | npx -y @maintainabilityai/research-runner@~0.1.42 skill-<name>
+echo '{"<input>":...}' | npx -y @maintainabilityai/research-runner@~0.1.64 skill-<name>
 ```
 
 This is the ONLY invocation that emits an audit `skill_call` event. Do NOT use Copilot's `skill_use` tool; it only loads SKILL.md into context and leaves the chain empty. If you reason about data you never invoked through the runner, STOP.

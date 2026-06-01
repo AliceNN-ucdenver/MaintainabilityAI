@@ -4,7 +4,7 @@ description: Query the mesh's ADRs by concern. Returns matching ADR documents fr
 version: 0.1.0
 purity: pure-data
 runtime: research-runner
-command: npx @maintainabilityai/research-runner@~0.1.42 skill-knowledge-mesh-adrs
+command: npx @maintainabilityai/research-runner@~0.1.64 skill-knowledge-mesh-adrs
 ---
 
 # Knowledge Mesh ADRs Skill
@@ -30,7 +30,7 @@ Returns ADRs across the mesh that touch a given concern. Lets the agent's Archit
 
 ```sh
 echo '{"concern":"identity-disambiguation","scope":{"platformId":"PLT-IMDB"}}' \
-  | npx @maintainabilityai/research-runner@~0.1.42 skill-knowledge-mesh-adrs
+  | npx @maintainabilityai/research-runner@~0.1.64 skill-knowledge-mesh-adrs
 ```
 
 ## Implementation
