@@ -2105,8 +2105,10 @@ interface ParsedRailReport {
   inputs?: Array<{ path: string; sha256: string }>;
   counts?: {
     blocked?: number; needs_review?: number; redacted?: number; scanned?: number;
-    // Phase 4 groundedness counts (pairing rail).
-    contradicted?: number; unsupported?: number; entailed?: number; claims?: number;
+    // Phase 4 groundedness counts (pairing rail). `unresolved` = a cited
+    // source had no excerpt to check (a grounding GAP, not a model verdict);
+    // it is held distinct from `unsupported` (not-entailed) — issue #187.
+    contradicted?: number; unsupported?: number; unresolved?: number; entailed?: number; claims?: number;
   };
   allowed_entities?: Array<{ type: string; count: number }>;
 }
@@ -2320,6 +2322,12 @@ export function renderOracleRailsSubsection(
   if (ev.rail === 'groundedness') {
     lines.push(`- contradicted: ${r.counts?.contradicted ?? 0}`);
     lines.push(`- unsupported: ${r.counts?.unsupported ?? 0}`);
+    // A cited source with no excerpt is a grounding GAP, not a not-entailed
+    // verdict (issue #187). Surface it only when present so it isn't conflated
+    // with `unsupported` and stays invisible noise-free in the common case.
+    if ((r.counts?.unresolved ?? 0) > 0) {
+      lines.push(`- unresolved (cited source has no excerpt): ${r.counts?.unresolved}`);
+    }
     lines.push(`- entailed: ${r.counts?.entailed ?? 0} of ${r.counts?.claims ?? 0} conclusions`);
   } else {
     lines.push(`- blocked: ${r.counts?.blocked ?? 0}`);

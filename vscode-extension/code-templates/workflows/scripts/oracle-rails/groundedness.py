@@ -68,9 +68,11 @@ POLICY = "tiered"
 
 # Dispositions.
 BLOCK = "block"                # cited source contradicts the claim
-NEEDS_REVIEW = "needs_review"  # unsupported (no entailment, no contradiction)
+NEEDS_REVIEW = "needs_review"  # not entailed: source(s) resolved, model said neutral
 PASS = "pass"                  # at least one cited source entails the claim
-SKIP = "skip"                  # claim cites no resolvable source (handled separately)
+UNRESOLVED = "unresolved"      # cited source(s) carry NO excerpt to check against —
+                               # a grounding GAP, not a model verdict; kept distinct
+                               # from not-entailed so the two aren't conflated.
 
 # Verdict precedence: fail > needs_review > pass.
 VERDICT_FAIL = "fail"
@@ -284,18 +286,26 @@ def claim_shape(text: str, cited: tuple[str, ...], resolved: tuple[str, ...]) ->
 def classify(p: Pairing, config: dict) -> str:
     """Map one scored claim to a disposition under the tiered policy. Pure.
 
-    Contradiction is checked FIRST (a source refuting the claim is the serious
-    signal). Then entailment (any one cited source entailing ⇒ pass). Otherwise
-    unsupported → needs_review. A claim whose cited sources didn't resolve is
-    also needs_review (can't certify grounding we couldn't read)."""
+    Resolution is checked FIRST: a claim whose cited sources carry no excerpt
+    is UNRESOLVED — a grounding gap we couldn't read, kept distinct from a model
+    verdict. Then contradiction (a source refuting the claim is the serious
+    signal). Then entailment (any one cited source, or the combined excerpts,
+    entailing ⇒ pass). Otherwise not-entailed → needs_review."""
     entail_t = float(config.get("entail_threshold", DEFAULT_ENTAIL_THRESHOLD))
     contra_t = float(config.get("contra_threshold", DEFAULT_CONTRA_THRESHOLD))
+    # No cited source resolved to an excerpt → we couldn't read anything to
+    # check against. This is a grounding GAP (ungrounded/uncheckable citation),
+    # NOT a model "neutral" verdict — keep it distinct from not-entailed so the
+    # two are never conflated (e.g. a claim citing a registry source that carries
+    # only a title, no excerpt).
+    if not p.resolved:
+        return UNRESOLVED
     if p.best_contra >= contra_t:
         return BLOCK
     # Pass if EITHER a single cited source entails the claim OR the combined
     # cited excerpts do (the synthesis view) — so a conjunctive conclusion
     # grounded across several sources isn't marked unsupported.
-    if p.resolved and max(p.best_entail, p.combined_entail) >= entail_t:
+    if max(p.best_entail, p.combined_entail) >= entail_t:
         return PASS
     return NEEDS_REVIEW
 
@@ -311,7 +321,10 @@ def compute_verdict(dispositions: list[str], config: dict) -> str:
     block_contra = bool(config.get("block_on_contradiction", True))
     block_neutral = bool(config.get("block_on_neutral", False))
     has_block = any(d == BLOCK for d in dispositions)
-    has_review = any(d == NEEDS_REVIEW for d in dispositions)
+    # UNRESOLVED (uncheckable citation) is a review-level signal like not-entailed
+    # — visible, never pass, but not a hard block (it's a grounding gap, not a
+    # refutation). It only escalates to FAIL under the same block_on_neutral knob.
+    has_review = any(d in (NEEDS_REVIEW, UNRESOLVED) for d in dispositions)
     if has_block and block_contra:
         return VERDICT_FAIL
     if (has_review or has_block) and block_neutral:
@@ -361,14 +374,19 @@ def build_report(*, okr_id: str, run_id: str, phase: str, inputs: list[dict],
     contradicted = [r for r in rows if r["disposition"] == BLOCK]
     unsupported = [r for r in rows if r["disposition"] == NEEDS_REVIEW]
     entailed = [r for r in rows if r["disposition"] == PASS]
+    unresolved = [r for r in rows if r["disposition"] == UNRESOLVED]
 
     verdict = compute_verdict([r["disposition"] for r in rows], config)
     # Score summary — instrumentation (not a gate input). Lets a run self-
     # diagnose the NLI behavior: all-neutral (strict entailment mismatched to
     # prescriptive conclusions) vs a real entail/contra spread. Averaged over the
-    # rounded per-claim scores so it is replay-deterministic.
+    # SCORED rows only (those that resolved + ran the model) — unresolved claims
+    # have all-zero scores the model never produced, so including them would
+    # deflate avg_entail misleadingly. Replay-deterministic.
+    scored = [r for r in rows if r["disposition"] != UNRESOLVED]
+
     def _avg(key: str) -> float:
-        vals = [float(p_row[key]) for p_row in rows] if rows else []
+        vals = [float(p_row[key]) for p_row in scored] if scored else []
         return round(sum(vals) / len(vals), 4) if vals else 0.0
 
     return {
@@ -387,6 +405,7 @@ def build_report(*, okr_id: str, run_id: str, phase: str, inputs: list[dict],
         "counts": {
             "contradicted": len(contradicted),
             "unsupported": len(unsupported),
+            "unresolved": len(unresolved),
             "entailed": len(entailed),
             "claims": len(pairings),
         },
@@ -398,6 +417,7 @@ def build_report(*, okr_id: str, run_id: str, phase: str, inputs: list[dict],
         },
         "contradicted_claims": contradicted,
         "unsupported_claims": unsupported,
+        "unresolved_claims": unresolved,
     }
 
 
@@ -709,7 +729,11 @@ def cmd_run(args) -> int:
     # "strict NLI did not find the cited snippets to logically entail this whole
     # conclusion" — which, on prescriptive/synthesized conclusions, is expected
     # and NOT an accusation that the conclusion is false. Labels say exactly that.
-    for label, key in (("CONTRADICTED", "contradicted_claims"), ("NOT-ENTAILED (strict NLI)", "unsupported_claims")):
+    for label, key in (
+        ("CONTRADICTED", "contradicted_claims"),
+        ("NOT-ENTAILED (strict NLI)", "unsupported_claims"),
+        ("UNRESOLVED (cited source has no excerpt to check)", "unresolved_claims"),
+    ):
         for r in report.get(key, []):
             print(
                 f"::warning::oracle-groundedness-rail {r['claim']} {label} "

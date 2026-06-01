@@ -2440,6 +2440,54 @@ describe('renderOracleRailsSubsection (Oracle & Privacy Rails — pure re-deriva
     };
   }
 
+  // ── Phase 4: groundedness pairing-rail count render ─────────────────────
+  function makeGroundednessInput(
+    counts: Record<string, number>,
+    over: Partial<OracleRailRollupInput> = {},
+  ): OracleRailRollupInput {
+    const reportRaw = JSON.stringify({
+      schema_version: 'oracle-rail-report.v1', rail: 'groundedness', policy: 'tiered',
+      okr_id: 'OKR-X', run_id: 'WHY-1', phase: 'why', config_sha256: 'cfg', verdict: 'needs_review',
+      inputs: [{ path: DOC, sha256: sha(docBytes) }, { path: REG, sha256: sha(regBytes) }],
+      counts,
+    });
+    return {
+      railEvent: {
+        schema_version: 'oracle-rail-report.v1', rail: 'groundedness', verdict: 'needs_review',
+        okr_id: 'OKR-X', run_id: 'WHY-1', phase: 'why', config_sha256: 'cfg',
+        report_path: 'okrs/OKR-X/audit/rails/WHY-1.groundedness.rail-report.json',
+        report_sha256: sha(reportRaw), merge_commit_sha: 'm'.repeat(40), pr_number: 7,
+      },
+      reportRaw,
+      inputContents: { [DOC]: docBytes, [REG]: regBytes },
+      ciReplay: { invoked: true, ok: true },
+      ...over,
+    };
+  }
+
+  it('groundedness render: surfaces the unresolved (no-excerpt) count when present — issue #187', () => {
+    const md = renderOracleRailsSubsection(
+      makeGroundednessInput({ contradicted: 0, unsupported: 1, unresolved: 2, entailed: 4, claims: 7 }),
+    );
+    expect(md).toContain('- contradicted: 0');
+    expect(md).toContain('- unsupported: 1');
+    // the grounding GAP is held distinct from `unsupported`, not folded into it
+    expect(md).toContain('- unresolved (cited source has no excerpt): 2');
+    expect(md).toContain('- entailed: 4 of 7 conclusions');
+  });
+
+  it('groundedness render: omits the unresolved line when there is no grounding gap', () => {
+    const md = renderOracleRailsSubsection(
+      makeGroundednessInput({ contradicted: 0, unsupported: 1, unresolved: 0, entailed: 5, claims: 6 }),
+    );
+    expect(md).not.toContain('unresolved');
+    // and a report from before the split (no `unresolved` key) renders cleanly too
+    const legacy = renderOracleRailsSubsection(
+      makeGroundednessInput({ contradicted: 0, unsupported: 2, entailed: 4, claims: 6 }),
+    );
+    expect(legacy).not.toContain('unresolved');
+  });
+
   it('renderOracleRailsBlock: one heading + one named subsection per rail', () => {
     const md = renderOracleRailsBlock({ oracleRailsList: [makeInput(), makeInjectionInput()] });
     // Single shared section heading...

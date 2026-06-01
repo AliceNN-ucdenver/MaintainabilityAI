@@ -18,7 +18,7 @@ from groundedness import (
     load_support_claims, score_support_claims,
     classify, compute_verdict, build_report, compare_reports, canonical_hash,
     claim_shape, clean_claim_text, _label_indices,
-    BLOCK, NEEDS_REVIEW, PASS,
+    BLOCK, NEEDS_REVIEW, PASS, UNRESOLVED,
     VERDICT_FAIL, VERDICT_PASS, VERDICT_NEEDS_REVIEW,
     DEFAULT_ENTAIL_THRESHOLD, DEFAULT_CONTRA_THRESHOLD,
 )
@@ -105,9 +105,16 @@ class TestClassify(unittest.TestCase):
     def test_unsupported_is_needs_review(self):
         self.assertEqual(classify(pairing(1, ["S1"], ["S1"], entail=0.3, contra=0.2), CFG), NEEDS_REVIEW)
 
-    def test_unresolved_citations_are_needs_review(self):
-        # cites S1 but it didn't resolve to an excerpt → can't certify grounding.
-        self.assertEqual(classify(pairing(1, ["S1"], [], entail=0.0, contra=0.0), CFG), NEEDS_REVIEW)
+    def test_unresolved_citations_get_distinct_disposition(self):
+        # Cites S1 but it didn't resolve to an excerpt → this is a grounding GAP,
+        # not a model verdict. It must NOT be conflated with not-entailed
+        # (NEEDS_REVIEW); it gets its own UNRESOLVED disposition (issue #187).
+        self.assertEqual(classify(pairing(1, ["S1"], [], entail=0.0, contra=0.0), CFG), UNRESOLVED)
+
+    def test_unresolved_precedes_contradiction(self):
+        # An unresolvable citation can't be contradicted either — no excerpt to
+        # contradict against. UNRESOLVED wins even if a spurious contra score leaks in.
+        self.assertEqual(classify(pairing(1, ["S1"], [], entail=0.0, contra=0.99), CFG), UNRESOLVED)
 
     def test_entailment_below_threshold_is_review_not_pass(self):
         self.assertEqual(classify(pairing(1, ["S1"], ["S1"], entail=0.59, contra=0.1), CFG), NEEDS_REVIEW)
@@ -183,8 +190,37 @@ class TestReport(unittest.TestCase):
             pairing(2, ["S2"], ["S2"], entail=0.3, contra=0.2),    # unsupported
             pairing(3, ["S3"], ["S3"], entail=0.1, contra=0.9),    # contradicted
         ])
-        self.assertEqual(r["counts"], {"contradicted": 1, "unsupported": 1, "entailed": 1, "claims": 3})
+        self.assertEqual(r["counts"], {"contradicted": 1, "unsupported": 1, "unresolved": 0, "entailed": 1, "claims": 3})
         self.assertEqual(r["verdict"], VERDICT_FAIL)  # contradiction + blocking
+
+    def test_unresolved_bucket_is_separate_from_unsupported(self):
+        # issue #187: a claim whose cited source has no excerpt (resolved empty)
+        # is UNRESOLVED — a grounding gap — and must NOT inflate `unsupported`.
+        r = self._report([
+            pairing(1, ["S1"], ["S1"], entail=0.8, contra=0.1),    # entailed
+            pairing(2, ["S2"], ["S2"], entail=0.3, contra=0.2),    # not-entailed → unsupported
+            pairing(3, ["S27"], [], entail=0.0, contra=0.0),       # cited, no excerpt → unresolved
+            pairing(4, ["S28"], [], entail=0.0, contra=0.0),       # cited, no excerpt → unresolved
+        ])
+        self.assertEqual(r["counts"]["unsupported"], 1)
+        self.assertEqual(r["counts"]["unresolved"], 2)
+        self.assertEqual(len(r["unresolved_claims"]), 2)
+        # the unresolved rows must not leak into the unsupported bucket
+        for row in r["unsupported_claims"]:
+            self.assertNotEqual(row["disposition"], UNRESOLVED)
+        # unresolved → review-level verdict (advisory by default in this CFG it blocks
+        # on contradiction only, and there's no contradiction here)
+        self.assertEqual(r["verdict"], VERDICT_NEEDS_REVIEW)
+
+    def test_unresolved_rows_excluded_from_score_averages(self):
+        # All-zero scores on unresolved rows would deflate avg_entail if counted.
+        # _avg must average only over scored (resolved) rows.
+        r = self._report([
+            pairing(1, ["S1"], ["S1"], entail=0.8, contra=0.1),    # scored
+            pairing(2, ["S27"], [], entail=0.0, contra=0.0),       # unresolved → excluded
+        ])
+        # avg over the single scored row, not (0.8 + 0.0)/2
+        self.assertAlmostEqual(r["score_summary"]["avg_entailment"], 0.8, places=4)
 
     def test_report_never_contains_raw_claim_or_excerpt(self):
         r = self._report([pairing(1, ["S1", "S7"], ["S1", "S7"], entail=0.1, contra=0.95)])
@@ -421,6 +457,29 @@ class TestSupportClaimsSidecar(unittest.TestCase):
         r = build_report(okr_id="X", run_id="W", phase="why", inputs=[], model={},
                          thresholds={}, config={}, pairings=[])
         self.assertEqual(r["mode"], "whole_conclusion")
+
+    def test_excerptless_support_claim_skips_nli_and_is_unresolved(self):
+        # issue #187 (reviewer P2 — "before NLI, not post-hoc"): a support-claim
+        # whose cited sources carry NO excerpt must make ZERO model calls (there's
+        # nothing to read) and classify as UNRESOLVED — never run strict NLI
+        # against an empty premise and collapse the all-zero scores into
+        # not-entailed.
+        calls = []
+        def nli(premise, hypothesis):
+            calls.append((premise, hypothesis))
+            return (0.9, 0.05, 0.05)  # would entail if ever invoked — it must NOT be
+        scs = load_support_claims(self.SIDECAR)            # C1-SC1→S3, C1-SC2→S12, C2-SC1→S50
+        excerpts = {"S3": "study shows AI recs lift conversion 12%"}  # only S3 has an excerpt
+        cfg = {"entail_threshold": 0.6, "contra_threshold": 0.6}
+        pairings = score_support_claims(scs, excerpts, cfg, nli)
+        # the model was consulted only for the one resolvable claim (C1-SC1/S3)
+        self.assertEqual(len(calls), 1)
+        c1sc2 = next(p for p in pairings if p.claim_id == "C1-SC2")   # cites S12 (no excerpt)
+        c2sc1 = next(p for p in pairings if p.claim_id == "C2-SC1")   # cites S50 (no excerpt)
+        self.assertEqual(c1sc2.resolved, ())
+        self.assertEqual(classify(c1sc2, cfg), UNRESOLVED)
+        self.assertEqual(classify(c2sc1, cfg), UNRESOLVED)
+        self.assertEqual(classify(next(p for p in pairings if p.claim_id == "C1-SC1"), cfg), PASS)
 
 
 if __name__ == "__main__":
