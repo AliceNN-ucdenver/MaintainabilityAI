@@ -2,7 +2,7 @@
   "name": "maintainabilityai",
   "displayName": "MaintainabilityAI",
   "description": "Security-first RCTRO issue creation for AI-assisted feature development",
-  "version": "0.1.254",
+  "version": "0.1.255",
   "publisher": "chiefarcheologist",
   "license": "MIT",
   "preview": true,
@@ -218,6 +218,11 @@
           "type": "string",
           "default": "",
           "description": "USPTO API key (optional — adds patent coverage to the Archeologist run via the USPTO Open Data Portal at api.uspto.gov/api/v1/patent/applications/search; pipeline degrades gracefully when absent). Request a key at https://data.uspto.gov/apis/getting-started"
+        },
+        "maintainabilityai.llm.huggingfaceToken": {
+          "type": "string",
+          "default": "",
+          "description": "Hugging Face token (HF_TOKEN) — used by the Oracle injection rail (Phase 3) to download the gated Llama Prompt Guard 2 model on the mesh. A read token is enough; your HF account must first accept the model license at https://huggingface.co/meta-llama/Llama-Prompt-Guard-2-86M. Optional while the injection rail is advisory; required before it is promoted to a hard gate. Mint at https://huggingface.co/settings/tokens"
         },
         "maintainabilityai.governance.meshToken": {
           "type": "string",

@@ -205,6 +205,7 @@ export type ResearchSecretId =
   | 'openai'
   | 'tavily'
   | 'uspto'
+  | 'huggingface'
   | 'governance-mesh-token';
 
 /** Per-secret status: which storage tiers it is set in. */

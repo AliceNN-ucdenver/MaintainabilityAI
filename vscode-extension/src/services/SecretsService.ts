@@ -63,6 +63,15 @@ export const SECRETS: SecretDefinition[] = [
     scope: 'mesh',
   },
   {
+    id: 'huggingface',
+    envName: 'HF_TOKEN',
+    settingKey: 'maintainabilityai.llm.huggingfaceToken',
+    prefix: 'hf_',
+    label: 'Hugging Face Token (optional)',
+    description: 'HF_TOKEN — Used by the Oracle injection rail (Phase 3) to download the gated Llama Prompt Guard 2 86M model on the mesh (oracle-injection-cert.yml; market-research-agent.yml once the rail is a hard gate). A read token is enough, but your HF account must first ACCEPT THE MODEL LICENSE at https://huggingface.co/meta-llama/Llama-Prompt-Guard-2-86M or the download 403s. Optional while the rail is advisory; required before promotion to a hard gate. Mesh only. Mint at https://huggingface.co/settings/tokens',
+    scope: 'mesh',
+  },
+  {
     id: 'governance-mesh-token',
     envName: 'GOVERNANCE_MESH_TOKEN',
     settingKey: 'maintainabilityai.governance.meshToken',
@@ -73,7 +82,7 @@ export const SECRETS: SecretDefinition[] = [
 ];
 
 /** Subset of SECRETS that the Research + PRD agents need at run time. */
-export const RESEARCH_SECRET_IDS = ['anthropic', 'openai', 'tavily', 'uspto', 'governance-mesh-token'] as const;
+export const RESEARCH_SECRET_IDS = ['anthropic', 'openai', 'tavily', 'uspto', 'huggingface', 'governance-mesh-token'] as const;
 export type ResearchSecretId = (typeof RESEARCH_SECRET_IDS)[number];
 
 export type SecretsTarget = 'governance' | 'workspace';

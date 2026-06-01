@@ -43,6 +43,7 @@ export async function testResearchKey(id: ResearchSecretId, key: string): Promis
       case 'openai':                 return await testOpenai(key);
       case 'tavily':                 return await testTavily(key);
       case 'uspto':                  return await testUspto(key);
+      case 'huggingface':            return await testHuggingface(key);
       case 'governance-mesh-token':  return await testGovernanceMeshToken(key);
     }
   } catch (err) {
@@ -148,6 +149,23 @@ function describeFetchFailure(err: unknown, url: string): string {
     return `Network error reaching ${url} — ${detail}`;
   }
   return `Network error reaching ${url} — ${top}`;
+}
+
+async function testHuggingface(key: string): Promise<KeyTestResult> {
+  // /api/whoami-v2 validates the token itself. A valid token can STILL 403 on
+  // the gated Llama Prompt Guard 2 model until the account accepts its license,
+  // so this probe verifies the token only and the success message flags that
+  // second requirement explicitly (the cert/rail surfaces the actual 403).
+  const res = await fetchWithTimeout('https://huggingface.co/api/whoami-v2', {
+    method: 'GET',
+    headers: { authorization: `Bearer ${key}` },
+  });
+  if (res.ok) {
+    return { ok: true, message: 'Hugging Face token valid. Ensure your account has ACCEPTED the model license at huggingface.co/meta-llama/Llama-Prompt-Guard-2-86M — a valid token still 403s on the gated model until then.', status: res.status };
+  }
+  if (res.status === 401) { return { ok: false, message: 'Hugging Face rejected the token (401 unauthorized).', status: 401 }; }
+  if (res.status === 403) { return { ok: false, message: 'Hugging Face token lacks permissions (403).', status: 403 }; }
+  return { ok: false, message: `Hugging Face returned ${res.status}.`, status: res.status };
 }
 
 async function testTavily(key: string): Promise<KeyTestResult> {
