@@ -349,9 +349,15 @@ def _load_classifier(config: dict):
             probs = torch.softmax(logits, dim=-1)[0]
             return float(probs[mal_idx])
 
+        # The COMMIT SHA transformers actually resolved + loaded. When `revision`
+        # is a tag (or None), this is the concrete hash to pin into injection.json
+        # — captured so the cert can print it and replay can compare it. transformers
+        # stamps config._commit_hash after a successful load.
+        resolved = getattr(model.config, "_commit_hash", None) or (revision or "unresolved")
         return score, {
             "model_id": model_id,
             "revision": revision or "unpinned-tag",
+            "resolved_revision": resolved,
             "malicious_label": str(id2label[mal_idx]),
             "malicious_index": mal_idx,
         }
@@ -377,6 +383,10 @@ def _model_meta(model_info: dict) -> dict:
         "engine": "llama-prompt-guard-2",
         "model_id": model_info.get("model_id", DEFAULT_MODEL_ID),
         "model_revision": model_info.get("revision", "unknown"),
+        # The concrete commit SHA transformers loaded. On an unpinned run this is
+        # the hash to PIN; on replay it must equal the committed value or the tag
+        # moved — surfacing tag drift as rail-replay-mismatch (intended).
+        "resolved_revision": model_info.get("resolved_revision", "unresolved"),
         # Which class the score reads — recorded so replay compares it and a
         # label-scheme drift surfaces as rail-replay-mismatch, not a silent flip.
         "malicious_label": model_info.get("malicious_label", "unknown"),

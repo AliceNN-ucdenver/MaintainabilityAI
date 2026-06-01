@@ -124,8 +124,9 @@ jobs:
           BCODE=$(run_rail benign "$BENIGN" | tail -1)
           echo "::endgroup::"
 
-          # Report the RESOLVED model revision — pin THIS into injection.json.
-          REV=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('model',{}).get('model_revision','?'))" "$RUNNER_TEMP/hostile.rail-report.json" 2>/dev/null || echo "?")
+          # Report the RESOLVED commit SHA (not the tag) — pin THIS into
+          # injection.json model_revision to promote the rail.
+          REV=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('model',{}).get('resolved_revision','?'))" "$RUNNER_TEMP/hostile.rail-report.json" 2>/dev/null || echo "?")
           MAL=$(python3 -c "import json,sys; m=json.load(open(sys.argv[1])).get('model',{}); print(str(m.get('malicious_label','?'))+' @idx '+str(m.get('malicious_index','?')))" "$RUNNER_TEMP/hostile.rail-report.json" 2>/dev/null || echo "?")
           echo "::notice::resolved model_revision=$REV  malicious_class=$MAL  (pin model_revision into injection.json to promote the rail)"
           echo "hostile exit=$HCODE  benign exit=$BCODE"

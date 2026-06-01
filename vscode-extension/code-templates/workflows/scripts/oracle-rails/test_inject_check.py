@@ -253,6 +253,13 @@ class TestReplay(unittest.TestCase):
         fresh = {**self.BASE, "model": {"engine": "llama-prompt-guard-2", "model_revision": "different"}}
         self.assertIn("model", compare_reports(dict(self.BASE), fresh))
 
+    def test_resolved_revision_drift_is_a_mismatch(self):
+        # A moved tag → same model_revision (the tag) but a different resolved
+        # commit SHA → must surface as a replay mismatch.
+        committed = {**self.BASE, "model": {"engine": "llama-prompt-guard-2", "model_revision": "main", "resolved_revision": "sha-A"}}
+        fresh = {**self.BASE, "model": {"engine": "llama-prompt-guard-2", "model_revision": "main", "resolved_revision": "sha-B"}}
+        self.assertIn("model", compare_reports(committed, fresh))
+
     def test_input_hash_difference_is_a_mismatch(self):
         fresh = {**self.BASE, "inputs": [{"path": "x", "sha256": "b"}]}
         self.assertIn("inputs", compare_reports(dict(self.BASE), fresh))
