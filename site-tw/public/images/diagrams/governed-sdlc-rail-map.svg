@@ -108,6 +108,7 @@
     <text x="248" y="18" fill="#e0f2fe" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">provider results</text>
     <text x="248" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">Tavily · arXiv</text>
     <text x="248" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">USPTO · HN</text>
+    <text x="248" y="60" fill="#86efac" font-size="8.5" font-weight="600" font-family="system-ui, sans-serif">guardrail envelope ✓</text>
     <text x="248" y="74" fill="#7dd3fc" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">source registry</text>
     <rect x="376" y="0" width="130" height="84" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(125,211,252,0.30)" stroke-width="1"/>
     <text x="386" y="18" fill="#e0f2fe" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">mesh context</text>
@@ -142,8 +143,9 @@
     <rect x="238" y="0" width="130" height="84" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(134,239,172,0.30)" stroke-width="1"/>
     <text x="248" y="18" fill="#dcfce7" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">source grounding</text>
     <text x="248" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">S tags matched</text>
-    <text x="248" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">claims cite evidence</text>
-    <text x="248" y="74" fill="#86efac" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">research audit</text>
+    <text x="248" y="46" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">PII + injection rails</text>
+    <text x="248" y="60" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">replay-verified</text>
+    <text x="248" y="74" fill="#86efac" font-size="8" font-weight="600" font-family="ui-monospace, Menlo, monospace">research audit · rails</text>
     <rect x="376" y="0" width="130" height="84" rx="6" fill="rgba(15,23,42,0.55)" stroke="rgba(134,239,172,0.30)" stroke-width="1"/>
     <text x="386" y="18" fill="#dcfce7" font-size="9.5" font-weight="700" font-family="system-ui, sans-serif">requirements check</text>
     <text x="386" y="32" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">FR/NFR/SR present</text>

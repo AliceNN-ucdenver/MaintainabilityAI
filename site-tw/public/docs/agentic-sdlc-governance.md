@@ -443,13 +443,15 @@ Three things make it coherent. A **substrate** (Looking Glass) that everyone rea
   <rect x="40" y="200" width="350" height="156" rx="10" fill="url(#hatterGrad)" stroke="rgba(165,180,252,0.45)"/>
   <text x="215" y="222" text-anchor="middle" fill="#c4b5fd" font-size="12" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">HATTER'S TEA PARTY · PLAN</text>
   <text x="215" y="240" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">Governs intent upstream of code</text>
-  <rect x="56" y="252" width="318" height="22" rx="6" fill="rgba(165,180,252,0.10)" stroke="rgba(165,180,252,0.25)"/>
-  <text x="215" y="267" text-anchor="middle" fill="#e2e8f0" font-size="10" font-family="system-ui, sans-serif">Why · Market research (4 oracles + gap loop)</text>
-  <rect x="56" y="278" width="318" height="22" rx="6" fill="rgba(165,180,252,0.10)" stroke="rgba(165,180,252,0.25)"/>
-  <text x="215" y="293" text-anchor="middle" fill="#e2e8f0" font-size="10" font-family="system-ui, sans-serif">How · PRD (mesh-grounded gate · ask-experts)</text>
-  <rect x="56" y="304" width="318" height="22" rx="6" fill="rgba(165,180,252,0.10)" stroke="rgba(165,180,252,0.25)"/>
-  <text x="215" y="319" text-anchor="middle" fill="#e2e8f0" font-size="10" font-family="system-ui, sans-serif">What · Code Design (code-grounded heavy gate)</text>
-  <text x="215" y="343" text-anchor="middle" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">Hatter's Tag · Audit Report Export</text>
+  <rect x="56" y="250" width="318" height="22" rx="6" fill="rgba(165,180,252,0.10)" stroke="rgba(165,180,252,0.25)"/>
+  <text x="215" y="265" text-anchor="middle" fill="#e2e8f0" font-size="10" font-family="system-ui, sans-serif">Why · Market research (4 oracles + gap loop)</text>
+  <rect x="56" y="275" width="318" height="18" rx="5" fill="rgba(251,191,36,0.10)" stroke="rgba(251,191,36,0.35)"/>
+  <text x="215" y="287" text-anchor="middle" fill="#fcd34d" font-size="8.5" font-family="system-ui, sans-serif">↳ Oracle Rails · PII + injection gate on the evidence</text>
+  <rect x="56" y="296" width="318" height="20" rx="6" fill="rgba(165,180,252,0.10)" stroke="rgba(165,180,252,0.25)"/>
+  <text x="215" y="310" text-anchor="middle" fill="#e2e8f0" font-size="10" font-family="system-ui, sans-serif">How · PRD (mesh-grounded gate · ask-experts)</text>
+  <rect x="56" y="318" width="318" height="20" rx="6" fill="rgba(165,180,252,0.10)" stroke="rgba(165,180,252,0.25)"/>
+  <text x="215" y="332" text-anchor="middle" fill="#e2e8f0" font-size="10" font-family="system-ui, sans-serif">What · Code Design (code-grounded heavy gate)</text>
+  <text x="215" y="350" text-anchor="middle" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">Hatter's Tag · Audit Report Export · replay-verified rails</text>
   <rect x="410" y="200" width="350" height="156" rx="10" fill="url(#rqGrad)" stroke="rgba(244,114,182,0.45)"/>
   <text x="585" y="222" text-anchor="middle" fill="#f9a8d4" font-size="12" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">RED QUEEN'S COURT · ENFORCE</text>
   <text x="585" y="240" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">Governs action inside code repos</text>
@@ -513,6 +515,52 @@ Two roles, one control plane, every artifact audit-chained from intent to shippe
 </div>
 
 If the Hatter does the planning work well, the Red Queen rarely has to deny. If the Red Queen catches what the Hatter missed, the system stays safe. The two together are the agentic governed SDLC.
+
+
+## Oracle &amp; Privacy Rails: governing the evidence, not just the actions
+
+The Hatter governs **intent**. The Red Queen governs **actions**. But there's a third surface neither one watches: the **evidence** the agents pull in to plan with. The WHY phase reaches out to Tavily, arXiv, USPTO, and Hacker News — untrusted external content. A poisoned search result can carry a prompt-injection payload that tries to steer the agent; a snippet can carry PII or a secret that should never enter the audit chain. Pinning the source so you can prove *where* a citation came from doesn't make the *content* safe.
+
+The **Oracle &amp; Privacy Rails** are the Hatter-side counterpart to the Red Queen: where the Red Queen governs the action boundary inside the code repo, the rails govern the **evidence boundary** as research enters the planning chain. They run on the WHY artifacts — the research doc and the source registry — and a tripped rail fails the PR.
+
+The trust model is **replay, not sign.** Agent and runtime events are signed (Knight's Seal). Rail verdicts are *replayed*: the closeout re-runs the exact pinned model and config over the committed bytes and compares the result to what was recorded at merge. A mismatch — or a rail that never ran — fails the rollup. It can never quietly pass. The same evidence a reviewer saw before merge is what an auditor re-derives later, from the bytes, with the model pinned to a specific commit.
+
+<div class="docs-proof-list">
+  <div class="docs-proof-row">
+    <span class="docs-proof-status docs-proof-status-shipped">✓ Shipped</span>
+    <div>
+      <p class="docs-proof-title">Phase 1 — Guardrail envelope (deterministic)</p>
+      <p class="docs-proof-body">A pure-Node <code>withGuardrails</code> envelope wraps the oracle search skills in the research-runner. Before synthesis it quarantines any result with an unsafe or malformed URL, a non-allowlisted provider, or a high-confidence prompt-control marker ("ignore previous instructions" and friends) — deterministic tripwires, no model. Quarantined results never reach the synthesis or the source registry.</p>
+    </div>
+    <div class="docs-proof-evidence"><strong>Production-proven</strong> on a live WHY run (quarantined 2 of 5 results with unparseable URLs).</div>
+  </div>
+  <div class="docs-proof-row">
+    <span class="docs-proof-status docs-proof-status-shipped">✓ Shipped</span>
+    <div>
+      <p class="docs-proof-title">Phase 2 — PII rail (Microsoft Presidio, tiered)</p>
+      <p class="docs-proof-body">A tiered-policy rail over the WHY research doc + source registry. Contact / identity / secret classes (SSN, card, bank, private email/phone, IP, government IDs, secret tokens) <strong>hard-fail</strong>; public-figure entities (person, public org, public location) are <strong>allowed and recorded with a redaction summary</strong> — legitimate content in a public-figure research domain; an allowed entity in a sensitive context escalates to <strong>needs-review</strong>. The report stores only the entity type and a safe location ref, never a raw value.</p>
+    </div>
+    <div class="docs-proof-evidence"><strong>Cert-verified</strong> on a live WHY run: 0 blocked, 658 redacted, verdict pass, CI model-replay reproduced.</div>
+  </div>
+  <div class="docs-proof-row">
+    <span class="docs-proof-status docs-proof-status-shipped">✓ Shipped</span>
+    <div>
+      <p class="docs-proof-title">Phase 3 — Injection rail (Llama Prompt Guard 2 86M) · a required gate</p>
+      <p class="docs-proof-body">Scores the retrieved snippets / source registry for prompt injection with a local <a href="https://huggingface.co/meta-llama/Llama-Prompt-Guard-2-86M">Llama Prompt Guard 2 86M</a> model, pinned to a specific Hugging Face commit. A confirmed injection <strong>hard-fails the WHY PR.</strong> A quoted / cited / code-fenced carve-out means a security-research corpus that <em>discusses</em> an attack isn't flagged for <em>delivering</em> one — the model reads the actual malicious class from its own config, never an assumed index, and fails closed on an unpinned model. This closes the prompt-injection-from-external-research threat that was open research a release ago.</p>
+    </div>
+    <div class="docs-proof-evidence"><strong>Cert-verified:</strong> hostile fixture blocked (exit 2), benign fixture clean (exit 0); promoted to a required gate.</div>
+  </div>
+  <div class="docs-proof-row">
+    <span class="docs-proof-status docs-proof-status-queued">🛠 Next act</span>
+    <div>
+      <p class="docs-proof-title">Phase 4 — Groundedness rail (local embeddings + NLI)</p>
+      <p class="docs-proof-body">Checks each conclusion in the synthesis is actually entailed by a source it cites — catching confident-but-unsupported claims that the citation check alone (does the citation resolve to a real result?) can't see. Local model, replay-verified like the rest. Model choice is the open decision.</p>
+    </div>
+    <div class="docs-proof-evidence"><strong>Queued.</strong> Phases 1–3 ship today.</div>
+  </div>
+</div>
+
+> 🔑 **Red Queen governs actions; Oracle Rails govern evidence.** Two different boundaries, one honesty contract: every pass label has a check behind it, and every check can be re-run from the committed bytes.
 
 
 ## Looking Glass: the substrate everything reads
@@ -1373,8 +1421,8 @@ These actors do not all attack the same layer. The point of the framework is tha
   <text x="590" y="179" text-anchor="middle" fill="#86efac" font-size="9" font-weight="600" font-family="system-ui, sans-serif">Fan-out cap</text>
   <rect x="662" y="108" width="110" height="22" rx="6" fill="rgba(74,222,128,0.16)" stroke="rgba(74,222,128,0.4)"/>
   <text x="717" y="123" text-anchor="middle" fill="#86efac" font-size="9" font-weight="600" font-family="system-ui, sans-serif">Tier deterministic</text>
-  <rect x="662" y="136" width="110" height="22" rx="6" fill="rgba(248,113,113,0.18)" stroke="rgba(248,113,113,0.4)"/>
-  <text x="717" y="151" text-anchor="middle" fill="#fca5a5" font-size="9" font-weight="600" font-family="system-ui, sans-serif">EoP via injection</text>
+  <rect x="662" y="136" width="110" height="22" rx="6" fill="rgba(74,222,128,0.16)" stroke="rgba(74,222,128,0.4)"/>
+  <text x="717" y="151" text-anchor="middle" fill="#86efac" font-size="9" font-weight="600" font-family="system-ui, sans-serif">Injection rail ✓</text>
   <rect x="662" y="164" width="110" height="22" rx="6" fill="rgba(252,211,77,0.18)" stroke="rgba(252,211,77,0.4)"/>
   <text x="717" y="179" text-anchor="middle" fill="#fcd34d" font-size="9" font-weight="600" font-family="system-ui, sans-serif">Pack signing (B+)</text>
   <!-- ASTRIDE row — AI-agent-specific threats (the "A" category that STRIDE alone doesn't cover) -->
@@ -1386,9 +1434,9 @@ These actors do not all attack the same layer. The point of the framework is tha
   <text x="55" y="275" fill="#cbd5e1" font-size="10" font-family="system-ui, sans-serif">From ASTRIDE (arXiv 2512.04785) — categories STRIDE alone does not cover</text>
   <text x="55" y="288" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">Each cell below names the agent-side threat and its control in the design</text>
   <!-- 4 A-category cells -->
-  <rect x="28" y="300" width="180" height="42" rx="6" fill="rgba(252,211,77,0.18)" stroke="rgba(252,211,77,0.4)"/>
-  <text x="118" y="316" text-anchor="middle" fill="#fcd34d" font-size="10" font-weight="700" font-family="system-ui, sans-serif">A.prompt-injection</text>
-  <text x="118" y="332" text-anchor="middle" fill="#cbd5e1" font-size="9" font-family="system-ui, sans-serif">partial · sanitization queued</text>
+  <rect x="28" y="300" width="180" height="42" rx="6" fill="rgba(74,222,128,0.16)" stroke="rgba(74,222,128,0.45)"/>
+  <text x="118" y="316" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700" font-family="system-ui, sans-serif">A.prompt-injection ✓</text>
+  <text x="118" y="332" text-anchor="middle" fill="#cbd5e1" font-size="9" font-family="system-ui, sans-serif">shipped · Prompt Guard 2 rail</text>
   <rect x="216" y="300" width="180" height="42" rx="6" fill="rgba(252,211,77,0.18)" stroke="rgba(252,211,77,0.4)"/>
   <text x="306" y="316" text-anchor="middle" fill="#fcd34d" font-size="10" font-weight="700" font-family="system-ui, sans-serif">A.memory-poisoning</text>
   <text x="306" y="332" text-anchor="middle" fill="#cbd5e1" font-size="9" font-family="system-ui, sans-serif">partial · mesh_sha detects, no rejection</text>
@@ -1473,7 +1521,7 @@ These actors do not all attack the same layer. The point of the framework is tha
       <p class="docs-proof-title">Tier escalation requires real artifacts</p>
       <p class="docs-proof-body">BAR pillar scores derive from real artifact presence: CALM models, threat models, controls, and ADRs. Faking a higher tier requires creating artifacts future agents will reference.</p>
     </div>
-    <div class="docs-proof-evidence"><strong>Open items:</strong> prompt injection from external content and supply-chain signing on prompt-pack deployment.</div>
+    <div class="docs-proof-evidence"><strong>Open items:</strong> supply-chain signing on prompt-pack deployment. (Prompt injection from external content is now closed by the Oracle &amp; Privacy Rails — shipped.)</div>
   </div>
   <div class="docs-proof-row">
     <span class="docs-proof-status docs-proof-status-shipped">✓ Shipped</span>
@@ -1504,15 +1552,15 @@ These actors do not all attack the same layer. The point of the framework is tha
 | **Repudiate** | "I didn't authorize that override" | Dual-signature override YAML preserved under `okrs/<id>/audit/overrides/` with both signer DIDs, signed-at timestamps, fingerprint, and GitHub comment URL; CloudEvent emitted | ✓ |
 | **Repudiate** | "That agent didn't produce that artifact" | `author_did` on Hatter Tag plus prev/this hash chain in audit JSONL; **Knight's Seal** (shipped) signs every event with the session's own ephemeral Ed25519 keypair. Each agent session is its own signer epoch, so the agent's session is the only thing that could have produced the signature. The chain plus the per-epoch pub keys committed to the mesh are sufficient to reconstruct who signed what. Persistent third-party verifiability (cosign / sigstore) is the next act | ✓ |
 | **Info disclosure** | LLM provider retains our prompts indefinitely | Out of our trust boundary; the design captures cost + token counts only, not prompt bodies | ⚠ |
-| **Info disclosure** | Sensitive research-source content lands in audit export | Pure-data Skills emit structured findings; no automated sensitive-content classification on results | ⚠ |
+| **Info disclosure** | Sensitive research-source content lands in audit export | **PII rail (Presidio, shipped)** classifies the WHY research doc + source registry under a tiered policy: contact/identity/secret classes hard-fail, public-figure entities are recorded with a redaction summary. Cert-verified on a live run. External-bundle redaction-for-sharing is still queued | ✓ |
 | **Info disclosure** | Audit Report Export shared externally leaks design IP | Bundle includes merged research, PRD, and code-design verbatim; no redaction layer (PII / IP / secrets scrubbing) yet. Queued for a future release | ⚠ |
 | **DoS** | Cost-cap exhaustion via runaway agent runs | Per-Skill `max_skill_calls_per_run`, per-agent `max_tokens_per_run`, per-OKR `governance.max_cost_usd`, and per-org monthly cap; `cost-cap-reached` label freezes new assignments | ✓ |
 | **DoS** | Skill chains time out exhausting GitHub Actions minutes | Per-Skill timeout + bounded retry policy; workflow `timeout-minutes` on every bus workflow | ✓ |
 | **DoS** | Fan-out blast radius: one OKR writes to N target repos | FanOutEngine admits ≤ 5 concurrent in-flight impl runs (hard CAP); dependency chains self-serialize via topological waves (`pending-on-upstream`); excess ready rows queue as `pending-on-cap` and drain as runs complete | ✓ |
 | **EoP** | Tier bypass by faking BAR-score-raising artifacts | BAR pillar score is computed deterministically from real artifact presence (threat-model.yaml, controls block, ADRs). Inflation requires creating real artifacts that future agents will reference, so the gate becomes self-reinforcing | ✓ |
-| **EoP** | Prompt injection from a research-source page steers the agent | No content sanitization on Skill outputs; agent prompts don't explicitly partition data-vs-instructions | ⚠ |
+| **EoP** | Prompt injection from a research-source page steers the agent | **Injection rail (Llama Prompt Guard 2 86M, shipped, required gate)** scores retrieved snippets / source registry and hard-fails the WHY PR on a confirmed injection, behind a deterministic guardrail envelope that quarantines unsafe-URL / non-allowlisted / high-marker results before synthesis. Replayed, not signed | ✓ |
 | **EoP** | Compromised prompt pack version applied silently | Hatter Tag records `prompt_pack_version` + SHA; pack-deployment signature verification not in scope today | 🛠 |
-| **ASTRIDE: A.prompt-injection** | Attacker-controlled web content steers a search agent | Hatter Tag pins `mesh_sha` so the mesh state the agent grounded on is verifiable; **sanitization layer + data-vs-instructions partitioning is queued research**. `mesh_sha` does not sanitize hostile content | 🛠 |
+| **ASTRIDE: A.prompt-injection** | Attacker-controlled web content steers a search agent | **Oracle &amp; Privacy Rails (shipped):** the Phase-1 guardrail envelope quarantines unsafe results deterministically, and the Phase-3 injection rail (Llama Prompt Guard 2 86M, required gate) scores the retrieved evidence and hard-fails on a confirmed injection — replay-verified at closeout. Hatter Tag still pins `mesh_sha` for provenance | ✓ |
 | **ASTRIDE: A.memory-poisoning** | Poisoned mesh artifact corrupts downstream runs | mesh_sha pinning lets `verify-chain` **detect** poisoned state across runs; **deterministic rejection of poisoned mesh artifacts is queued**. Detection only today | 🛠 |
 | **ASTRIDE: A.inter-agent-influence** | Upstream agent's output steers a downstream agent | Partial coverage via Caterpillar's Challenge cross-phase semantic-drift check (PRD vs research; design vs PRD); full coverage requires agent-to-agent provenance signing | 🛠 |
 | **ASTRIDE: A.false-audit-fabrication** | Agent fabricates the audit log to appear compliant | Pre-merge CI step invokes the runner's `audit-verify-chain` skill, using the same code path the runner uses to write the chain. It replays the SHA-256 hash chain AND cryptographically verifies every per-epoch Ed25519 signature; mismatch applies `chain-integrity-failed` and blocks merge (shipped) | ✓ |
@@ -1551,12 +1599,12 @@ STRIDE alone doesn't cover agent-specific failure modes like goal drift, evidenc
     <div class="docs-proof-evidence"><strong>Not claimed:</strong> decentralized identity, post-quantum channels, or zero-knowledge policy proofs. <br><a href="https://arxiv.org/abs/2508.19267">arXiv 2508.19267</a></div>
   </div>
   <div class="docs-proof-row">
-    <span class="docs-proof-status docs-proof-status-partial">🛠 1 of 4 shipped</span>
+    <span class="docs-proof-status docs-proof-status-partial">🛠 2 of 4 shipped</span>
     <div>
       <p class="docs-proof-title">ASTRIDE</p>
-      <p class="docs-proof-body"><strong>Executive question:</strong> are AI-agent-specific threats named, tested, and controlled? All four agent-specific failure modes are explicit rows in the threat model: prompt manipulation, poisoned memory, inter-agent influence, fake audit trails. Audit-fabrication is closed by the three-class ownership contract; prompt injection, memory poisoning, and inter-agent influence are partially controlled today (named gaps, not silent gaps).</p>
+      <p class="docs-proof-body"><strong>Executive question:</strong> are AI-agent-specific threats named, tested, and controlled? All four agent-specific failure modes are explicit rows in the threat model: prompt manipulation, poisoned memory, inter-agent influence, fake audit trails. Audit-fabrication is closed by the three-class ownership contract; prompt injection is now closed by the Oracle &amp; Privacy Rails; memory poisoning and inter-agent influence are partially controlled today (named gaps, not silent gaps).</p>
     </div>
-    <div class="docs-proof-evidence"><strong>Shipped (1 of 4):</strong> event ownership is fixed by kind, runtime facts are auto-recorded, workflow facts are re-derived, agent judgments are signed, and mismatched origin is forgery. This closes A.false-audit-fabrication + A.audit-skip + A.audit-forge-payload. <strong>Partial (3 of 4):</strong> A.prompt-injection (mesh_sha pinning is verifiable provenance, sanitization queued); A.memory-poisoning (mesh_sha detects, deterministic rejection queued); A.inter-agent-influence (Caterpillar's Challenge catches cross-phase semantic drift; full agent-to-agent provenance signing queued). <br><a href="https://arxiv.org/pdf/2512.04785">arXiv 2512.04785</a></div>
+    <div class="docs-proof-evidence"><strong>Shipped (2 of 4):</strong> event ownership is fixed by kind, runtime facts are auto-recorded, workflow facts are re-derived, agent judgments are signed, and mismatched origin is forgery — closing A.false-audit-fabrication + A.audit-skip + A.audit-forge-payload. <strong>A.prompt-injection</strong> is now closed by the Oracle &amp; Privacy Rails: a deterministic guardrail envelope quarantines unsafe results, and the injection rail (Llama Prompt Guard 2 86M, required gate, replay-verified) hard-fails the WHY PR on a confirmed injection. <strong>Partial (2 of 4):</strong> A.memory-poisoning (mesh_sha detects, deterministic rejection queued); A.inter-agent-influence (Caterpillar's Challenge catches cross-phase semantic drift; full agent-to-agent provenance signing queued). <br><a href="https://arxiv.org/pdf/2512.04785">arXiv 2512.04785</a></div>
   </div>
 </div>
 
@@ -1741,11 +1789,26 @@ We publish this list because honest design beats marketing claims. Every status 
     </div>
   </div>
   <div class="docs-gap-row">
-    <span class="docs-gap-status docs-gap-status-research">🔬 Research</span>
+    <span class="docs-gap-status docs-gap-status-queued">🛠 Queued</span>
     <div>
-      <p class="docs-gap-title">Prompt injection from external research</p>
-      <p class="docs-gap-body">A Tavily / arXiv / Hacker News result containing crafted prompt-injection text can manipulate the market-research-agent into following attacker-supplied instructions. Mitigating it requires a sanitization layer on Skill outputs plus an agent-prompt structure that explicitly partitions data from instructions.</p>
-      <p class="docs-gap-next"><strong>Status:</strong> open research item, not on the committed roadmap. Highest-impact item we have not yet scheduled.</p>
+      <p class="docs-gap-title">Groundedness rail (Oracle &amp; Privacy Rails, Phase 4)</p>
+      <p class="docs-gap-body">Phases 1–3 of the Oracle &amp; Privacy Rails ship today: the deterministic guardrail envelope, the PII rail (Presidio), and the injection rail (Llama Prompt Guard 2, a required gate). Phase 4 adds a groundedness rail — local embeddings + NLI — that checks each conclusion in the research synthesis is actually entailed by a source it cites, catching confident-but-unsupported claims the citation check alone can't.</p>
+      <p class="docs-gap-next"><strong>Next:</strong> finalize the local alignment model (AlignScore-class vs a lighter NLI cross-encoder), then the same replay-verified gate treatment as the PII + injection rails.</p>
+    </div>
+  </div>
+  <div class="docs-gap-row">
+    <span class="docs-gap-status docs-gap-status-shipped">✓ Shipped</span>
+    <div>
+      <p class="docs-gap-title">Shipped: Prompt injection from external research (Oracle &amp; Privacy Rails, Phase 3)</p>
+      <p class="docs-gap-body">A Tavily / arXiv / Hacker News result carrying crafted prompt-injection text can no longer steer the market-research-agent unnoticed. Two layers now guard it: a deterministic <strong>guardrail envelope</strong> in the research-runner (Phase 1) that quarantines results with unsafe URLs, non-allowlisted providers, or high-confidence injection markers before synthesis; and an <strong>injection rail</strong> (Phase 3) that scores the retrieved snippets / source registry with <a href="https://huggingface.co/meta-llama/Llama-Prompt-Guard-2-86M">Llama Prompt Guard 2 86M</a> and hard-fails the WHY PR on a confirmed injection. The rail is <strong>a required gate</strong>, pinned to a specific Hugging Face commit, with a quoted/cited/code-fenced carve-out so a security-research corpus that <em>discusses</em> injection isn't flagged for <em>delivering</em> it. Verdicts are <strong>replayed, not signed</strong>: the closeout re-runs the pinned model over the committed bytes and compares — a mismatch fails the rollup, never a silent pass.</p>
+      <p class="docs-gap-next"><strong>Remaining (Phase 4):</strong> a groundedness rail (local embeddings + NLI) proving each conclusion is entailed by a cited source. Queued below.</p>
+    </div>
+  </div>
+  <div class="docs-gap-row">
+    <span class="docs-gap-status docs-gap-status-shipped">✓ Shipped</span>
+    <div>
+      <p class="docs-gap-title">Shipped: PII in research evidence (Oracle &amp; Privacy Rails, Phase 2)</p>
+      <p class="docs-gap-body">A <strong>PII rail</strong> built on <a href="https://microsoft.github.io/presidio/">Microsoft Presidio</a> scans the WHY research doc and source registry under a tiered policy: contact / identity / secret classes (SSN, card, bank, private email/phone, IP, government IDs, secret tokens) <strong>hard-fail</strong> the PR; public-figure entities (person, public org, public location) are <strong>allowed and recorded with a redaction summary</strong>; an allowed entity in a sensitive context escalates to <strong>needs-review</strong>. Cert-verified on a live WHY run (0 blocked, 658 redacted, verdict pass). Like the injection rail, it is <strong>replayed, not signed</strong> — the model re-runs over committed bytes at closeout. The report never stores a raw value, only the entity type and a safe location ref.</p>
     </div>
   </div>
   <div class="docs-gap-row">

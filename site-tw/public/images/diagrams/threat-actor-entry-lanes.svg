@@ -47,8 +47,8 @@
     <text x="392" y="20" fill="#e2e8f0" font-size="9" font-weight="700" font-family="system-ui, sans-serif">make bad work look governed</text>
     <text x="392" y="34" fill="#94a3b8" font-size="8.2" font-family="system-ui, sans-serif">drift intent · invent evidence</text>
     <path d="M 546 23 L 572 23" stroke="#64748b" stroke-width="1.2" marker-end="url(#actorArrow)"/>
-    <text x="594" y="20" fill="#86efac" font-size="9" font-weight="700" font-family="system-ui, sans-serif">source registry · Pocket Watch</text>
-    <text x="594" y="34" fill="#94a3b8" font-size="8.2" font-family="system-ui, sans-serif">persona review · audit gates</text>
+    <text x="594" y="20" fill="#86efac" font-size="9" font-weight="700" font-family="system-ui, sans-serif">injection rail + envelope</text>
+    <text x="594" y="34" fill="#94a3b8" font-size="8.2" font-family="system-ui, sans-serif">source registry · Pocket Watch</text>
   </g>
   <g transform="translate(26,206)">
     <rect x="0" y="0" width="748" height="46" rx="9" fill="rgba(129,140,248,0.08)" stroke="rgba(129,140,248,0.38)"/>
@@ -73,8 +73,8 @@
     <text x="392" y="20" fill="#e2e8f0" font-size="9" font-weight="700" font-family="system-ui, sans-serif">leak sensitive context</text>
     <text x="392" y="34" fill="#94a3b8" font-size="8.2" font-family="system-ui, sans-serif">overshare audit exports</text>
     <path d="M 546 23 L 572 23" stroke="#64748b" stroke-width="1.2" marker-end="url(#actorArrow)"/>
-    <text x="594" y="20" fill="#86efac" font-size="9" font-weight="700" font-family="system-ui, sans-serif">human gate · export warnings</text>
-    <text x="594" y="34" fill="#94a3b8" font-size="8.2" font-family="system-ui, sans-serif">redaction layer queued</text>
+    <text x="594" y="20" fill="#86efac" font-size="9" font-weight="700" font-family="system-ui, sans-serif">PII rail · human gate</text>
+    <text x="594" y="34" fill="#94a3b8" font-size="8.2" font-family="system-ui, sans-serif">export redaction queued</text>
   </g>
   <g transform="translate(26,318)">
     <rect x="0" y="0" width="748" height="46" rx="9" fill="rgba(196,181,253,0.08)" stroke="rgba(196,181,253,0.38)"/>

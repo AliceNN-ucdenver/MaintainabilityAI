@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="t d">
   <title id="t">MaintainabilityAI framework overview</title>
-  <desc id="d">Three layers stack from open standards at the base, through three product capabilities — Looking Glass, Cheshire Cat, Red Queen — into governed engineering outcomes at the top.</desc>
+  <desc id="d">Three layers stack from open standards at the base, through five product capabilities — Looking Glass, Hatter's Tea Party, Cheshire Cat, Oracle Rails, Red Queen — into governed engineering outcomes at the top.</desc>
   <defs>
     <radialGradient id="bg" cx="50%" cy="0%" r="80%">
       <stop offset="0" stop-color="#0f1832" stop-opacity=".85"/>
@@ -11,6 +11,11 @@
       <stop offset=".4" stop-color="#22d3ee" stop-opacity=".22"/>
       <stop offset="1" stop-color="#22d3ee" stop-opacity=".55"/>
     </linearGradient>
+    <linearGradient id="pillarHT" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#a5b4fc" stop-opacity=".0"/>
+      <stop offset=".4" stop-color="#a5b4fc" stop-opacity=".22"/>
+      <stop offset="1" stop-color="#a5b4fc" stop-opacity=".55"/>
+    </linearGradient>
     <linearGradient id="pillarCC" x1="0" y1="1" x2="0" y2="0">
       <stop offset="0" stop-color="#34d399" stop-opacity=".0"/>
       <stop offset=".4" stop-color="#34d399" stop-opacity=".22"/>
@@ -20,6 +25,11 @@
       <stop offset="0" stop-color="#fb7185" stop-opacity=".0"/>
       <stop offset=".4" stop-color="#fb7185" stop-opacity=".22"/>
       <stop offset="1" stop-color="#fb7185" stop-opacity=".55"/>
+    </linearGradient>
+    <linearGradient id="pillarOR" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#fbbf24" stop-opacity=".0"/>
+      <stop offset=".4" stop-color="#fbbf24" stop-opacity=".22"/>
+      <stop offset="1" stop-color="#fbbf24" stop-opacity=".55"/>
     </linearGradient>
     <linearGradient id="capBand" x1="0" y1="0" x2="1" y2="0">
       <stop offset="0" stop-color="#22d3ee"/>
@@ -50,7 +60,7 @@
 
   <text x="64" y="74" class="lvlEyebrow">Framework</text>
   <text x="64" y="118" class="heroTitle">Architecture-aware AI engineering</text>
-  <text x="64" y="148" class="heroSub">Open standards feed three product capabilities. Capabilities feed governed engineering outcomes.</text>
+  <text x="64" y="148" class="heroSub">Open standards feed five product capabilities. Capabilities feed governed engineering outcomes.</text>
 
   <!-- OUTCOMES band -->
   <text x="64" y="210" class="lvlLabel">Outcome</text>
@@ -60,48 +70,75 @@
   <!-- CAPABILITIES — three pillars -->
   <text x="64" y="312" class="lvlLabel">Capabilities</text>
 
-  <g transform="translate(112,320)">
-    <rect x="0" y="0" width="320" height="200" rx="18" fill="url(#pillarLG)" stroke="rgba(34,211,238,0.55)"/>
-    <rect x="0" y="0" width="320" height="3" rx="18" fill="#22d3ee"/>
-    <circle cx="36" cy="36" r="16" fill="rgba(34,211,238,0.18)" stroke="#22d3ee" stroke-width="1.5"/>
-    <circle cx="36" cy="36" r="6" fill="#22d3ee"/>
-    <text x="64" y="42" class="pillarName">Looking Glass</text>
-    <text x="20" y="78" class="chip" fill="#67e8f9">Architecture awareness</text>
-    <text x="20" y="110" class="pillarSub">Portfolio governance scoring on</text>
-    <text x="20" y="130" class="pillarSub">four pillars. Interactive CALM</text>
-    <text x="20" y="150" class="pillarSub">diagrams. Absolem AI advisor.</text>
-    <text x="20" y="170" class="pillarSub">Oraculum automated review.</text>
+  <!-- Five pillars: width 210, gap 25.5, x = 64 / 299.5 / 535 / 770.5 / 1006 (content area 64..1216). -->
+  <g transform="translate(64,320)">
+    <rect x="0" y="0" width="210" height="200" rx="16" fill="url(#pillarLG)" stroke="rgba(34,211,238,0.55)"/>
+    <rect x="0" y="0" width="210" height="3" rx="16" fill="#22d3ee"/>
+    <circle cx="30" cy="32" r="13" fill="rgba(34,211,238,0.18)" stroke="#22d3ee" stroke-width="1.5"/>
+    <circle cx="30" cy="32" r="5" fill="#22d3ee"/>
+    <text x="52" y="37" class="pillarName">Looking Glass</text>
+    <text x="18" y="72" class="chip" fill="#67e8f9">Architecture awareness</text>
+    <text x="18" y="102" class="pillarSub">The substrate everything</text>
+    <text x="18" y="120" class="pillarSub">reads. Four-pillar scores.</text>
+    <text x="18" y="138" class="pillarSub">Interactive CALM. Absolem</text>
+    <text x="18" y="156" class="pillarSub">advisor. Oraculum review.</text>
   </g>
 
-  <g transform="translate(480,320)">
-    <rect x="0" y="0" width="320" height="200" rx="18" fill="url(#pillarCC)" stroke="rgba(52,211,153,0.55)"/>
-    <rect x="0" y="0" width="320" height="3" rx="18" fill="#34d399"/>
-    <path d="M20 40 Q28 24 36 40 Q44 24 52 40 Z" fill="rgba(52,211,153,0.18)" stroke="#34d399" stroke-width="1.5"/>
-    <text x="76" y="42" class="pillarName">Cheshire Cat</text>
-    <text x="20" y="78" class="chip" fill="#6ee7b7">Secure SDLC scaffolding</text>
-    <text x="20" y="110" class="pillarSub">Repo scorecards. OWASP and</text>
-    <text x="20" y="130" class="pillarSub">STRIDE prompt packs. CodeQL +</text>
-    <text x="20" y="150" class="pillarSub">Snyk workflows. RCTRO issue</text>
-    <text x="20" y="170" class="pillarSub">generation from intent.</text>
+  <g transform="translate(299.5,320)">
+    <rect x="0" y="0" width="210" height="200" rx="16" fill="url(#pillarHT)" stroke="rgba(165,180,252,0.55)"/>
+    <rect x="0" y="0" width="210" height="3" rx="16" fill="#a5b4fc"/>
+    <path d="M22 40 L22 30 Q22 22 30 22 Q38 22 38 30 L38 40 M17 40 L43 40" fill="rgba(165,180,252,0.18)" stroke="#a5b4fc" stroke-width="1.5" stroke-linecap="round"/>
+    <text x="52" y="37" class="pillarName">The Hatter</text>
+    <text x="18" y="72" class="chip" fill="#c4b5fd">Govern intent · plan</text>
+    <text x="18" y="102" class="pillarSub">OKR to code-grounded</text>
+    <text x="18" y="120" class="pillarSub">design: Why, How, What.</text>
+    <text x="18" y="138" class="pillarSub">Signed Hatter Tag chain.</text>
+    <text x="18" y="156" class="pillarSub">Audit Report Export.</text>
   </g>
 
-  <g transform="translate(848,320)">
-    <rect x="0" y="0" width="320" height="200" rx="18" fill="url(#pillarRQ)" stroke="rgba(251,113,133,0.55)"/>
-    <rect x="0" y="0" width="320" height="3" rx="18" fill="#fb7185"/>
-    <path d="M22 40 L28 24 L34 38 L40 22 L46 38 L52 24 L58 40 Z" fill="rgba(251,113,133,0.18)" stroke="#fb7185" stroke-width="1.5"/>
-    <text x="78" y="42" class="pillarName">Red Queen</text>
-    <text x="20" y="78" class="chip" fill="#fda4af">Deterministic agent control</text>
-    <text x="20" y="110" class="pillarSub">PreToolUse hooks. MCP policy</text>
-    <text x="20" y="130" class="pillarSub">validation. Multi-agent review.</text>
-    <text x="20" y="150" class="pillarSub">Progressive autonomy by trust</text>
-    <text x="20" y="170" class="pillarSub">score. Next: CI hard gate.</text>
+  <g transform="translate(535,320)">
+    <rect x="0" y="0" width="210" height="200" rx="16" fill="url(#pillarCC)" stroke="rgba(52,211,153,0.55)"/>
+    <rect x="0" y="0" width="210" height="3" rx="16" fill="#34d399"/>
+    <path d="M16 36 Q24 20 32 36 Q40 20 48 36 Z" fill="rgba(52,211,153,0.18)" stroke="#34d399" stroke-width="1.5"/>
+    <text x="58" y="37" class="pillarName">Cheshire Cat</text>
+    <text x="18" y="72" class="chip" fill="#6ee7b7">Secure SDLC scaffolding</text>
+    <text x="18" y="102" class="pillarSub">Repo scorecards. OWASP</text>
+    <text x="18" y="120" class="pillarSub">+ STRIDE prompt packs.</text>
+    <text x="18" y="138" class="pillarSub">CodeQL + Snyk workflows.</text>
+    <text x="18" y="156" class="pillarSub">RCTRO from intent.</text>
+  </g>
+
+  <g transform="translate(770.5,320)">
+    <rect x="0" y="0" width="210" height="200" rx="16" fill="url(#pillarOR)" stroke="rgba(251,191,36,0.55)"/>
+    <rect x="0" y="0" width="210" height="3" rx="16" fill="#fbbf24"/>
+    <path d="M24 40 L24 29 Q24 21 32 21 Q40 21 40 29 L40 40 M20 40 L44 40" fill="none" stroke="#fbbf24" stroke-width="1.5" stroke-linecap="round"/>
+    <text x="52" y="37" class="pillarName">Oracle Rails</text>
+    <text x="18" y="72" class="chip" fill="#fcd34d">Govern evidence</text>
+    <text x="18" y="102" class="pillarSub">Guardrail envelope. PII</text>
+    <text x="18" y="120" class="pillarSub">rail (Presidio). Injection</text>
+    <text x="18" y="138" class="pillarSub">rail (Prompt Guard 2),</text>
+    <text x="18" y="156" class="pillarSub">a gate. Replay, not sign.</text>
+  </g>
+
+  <g transform="translate(1006,320)">
+    <rect x="0" y="0" width="210" height="200" rx="16" fill="url(#pillarRQ)" stroke="rgba(251,113,133,0.55)"/>
+    <rect x="0" y="0" width="210" height="3" rx="16" fill="#fb7185"/>
+    <path d="M18 36 L24 21 L30 35 L36 19 L42 35 L48 21 L54 36 Z" fill="rgba(251,113,133,0.18)" stroke="#fb7185" stroke-width="1.5"/>
+    <text x="64" y="37" class="pillarName">Red Queen</text>
+    <text x="18" y="72" class="chip" fill="#fda4af">Govern action (enforce)</text>
+    <text x="18" y="102" class="pillarSub">PreToolUse hooks. MCP</text>
+    <text x="18" y="120" class="pillarSub">policy validation. Signed</text>
+    <text x="18" y="138" class="pillarSub">enforcement chain (cert-</text>
+    <text x="18" y="156" class="pillarSub">verified). Next: hard gate.</text>
   </g>
 
   <!-- capabilities → outcomes -->
   <g fill="none" stroke="rgba(103,232,249,0.55)" stroke-width="1.6">
-    <path d="M272 320 L272 282" marker-end="url(#arrU)"/>
+    <path d="M169 320 L169 282" marker-end="url(#arrU)"/>
+    <path d="M404.5 320 L404.5 282" marker-end="url(#arrU)"/>
     <path d="M640 320 L640 282" marker-end="url(#arrU)"/>
-    <path d="M1008 320 L1008 282" marker-end="url(#arrU)"/>
+    <path d="M875.5 320 L875.5 282" marker-end="url(#arrU)"/>
+    <path d="M1111 320 L1111 282" marker-end="url(#arrU)"/>
   </g>
 
   <!-- FOUNDATION -->
@@ -144,8 +181,10 @@
 
   <!-- foundation → capabilities -->
   <g fill="none" stroke="rgba(148,163,184,0.4)" stroke-width="1.2" stroke-dasharray="2 4">
-    <path d="M272 576 L272 538" marker-end="url(#arrUp)"/>
+    <path d="M169 576 L169 538" marker-end="url(#arrUp)"/>
+    <path d="M404.5 576 L404.5 538" marker-end="url(#arrUp)"/>
     <path d="M640 576 L640 538" marker-end="url(#arrUp)"/>
-    <path d="M1008 576 L1008 538" marker-end="url(#arrUp)"/>
+    <path d="M875.5 576 L875.5 538" marker-end="url(#arrUp)"/>
+    <path d="M1111 576 L1111 538" marker-end="url(#arrUp)"/>
   </g>
 </svg>
