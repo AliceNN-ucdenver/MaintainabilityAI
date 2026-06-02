@@ -1056,6 +1056,21 @@ jobs:
       - name: Decide verdict
         id: verdict
         if: steps.gate.outputs.skip != 'true'
+        env:
+          # Bug-GG-quote — prose outputs must pass through env:, not inline shell
+          # assignments. A reason / missing-list / agent-authored anchor name can
+          # contain a literal quote or apostrophe (e.g. citations.undefined, or a
+          # chain reason like don't-trust-this); inlining it into a Bash string
+          # makes Bash try to execute a word from the value. Same class as the WHY
+          # query-plan crash (market-research-agent.yml).
+          CHAIN_REASON: ${{ steps.chain.outputs.reason }}
+          MANIFEST_MISSING_RAW: ${{ steps.manifest.outputs.missing }}
+          STATE_FAIL_OUT: ${{ steps.state_guard.outputs.state_fail }}
+          STATE_FAIL_REASON_OUT: ${{ steps.state_guard.outputs.state_reason }}
+          CHAIN_ROOT_REASON_OUT: ${{ steps.ctx.outputs.chain_root_reason }}
+          ARTIFACT_FORGED: ${{ steps.artifact-expect.outputs.artifact_forged }}
+          ARTIFACT_FORGED_REASON: ${{ steps.artifact-expect.outputs.artifact_forged_reason }}
+          CITATIONS_UNDEFINED: ${{ steps.citations.outputs.undefined }}
         run: |
           EVIDENCE_MODE="${{ steps.ctx.outputs.evidence_mode }}"
           FOUND="${{ steps.audit.outputs.found }}"
@@ -1083,12 +1098,12 @@ jobs:
           REVIEW_ARCH_SEVERITY="${{ steps.review.outputs.arch_severity }}"
           REVIEW_SEC_SEVERITY="${{ steps.review.outputs.sec_severity }}"
           CHAIN_OK="${{ steps.chain.outputs.ok }}"
-          CHAIN_REASON="${{ steps.chain.outputs.reason }}"
+          CHAIN_REASON="${CHAIN_REASON:-}"
           SEALED="${{ steps.chain.outputs.sealed }}"
           SEAL_VERIFIED="${{ steps.chain.outputs.seal_verified }}"
           MANIFEST_OK="${{ steps.manifest.outputs.ok }}"
-          MANIFEST_MISSING_RAW="${{ steps.manifest.outputs.missing }}"
-          MANIFEST_MISSING=$(echo "$MANIFEST_MISSING_RAW" | tr '\n' ';' | sed 's/;$//')
+          MANIFEST_MISSING_RAW="${MANIFEST_MISSING_RAW:-}"
+          MANIFEST_MISSING=$(printf '%s' "$MANIFEST_MISSING_RAW" | tr '\n' ';' | sed 's/;$//')
 
           VERDICT="ok"; REASON=""
           # Discrete failure-kind flags so the label-apply step picks
@@ -1107,8 +1122,8 @@ jobs:
           # to grant the chain-pass, structure-pass, etc. blessings on
           # top of an artifact whose owning OKR was rewritten by the
           # author. Fail fast with the most specific reason.
-          STATE_FAIL_OUT="${{ steps.state_guard.outputs.state_fail }}"
-          STATE_FAIL_REASON_OUT="${{ steps.state_guard.outputs.state_reason }}"
+          STATE_FAIL_OUT="${STATE_FAIL_OUT:-false}"
+          STATE_FAIL_REASON_OUT="${STATE_FAIL_REASON_OUT:-}"
           STATE_FAIL="false"
           if [ "$STATE_FAIL_OUT" = "true" ]; then
             VERDICT="degraded"; REASON="$STATE_FAIL_REASON_OUT"
@@ -1145,7 +1160,7 @@ jobs:
           # hard-reject. See market-research-agent.yml for rationale.
           CHAIN_ROOT_OK_OUT="${{ steps.ctx.outputs.chain_root_ok }}"
           if [ "$VERDICT" = "ok" ] && [ "$CHAIN_ROOT_OK_OUT" = "false" ]; then
-            VERDICT="degraded"; REASON="chain_root_hash mismatch: ${{ steps.ctx.outputs.chain_root_reason }}"
+            VERDICT="degraded"; REASON="chain_root_hash mismatch: $CHAIN_ROOT_REASON_OUT"
             CHAIN_FAIL="true"
           fi
 
@@ -1165,8 +1180,8 @@ jobs:
           # was hand-rolled into the JSONL. Finalize would refuse to
           # overwrite it; this gate fails the PR pre-merge so the issue
           # is visible to reviewers.
-          ARTIFACT_FORGED="${{ steps.artifact-expect.outputs.artifact_forged }}"
-          ARTIFACT_FORGED_REASON="${{ steps.artifact-expect.outputs.artifact_forged_reason }}"
+          ARTIFACT_FORGED="${ARTIFACT_FORGED:-}"
+          ARTIFACT_FORGED_REASON="${ARTIFACT_FORGED_REASON:-}"
           if [ "$VERDICT" = "ok" ] && [ "$ARTIFACT_FORGED" = "true" ]; then
             VERDICT="degraded"; REASON="forged artifact_written event detected — chain payload does not match current PR head (Bug Y round-9 reproducibility check). ${ARTIFACT_FORGED_REASON}"
             CHAIN_FAIL="true"
@@ -1209,7 +1224,7 @@ jobs:
               VERDICT="degraded"; REASON="NFR citation gap - $NFR_CITED/$NFR_COUNT cite S-N/C-N/R-N/E-N source"
               STRUCTURE_FAIL="true"
             elif [ "${{ steps.citations.outputs.ok }}" = "false" ]; then
-              VERDICT="degraded"; REASON="Citation integrity (Bug LL) — PRD cites undefined anchors: ${{ steps.citations.outputs.undefined }}. Define each in research-doc.md (S-N / C-N) or in the PRD Input Premises section with a **R1**/**E1** bold marker before citing."
+              VERDICT="degraded"; REASON="Citation integrity (Bug LL) — PRD cites undefined anchors: ${CITATIONS_UNDEFINED}. Define each in research-doc.md (S-N / C-N) or in the PRD Input Premises section with a **R1**/**E1** bold marker before citing."
               STRUCTURE_FAIL="true"
             elif [ "$SR_COUNT" -gt 0 ] && [ "$SR_ANCHORED" -lt "$SR_COUNT" ]; then
               VERDICT="degraded"; REASON="SR anchor gap — $SR_ANCHORED/$SR_COUNT cite STRIDE THR-NNN or OWASP A0X"
@@ -1247,9 +1262,17 @@ jobs:
 
       - name: Upsert correctness summary comment
         if: steps.gate.outputs.skip != 'true'
+        env:
+          # Bug-GG-quote — prose values rendered into the comment must arrive via
+          # env:, not inline single-quoted assignments (an apostrophe in a reason
+          # like "agent didn't converge" would close the quote and run a word).
+          REASON: ${{ steps.verdict.outputs.reason }}
+          POCKET_REASON: ${{ steps.pocket.outputs.reason }}
+          CAT_REASON: ${{ steps.caterpillar.outputs.reason }}
+          CITATION_UNDEFINED_DISPLAY: ${{ steps.citations.outputs.undefined }}
         run: |
           VERDICT='${{ steps.verdict.outputs.verdict }}'
-          REASON='${{ steps.verdict.outputs.reason }}'
+          REASON="${REASON:-}"
           BODY=/tmp/audit-body.md
           : > "$BODY"
           printf '%s\n' '<!-- prd-agent-audit -->' >> "$BODY"
@@ -1281,7 +1304,7 @@ jobs:
           printf '| SR-NN anchored (STRIDE / OWASP) | %s/%s |\n' '${{ steps.structure.outputs.sr_with_anchors }}' '${{ steps.structure.outputs.sr_count }}' >> "$BODY"
           # Bug LL — citation integrity row.
           CITATION_OK_DISPLAY='${{ steps.citations.outputs.ok }}'
-          CITATION_UNDEFINED_DISPLAY='${{ steps.citations.outputs.undefined }}'
+          CITATION_UNDEFINED_DISPLAY="${CITATION_UNDEFINED_DISPLAY:-}"
           case "$CITATION_OK_DISPLAY" in
             true)  printf '| Citation integrity (Bug LL) | ✓ all cited anchors defined |\n' >> "$BODY" ;;
             false) printf '| Citation integrity (Bug LL) | ✗ undefined: %s |\n' "$CITATION_UNDEFINED_DISPLAY" >> "$BODY" ;;
@@ -1334,7 +1357,7 @@ jobs:
           fi
           POCKET_STATE='${{ steps.pocket.outputs.passed }}'
           POCKET_COS='${{ steps.pocket.outputs.cosine }}'
-          POCKET_REASON='${{ steps.pocket.outputs.reason }}'
+          POCKET_REASON="${POCKET_REASON:-}"
           POCKET_THRESH='${{ steps.pocket.outputs.threshold }}'; POCKET_THRESH="${POCKET_THRESH:-0.65}"
           case "$POCKET_STATE" in
             true)    printf '| Pocket Watch goal-drift | ✓ pass (cosine=%s ≥ %s) |\n' "$POCKET_COS" "$POCKET_THRESH" >> "$BODY" ;;
@@ -1343,7 +1366,7 @@ jobs:
           esac
           CAT_STATE='${{ steps.caterpillar.outputs.passed }}'
           CAT_COS='${{ steps.caterpillar.outputs.cosine }}'
-          CAT_REASON='${{ steps.caterpillar.outputs.reason }}'
+          CAT_REASON="${CAT_REASON:-}"
           CAT_THRESH='${{ steps.caterpillar.outputs.threshold }}'; CAT_THRESH="${CAT_THRESH:-0.70}"
           case "$CAT_STATE" in
             true)    printf "| Caterpillar's Challenge (PRD vs research-doc) | ✓ pass (cosine=%s ≥ %s) |\n" "$CAT_COS" "$CAT_THRESH" >> "$BODY" ;;

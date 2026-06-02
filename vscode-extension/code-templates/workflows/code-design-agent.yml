@@ -1663,6 +1663,10 @@ jobs:
           CHAIN_REASON: ${{ steps.chain.outputs.reason }}
           STRUCT_REASON: ${{ steps.verdict.outputs.struct_reason }}
           MANIFEST_MISSING: ${{ steps.verdict.outputs.manifest_missing }}
+          # Bug-GG-quote — the same class the comment above describes also
+          # applies to chain_root_reason + state_reason, which were still inlined.
+          CHAIN_ROOT_REASON: ${{ steps.ctx.outputs.chain_root_reason }}
+          STATE_REASON: ${{ steps.state_guard.outputs.state_reason }}
         run: |
           PR=${{ github.event.pull_request.number }}
           CHAIN_OK='${{ steps.chain.outputs.ok }}'
@@ -1682,7 +1686,7 @@ jobs:
           # event 1; mismatch with the agent's pasted artifact-
           # frontmatter value emits chain_root_ok=false here.
           CHAIN_ROOT_OK='${{ steps.ctx.outputs.chain_root_ok }}'
-          CHAIN_ROOT_REASON='${{ steps.ctx.outputs.chain_root_reason }}'
+          CHAIN_ROOT_REASON="${CHAIN_ROOT_REASON:-}"
           # D-PR1.v1.2 bug fix — the previous `gh pr edit ... 2>/dev/null
           # || true` swallowed stderr AND the exit code, so failures (e.g.
           # the label doesn't exist in the mesh repo's label registry)
@@ -1734,7 +1738,7 @@ jobs:
           # Bug GG-followup — state tampering checked FIRST (most
           # specific failure, most severe trust violation).
           STATE_FAIL='${{ steps.state_guard.outputs.state_fail }}'
-          STATE_REASON='${{ steps.state_guard.outputs.state_reason }}'
+          STATE_REASON="${STATE_REASON:-}"
           if [ "$STATE_FAIL" = "true" ]; then
             gh label create state-integrity-failed --repo ${{ github.repository }} --color AD1457 --description "Agent PR modified okrs/<id>/okr.yaml. OKR state is owned by Looking Glass dispatch/reset and finalize-okr-action, not the agent (Bug GG-followup). Merge blocked." 2>/dev/null || true
             apply_label --add-label state-integrity-failed || true
@@ -1805,6 +1809,10 @@ jobs:
           # any future output that might contain backticks.
           MODE_HONESTY_FINDINGS: ${{ steps.mode_honesty.outputs.findings }}
           CHAIN_REASON: ${{ steps.chain.outputs.reason }}
+          # Bug-GG-quote — struct_reason + coordination reason are free-text and
+          # were still inlined.
+          STRUCT_REASON: ${{ steps.verdict.outputs.struct_reason }}
+          COORD_REASON: ${{ steps.coordination.outputs.reason }}
         run: |
           # P1 (Bug-P): consume the SAME verdict the label step consumed.
           # Previously this step re-derived STRUCT_OK + MANIFEST_OK inline,
@@ -1815,7 +1823,7 @@ jobs:
           CHAIN_OK='${{ steps.chain.outputs.ok }}'
           MODE_OK='${{ steps.mode_honesty.outputs.ok }}'
           STRUCT_OK='${{ steps.verdict.outputs.struct_ok }}'
-          STRUCT_REASON='${{ steps.verdict.outputs.struct_reason }}'
+          STRUCT_REASON="${STRUCT_REASON:-}"
           MANIFEST_OK='${{ steps.verdict.outputs.manifest_ok }}'
           MANIFEST_MISSING='${{ steps.verdict.outputs.manifest_missing }}'
           H2_PRESENT='${{ steps.structure.outputs.h2_present }}'
@@ -1913,7 +1921,7 @@ jobs:
           # repo OKRs show as "n/a — single repo" because the verifier
           # passes silently when no targetCodeRepos[] are declared.
           COORD_OK='${{ steps.coordination.outputs.ok }}'
-          COORD_REASON='${{ steps.coordination.outputs.reason }}'
+          COORD_REASON="${COORD_REASON:-}"
           if [ "$COORD_OK" = "true" ]; then
             if [ -n "$COORD_REASON" ]; then
               # Currently coordination.outputs.reason is always empty on OK;

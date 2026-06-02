@@ -1537,6 +1537,78 @@ describe('Bug-GG-quote: market-research verdict step shell-safe prose outputs', 
 });
 
 // ──────────────────────────────────────────────────────────────────────
+// Bug-GG-quote (siblings) — the SAME inline-prose shell-injection class
+// lived in the WHAT (prd-agent) and design (code-design-agent) verdict /
+// summary / label steps. A reason / undefined-anchor / state_reason with
+// an embedded quote OR apostrophe (e.g. "agent didn't converge", a
+// backticked repo slug, an agent-authored anchor name) breaks Bash the
+// same way the WHY query-plan output did. Every prose output must travel
+// through env:, then be read as "$VAR".
+// ──────────────────────────────────────────────────────────────────────
+describe('Bug-GG-quote (siblings): prd + code-design verdict/summary shell-safe prose', () => {
+  const prd = fs.readFileSync(
+    path.join(EXTENSION_PATH, 'code-templates', 'workflows', 'prd-agent.yml'), 'utf8');
+  const design = fs.readFileSync(
+    path.join(EXTENSION_PATH, 'code-templates', 'workflows', 'code-design-agent.yml'), 'utf8');
+
+  it('prd-agent Decide verdict routes every prose output through env:, never inline', () => {
+    const fromStep = prd.split('- name: Decide verdict')[1] ?? '';
+    const verdictStep = fromStep.split(/\n {6}- name: /)[0] ?? fromStep;
+    expect(verdictStep, 'prd Decide verdict step missing').not.toBe('');
+
+    // declared in env:
+    expect(verdictStep).toMatch(/env:[\s\S]+CHAIN_REASON:\s*\$\{\{\s*steps\.chain\.outputs\.reason\s*\}\}/);
+    expect(verdictStep).toMatch(/STATE_FAIL_REASON_OUT:\s*\$\{\{\s*steps\.state_guard\.outputs\.state_reason\s*\}\}/);
+    expect(verdictStep).toMatch(/CHAIN_ROOT_REASON_OUT:\s*\$\{\{\s*steps\.ctx\.outputs\.chain_root_reason\s*\}\}/);
+    expect(verdictStep).toMatch(/ARTIFACT_FORGED_REASON:\s*\$\{\{\s*steps\.artifact-expect\.outputs\.artifact_forged_reason\s*\}\}/);
+    expect(verdictStep).toMatch(/CITATIONS_UNDEFINED:\s*\$\{\{\s*steps\.citations\.outputs\.undefined\s*\}\}/);
+
+    // read from env / bash-expanded, NEVER text-substituted into a shell string
+    expect(verdictStep).toContain('CHAIN_REASON="${CHAIN_REASON:-}"');
+    expect(verdictStep).toContain('REASON="chain_root_hash mismatch: $CHAIN_ROOT_REASON_OUT"');
+    expect(verdictStep).toContain('${CITATIONS_UNDEFINED}');
+    expect(verdictStep).not.toMatch(/CHAIN_REASON="\$\{\{\s*steps\.chain\.outputs\.reason\s*\}\}"/);
+    expect(verdictStep).not.toMatch(/chain_root_hash mismatch: \$\{\{/);
+    expect(verdictStep).not.toMatch(/undefined anchors: \$\{\{\s*steps\.citations/);
+    expect(verdictStep).toContain('Bug-GG-quote');
+  });
+
+  it('prd-agent summary comment routes verdict/pocket/cat/citation prose through env:', () => {
+    const fromStep = prd.split('- name: Upsert correctness summary comment')[1] ?? '';
+    const commentStep = fromStep.split(/\n {6}- name: /)[0] ?? fromStep;
+    expect(commentStep, 'prd summary step missing').not.toBe('');
+
+    expect(commentStep).toMatch(/env:[\s\S]+REASON:\s*\$\{\{\s*steps\.verdict\.outputs\.reason\s*\}\}/);
+    expect(commentStep).toMatch(/POCKET_REASON:\s*\$\{\{\s*steps\.pocket\.outputs\.reason\s*\}\}/);
+    expect(commentStep).toMatch(/CAT_REASON:\s*\$\{\{\s*steps\.caterpillar\.outputs\.reason\s*\}\}/);
+    expect(commentStep).toContain('REASON="${REASON:-}"');
+    expect(commentStep).toContain('POCKET_REASON="${POCKET_REASON:-}"');
+    expect(commentStep).toContain('CAT_REASON="${CAT_REASON:-}"');
+    expect(commentStep).not.toMatch(/REASON='\$\{\{\s*steps\.verdict\.outputs\.reason\s*\}\}'/);
+    expect(commentStep).not.toMatch(/POCKET_REASON='\$\{\{/);
+    expect(commentStep).not.toMatch(/CAT_REASON='\$\{\{/);
+  });
+
+  it('code-design-agent has no inline single-quoted prose outputs left (env: only)', () => {
+    // the four that were still inlined pre-fix
+    expect(design).not.toMatch(/CHAIN_ROOT_REASON='\$\{\{\s*steps\.ctx\.outputs\.chain_root_reason\s*\}\}'/);
+    expect(design).not.toMatch(/STATE_REASON='\$\{\{\s*steps\.state_guard\.outputs\.state_reason\s*\}\}'/);
+    expect(design).not.toMatch(/STRUCT_REASON='\$\{\{\s*steps\.verdict\.outputs\.struct_reason\s*\}\}'/);
+    expect(design).not.toMatch(/COORD_REASON='\$\{\{\s*steps\.coordination\.outputs\.reason\s*\}\}'/);
+    // each now declared in env: and read via "${VAR:-}"
+    expect(design).toMatch(/CHAIN_ROOT_REASON:\s*\$\{\{\s*steps\.ctx\.outputs\.chain_root_reason\s*\}\}/);
+    expect(design).toMatch(/STATE_REASON:\s*\$\{\{\s*steps\.state_guard\.outputs\.state_reason\s*\}\}/);
+    expect(design).toMatch(/STRUCT_REASON:\s*\$\{\{\s*steps\.verdict\.outputs\.struct_reason\s*\}\}/);
+    expect(design).toMatch(/COORD_REASON:\s*\$\{\{\s*steps\.coordination\.outputs\.reason\s*\}\}/);
+    expect(design).toContain('CHAIN_ROOT_REASON="${CHAIN_ROOT_REASON:-}"');
+    expect(design).toContain('STATE_REASON="${STATE_REASON:-}"');
+    expect(design).toContain('STRUCT_REASON="${STRUCT_REASON:-}"');
+    expect(design).toContain('COORD_REASON="${COORD_REASON:-}"');
+    expect(design).toContain('Bug-GG-quote');
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────
 // Bug-UU-1 — WHY card gap-loop extractor reads BOTH canonical Bug-Y
 // `event_kind: 'gap_loop'` AND the legacy `skill_call` with
 // `payload.skill: 'gap-loop'` shape. Pre-fix the extractor only checked
