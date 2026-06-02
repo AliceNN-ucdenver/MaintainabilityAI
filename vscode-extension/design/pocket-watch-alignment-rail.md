@@ -126,15 +126,17 @@ dilute alignment.
 | Phase | Scope sections |
 |---|---|
 | WHY | `Executive Summary`, `Formal Conclusions`, `Recommendations` |
-| HOW | `Problem Statement`, `Goals / Non-Goals`, `Functional Requirements`, `Security Requirements` |
-| WHAT | `Problem Restatement`, `Design Rationale & Research Traceability` |
+| HOW | `Problem Statement and Scope`, `Goals and Non-Goals`, `Functional Requirements with Traceability`, `Security Requirements with Threat Tracing` |
+| WHAT | `API Endpoint Specifications`, `Design Rationale & Research Traceability` |
 
 For WHAT, deliberately **exclude `Project Structure` and the per-repo change
 summary**: file/structure listings are the WHAT-phase analog of WHY's bulky
 evidence tables — they're dominated by paths and identifiers that dilute the
-mission signal exactly as citation lists do. Keep the scope to the mission-
-bearing prose (what problem this design solves and why), not the inventory of
-what it touches.
+mission signal exactly as citation lists do. Keep the scope to the endpoint /
+deliverable surface and the rationale that ties the design back to research,
+not the inventory of what it touches. WHAT's canonical H2s are numbered
+(`## 2. ...`, `## 10. ...`), so extraction must normalize a leading numeric
+prefix before matching section names.
 
 If a section is missing, record it in the report and fall back to PR title/body
 only as a named degraded scope source. A missing section should not silently
