@@ -898,7 +898,21 @@ jobs:
                   continue
               if not current_repo: continue
               for m in PATH_IN_BACKTICKS_RE.finditer(ln):
-                  cited_by_repo[current_repo].add(m.group(1))
+                  candidate = m.group(1)
+                  # Bug-XX (path-citation false positive): only treat a PROSE
+                  # backtick token as a cited FILE PATH when it has a directory
+                  # separator. A bare `word.word` is almost always a code
+                  # expression — `req.user` (Express request property),
+                  # `res.json`, `this.config`, `process.env` — whose ".word"
+                  # merely LOOKS like a file extension. Gating those against the
+                  # repo inventory is a false positive (req.user is not a file,
+                  # so it "fails" structure-invalid even though the repo IS
+                  # connected + indexed). Real file paths in prose carry their
+                  # directory (src/middleware/auth.js); bare-filename citations
+                  # belong in the authoritative frontmatter `cited_paths:` list,
+                  # which is parsed separately above and is unaffected.
+                  if '/' in candidate:
+                      cited_by_repo[current_repo].add(candidate)
 
           # 3. Cross-check per-repo. Only brownfield repos are gated —
           #    greenfield is by-definition not in any existing file tree.
