@@ -1313,35 +1313,62 @@ jobs:
           print(f'::notice::mode-honesty {"PASS" if ok else "FAIL"} repos={len(repos)} findings={len(findings)}')
           PYEOF
 
-      # Pocket Watch — cosine(OKR.objective, code-design.md ## Problem Restatement)
-      # Caterpillar — cosine(code-design.md ## Approach, prd.md ## Problem Statement)
-      # Thresholds calibrate in D-PR1's first run (per design doc D7 spec).
-      # Reuse the same embedding fetch + cosine pattern prd-agent.yml uses;
-      # MVP version reports the cosines without failing the merge (gates
-      # tighten in D-PR1.v1.1 after the first calibration run).
-      - name: Drift gates (Pocket Watch + Caterpillar) — MVP report-only
-        id: drift
+      # Pocket Watch v2 — CONTRASTIVE alignment rail (WHAT). Replaces the old
+      # report-only placeholder. The research-runner skill ranks the code-design's
+      # MISSION surface — §2 API Endpoint Specifications (anchors the deliverable)
+      # + §10 Design Rationale & Research Traceability (why the design serves the
+      # OKR), NOT the §1/§3-9 implementation inventory — against the OKR objective
+      # + a pinned basket of sibling-OKR objectives. ADVISORY (records, does not
+      # gate); an empty/unmatched scope skips visibly, never scoring "" as drift.
+      # Caterpillar stays the separate cross-phase check (calibration-pending
+      # below; its contrastive migration is a later effort).
+      - name: Pocket Watch alignment (v2 contrastive rank/margin)
+        id: pocket
         if: steps.gate.outputs.skip != 'true'
         env:
           OKR_ID: ${{ steps.ctx.outputs.okr_id }}
+          RUN_ID: ${{ steps.ctx.outputs.run_id }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Read OKR objective from main; design doc Problem Restatement
-          # + Approach from PR head; PRD Problem Statement from main.
-          # Output cosines into step outputs; do NOT exit non-zero in MVP.
-          DESIGN_DOC="okrs/${OKR_ID}/what/code-design.md"
-          PRD_DOC_BASE="/tmp/base/okrs/${OKR_ID}/how/prd.md"
-          OKR_YAML_BASE="/tmp/base/okrs/${OKR_ID}/okr.yaml"
-          if [ ! -f "$DESIGN_DOC" ] || [ ! -f "$PRD_DOC_BASE" ] || [ ! -f "$OKR_YAML_BASE" ]; then
-            echo "pocket_watch=skipped" >> "$GITHUB_OUTPUT"
-            echo "caterpillar=skipped" >> "$GITHUB_OUTPUT"
-            echo "reason=docs-missing" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          # Calibration-pending in D-PR1 MVP — surface cosines but pass.
-          # Real gates land in D-PR1.v1.1.
-          echo "pocket_watch=calibration-pending" >> "$GITHUB_OUTPUT"
-          echo "caterpillar=calibration-pending" >> "$GITHUB_OUTPUT"
-          echo "::notice::drift gates report-only in D-PR1 MVP (calibrate in v1.1)"
+          set +e  # advisory — never fail the audit job over Pocket Watch.
+          PR_NUM='${{ github.event.pull_request.number }}'; PR_NUM="${PR_NUM:-null}"
+          RESULT=$(printf '{"okrId":"%s","runId":"%s","phase":"what","prNumber":%s,"marginBand":0.05}' \
+            "$OKR_ID" "$RUN_ID" "$PR_NUM" \
+            | npx -y @maintainabilityai/research-runner@~0.1.64 skill-pocket-watch 2>/tmp/pw-err.txt)
+          printf '%s' "$RESULT" > /tmp/pocket-watch.json
+          python3 <<'PYEOF'
+          import json, os
+          def out(k, v):
+              with open(os.environ['GITHUB_OUTPUT'], 'a') as f: f.write(f'{k}={v}\n')
+          try:
+              obj = json.load(open('/tmp/pocket-watch.json'))
+          except Exception as e:
+              print(f'::warning::Pocket Watch v2 skipped (advisory) — unparseable skill output ({e})')
+              out('status','skipped'); out('passed','skipped'); out('reason','unparseable-skill-output')
+              raise SystemExit(0)
+          if not obj.get('ok'):
+              reason = obj.get('reason','unknown')
+              print(f'::warning::Pocket Watch v2 skipped (advisory, NOT drift) — {reason}')
+              out('status','skipped'); out('passed','skipped'); out('reason',reason)
+              raise SystemExit(0)
+          try:
+              r = obj['report']
+              status, rank, margin = r['status'], r['rank'], r['margin']
+              out('status', status); out('passed', 'true' if status == 'pass' else 'false')
+              out('rank', rank); out('margin', margin); out('own_score', r['own_score'])
+              out('nearest_score', r['nearest_decoy_score'])
+              out('nearest_okr', r.get('nearest_decoy_okr_id') or '')
+              out('absolute_score', r['absolute_score']); out('reason', r['reason'])
+              icon = {'pass':'✓','needs_review':'⚠','fail':'✗'}.get(status,'?')
+              print(f"::notice::Pocket Watch v2 {icon} {status} — rank #{rank}, margin {margin:+.4f} "
+                    f"(own {r['own_score']} vs nearest {r.get('nearest_decoy_okr_id') or 'n/a'} {r['nearest_decoy_score']}); "
+                    f"ADVISORY (not gating). Legacy absolute {r['absolute_score']} logged-only.")
+          except Exception as e:
+              print(f'::warning::Pocket Watch v2 skipped (advisory) — malformed report ({e})')
+              out('status','skipped'); out('passed','skipped'); out('reason','malformed-report')
+          PYEOF
+          head -3 /tmp/pw-err.txt 2>/dev/null || true
+          exit 0
 
       # Self-review reconciliation — D-PR1.v1.6 polish.
       #
@@ -1827,6 +1854,8 @@ jobs:
           # were still inlined.
           STRUCT_REASON: ${{ steps.verdict.outputs.struct_reason }}
           COORD_REASON: ${{ steps.coordination.outputs.reason }}
+          # Pocket Watch v2 reason is prose — route through env, never inline.
+          POCKET_REASON: ${{ steps.pocket.outputs.reason }}
         run: |
           # P1 (Bug-P): consume the SAME verdict the label step consumed.
           # Previously this step re-derived STRUCT_OK + MANIFEST_OK inline,
@@ -1980,7 +2009,21 @@ jobs:
             false) printf '| Required skill_call manifest | ✗ incomplete — missing: %s |\n' "$(echo "$MANIFEST_MISSING_DISPLAY" | tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g')" >> "$BODY" ;;
             *)     printf '| Required skill_call manifest | — n/a (no chain) |\n' >> "$BODY" ;;
           esac
-          printf '| Pocket Watch (objective vs Problem Restatement) | calibration-pending (D-PR1.v1.x) |\n' >> "$BODY"
+          # Pocket Watch v2 — contrastive rank/margin (ADVISORY, not gating).
+          POCKET_STATUS='${{ steps.pocket.outputs.status }}'
+          POCKET_RANK='${{ steps.pocket.outputs.rank }}'
+          POCKET_MARGIN='${{ steps.pocket.outputs.margin }}'
+          POCKET_OWN='${{ steps.pocket.outputs.own_score }}'
+          POCKET_NEAREST='${{ steps.pocket.outputs.nearest_okr }}'
+          POCKET_NEAREST_SCORE='${{ steps.pocket.outputs.nearest_score }}'
+          POCKET_REASON="${POCKET_REASON:-}"
+          case "$POCKET_STATUS" in
+            pass)         printf '| Pocket Watch alignment (advisory) | ✓ rank #%s, margin %s (own %s vs nearest %s %s) |\n' "$POCKET_RANK" "$POCKET_MARGIN" "$POCKET_OWN" "${POCKET_NEAREST:-n/a}" "$POCKET_NEAREST_SCORE" >> "$BODY" ;;
+            needs_review) printf '| Pocket Watch alignment (advisory) | ⚠ rank #%s, margin %s |\n' "$POCKET_RANK" "$POCKET_MARGIN" >> "$BODY" ;;
+            fail)         printf '| Pocket Watch alignment (advisory) | ✗ rank #%s — another OKR matched better |\n' "$POCKET_RANK" >> "$BODY" ;;
+            skipped)      printf '| Pocket Watch alignment (advisory) | — skipped (`%s`) |\n' "${POCKET_REASON:-no reason}" >> "$BODY" ;;
+            *)            printf '| Pocket Watch alignment (advisory) | `%s` |\n' "$POCKET_STATUS" >> "$BODY" ;;
+          esac
           printf "| Caterpillar's Challenge (code-design vs PRD) | calibration-pending (D-PR1.v1.x) |\n" >> "$BODY"
 
           # Self-review (B24/B29) — per-persona scores when available.
@@ -2068,6 +2111,46 @@ jobs:
         with:
           pr-number: ${{ github.event.pull_request.number }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Pocket Watch v2 — durable drift report (Phase 3, WHAT). Re-run the
+      # contrastive scorer on the MERGED bytes (phase=what → §2 Endpoint + §10
+      # Design Rationale) and write audit/drift/<run>.pocket-watch.json; the
+      # Finalize OKR action stages + commits the drift dir. ADVISORY — never
+      # aborts finalize; an empty/unmatched scope skips visibly.
+      - name: Pocket Watch v2 — finalize (durable drift report)
+        id: pocket-finalize
+        if: steps.ctx.outputs.okr_id != '' && steps.ctx.outputs.run_id != ''
+        env:
+          OKR_ID: ${{ steps.ctx.outputs.okr_id }}
+          RUN_ID: ${{ steps.ctx.outputs.run_id }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set +e
+          PR_NUM='${{ github.event.pull_request.number }}'; PR_NUM="${PR_NUM:-null}"
+          MERGE_SHA='${{ github.event.pull_request.merge_commit_sha }}'
+          RESULT=$(printf '{"okrId":"%s","runId":"%s","phase":"what","prNumber":%s,"mergeCommitSha":"%s","marginBand":0.05}' \
+            "$OKR_ID" "$RUN_ID" "$PR_NUM" "$MERGE_SHA" \
+            | npx -y @maintainabilityai/research-runner@~0.1.64 skill-pocket-watch 2>/tmp/pw-fin-err.txt)
+          printf '%s' "$RESULT" > /tmp/pocket-watch-finalize.json
+          python3 <<'PYEOF'
+          import json, os, pathlib
+          try:
+              obj = json.load(open('/tmp/pocket-watch-finalize.json'))
+          except Exception as e:
+              print(f'::warning::Pocket Watch v2 finalize skipped (advisory) — unparseable ({e})'); raise SystemExit(0)
+          if not obj.get('ok'):
+              print(f"::warning::Pocket Watch v2 finalize skipped (advisory) — {obj.get('reason','unknown')}"); raise SystemExit(0)
+          try:
+              r = obj['report']
+              dest = pathlib.Path('okrs')/os.environ['OKR_ID']/'audit'/'drift'
+              dest.mkdir(parents=True, exist_ok=True)
+              path = dest/f"{os.environ['RUN_ID']}.pocket-watch.json"
+              path.write_text(json.dumps(r, indent=2, sort_keys=True)+'\n')
+              print(f"::notice::Pocket Watch v2 finalize — durable report {path} (status {r.get('status')}, rank {r.get('rank')}, margin {r.get('margin')})")
+          except Exception as e:
+              print(f'::warning::Pocket Watch v2 finalize skipped (advisory) — malformed report ({e})')
+          PYEOF
+          exit 0
 
       # Refactor 3c — delegate to the canonical finalize composite action.
       # PHASE SPEC — see vscode-extension/src/types/phaseSpec.ts.
