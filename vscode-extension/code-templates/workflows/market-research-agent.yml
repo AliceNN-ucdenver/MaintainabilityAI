@@ -676,17 +676,24 @@ jobs:
               print(f'::warning::Pocket Watch v2 skipped (advisory, NOT drift) — {reason}')
               out('status','skipped'); out('passed','skipped'); out('reason',reason)
               raise SystemExit(0)
-          r = obj['report']
-          status, rank, margin = r['status'], r['rank'], r['margin']
-          out('status', status); out('passed', 'true' if status == 'pass' else 'false')
-          out('rank', rank); out('margin', margin); out('own_score', r['own_score'])
-          out('nearest_score', r['nearest_decoy_score'])
-          out('nearest_okr', r.get('nearest_decoy_okr_id') or '')
-          out('absolute_score', r['absolute_score']); out('reason', r['reason'])
-          icon = {'pass':'✓','needs_review':'⚠','fail':'✗'}.get(status,'?')
-          print(f"::notice::Pocket Watch v2 {icon} {status} — rank #{rank}, margin {margin:+.4f} "
-                f"(own {r['own_score']} vs nearest {r.get('nearest_decoy_okr_id') or 'n/a'} {r['nearest_decoy_score']}); "
-                f"ADVISORY (not gating). Legacy absolute {r['absolute_score']} logged-only.")
+          try:
+              r = obj['report']
+              status, rank, margin = r['status'], r['rank'], r['margin']
+              out('status', status); out('passed', 'true' if status == 'pass' else 'false')
+              out('rank', rank); out('margin', margin); out('own_score', r['own_score'])
+              out('nearest_score', r['nearest_decoy_score'])
+              out('nearest_okr', r.get('nearest_decoy_okr_id') or '')
+              out('absolute_score', r['absolute_score']); out('reason', r['reason'])
+              icon = {'pass':'✓','needs_review':'⚠','fail':'✗'}.get(status,'?')
+              print(f"::notice::Pocket Watch v2 {icon} {status} — rank #{rank}, margin {margin:+.4f} "
+                    f"(own {r['own_score']} vs nearest {r.get('nearest_decoy_okr_id') or 'n/a'} {r['nearest_decoy_score']}); "
+                    f"ADVISORY (not gating). Legacy absolute {r['absolute_score']} logged-only.")
+          except Exception as e:
+              # ok:true but report missing/malformed — explicit skipped, never a
+              # blank advisory row (the step is set +e, so an uncaught KeyError
+              # would otherwise exit 0 with no status output).
+              print(f'::warning::Pocket Watch v2 skipped (advisory) — malformed report ({e})')
+              out('status','skipped'); out('passed','skipped'); out('reason','malformed-report')
           PYEOF
           head -3 /tmp/pw-err.txt 2>/dev/null || true
           exit 0
@@ -1640,6 +1647,48 @@ jobs:
           fi
           echo "report_path=$REPORT" >> "$GITHUB_OUTPUT"
           echo "::notice::Oracle groundedness rail finalize (exit $CODE, advisory=$ADVISORY) — report written to $REPORT"
+
+      # Pocket Watch v2 — durable drift report (Phase 3). Re-run the contrastive
+      # alignment scorer on the MERGED bytes and write the report under
+      # audit/drift/<run>.pocket-watch.json; the Finalize OKR action below stages
+      # + commits the drift dir with the merge. ADVISORY — a skip/non-pass never
+      # aborts finalize. This is the auditable, replayable artifact (it pins the
+      # decoy basket + input hashes); it is NOT an Oracle evidence rail, so it
+      # does NOT flow through rail-report-paths.
+      - name: Pocket Watch v2 — finalize (durable drift report)
+        id: pocket-finalize
+        if: steps.ctx.outputs.okr_id != '' && steps.ctx.outputs.run_id != ''
+        env:
+          OKR_ID: ${{ steps.ctx.outputs.okr_id }}
+          RUN_ID: ${{ steps.ctx.outputs.run_id }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set +e
+          PR_NUM='${{ github.event.pull_request.number }}'; PR_NUM="${PR_NUM:-null}"
+          MERGE_SHA='${{ github.event.pull_request.merge_commit_sha }}'
+          RESULT=$(printf '{"okrId":"%s","runId":"%s","phase":"why","prNumber":%s,"mergeCommitSha":"%s","marginBand":0.05}' \
+            "$OKR_ID" "$RUN_ID" "$PR_NUM" "$MERGE_SHA" \
+            | npx -y @maintainabilityai/research-runner@~0.1.64 skill-pocket-watch 2>/tmp/pw-fin-err.txt)
+          printf '%s' "$RESULT" > /tmp/pocket-watch-finalize.json
+          python3 <<'PYEOF'
+          import json, os, pathlib
+          try:
+              obj = json.load(open('/tmp/pocket-watch-finalize.json'))
+          except Exception as e:
+              print(f'::warning::Pocket Watch v2 finalize skipped (advisory) — unparseable ({e})'); raise SystemExit(0)
+          if not obj.get('ok'):
+              print(f"::warning::Pocket Watch v2 finalize skipped (advisory) — {obj.get('reason','unknown')}"); raise SystemExit(0)
+          try:
+              r = obj['report']
+              dest = pathlib.Path('okrs')/os.environ['OKR_ID']/'audit'/'drift'
+              dest.mkdir(parents=True, exist_ok=True)
+              path = dest/f"{os.environ['RUN_ID']}.pocket-watch.json"
+              path.write_text(json.dumps(r, indent=2, sort_keys=True)+'\n')
+              print(f"::notice::Pocket Watch v2 finalize — durable report {path} (status {r.get('status')}, rank {r.get('rank')}, margin {r.get('margin')})")
+          except Exception as e:
+              print(f'::warning::Pocket Watch v2 finalize skipped (advisory) — malformed report ({e})')
+          PYEOF
+          exit 0
 
       # Refactor 3c — delegate to the canonical finalize composite action.
       # PHASE SPEC — see vscode-extension/src/types/phaseSpec.ts.
