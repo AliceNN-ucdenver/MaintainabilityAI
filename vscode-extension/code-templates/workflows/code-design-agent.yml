@@ -2019,8 +2019,8 @@ jobs:
           POCKET_REASON="${POCKET_REASON:-}"
           case "$POCKET_STATUS" in
             pass)         printf '| Pocket Watch alignment (advisory) | ✓ rank #%s, margin %s (own %s vs nearest %s %s) |\n' "$POCKET_RANK" "$POCKET_MARGIN" "$POCKET_OWN" "${POCKET_NEAREST:-n/a}" "$POCKET_NEAREST_SCORE" >> "$BODY" ;;
-            needs_review) printf '| Pocket Watch alignment (advisory) | ⚠ rank #%s, margin %s |\n' "$POCKET_RANK" "$POCKET_MARGIN" >> "$BODY" ;;
-            fail)         printf '| Pocket Watch alignment (advisory) | ✗ rank #%s — another OKR matched better |\n' "$POCKET_RANK" >> "$BODY" ;;
+            needs_review) printf '| Pocket Watch alignment (advisory) | ⚠ rank #%s, margin %s — %s |\n' "$POCKET_RANK" "$POCKET_MARGIN" "${POCKET_REASON:-narrow margin / similar sibling}" >> "$BODY" ;;
+            fail)         printf '| Pocket Watch alignment (advisory) | ✗ rank #%s — %s |\n' "$POCKET_RANK" "${POCKET_REASON:-another OKR matched better}" >> "$BODY" ;;
             skipped)      printf '| Pocket Watch alignment (advisory) | — skipped (`%s`) |\n' "${POCKET_REASON:-no reason}" >> "$BODY" ;;
             *)            printf '| Pocket Watch alignment (advisory) | `%s` |\n' "$POCKET_STATUS" >> "$BODY" ;;
           esac

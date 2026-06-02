@@ -2549,6 +2549,27 @@ describe('Pocket Watch v2 — drift report rendering (advisory alignment rail)',
     expect(renderPocketWatchRollup({})).toBe('');
   });
 
+  it('renderPocketWatchSection: surfaces an incomplete scope (missing sections)', () => {
+    const partial = JSON.stringify({
+      status: 'needs_review', rank: 1, margin: 0.18, own_score: 0.74,
+      nearest_decoy_score: 0.55, nearest_decoy_okr_id: 'OKR-Y',
+      scope_source: 'artifact-sections', missing_sections: ['Formal Conclusions'],
+      reason: 'incomplete-scope (missing Formal Conclusions); rank #1, margin +0.18',
+    });
+    const md = renderPocketWatchSection(partial);
+    expect(md).toContain('⚠ needs_review');
+    expect(md).toContain('Scope | ⚠ incomplete — missing: Formal Conclusions (verdict capped at needs_review)');
+  });
+
+  it('renderPocketWatchRollup: flags incomplete scope in the status cell', () => {
+    const partial = JSON.stringify({
+      status: 'needs_review', rank: 1, margin: 0.18, nearest_decoy_okr_id: 'OKR-Y',
+      missing_sections: ['Security Requirements'],
+    });
+    const md = renderPocketWatchRollup({ how: partial });
+    expect(md).toMatch(/\| HOW \| ⚠ needs_review · scope incomplete \|/);
+  });
+
   it('a Pocket Watch fail does NOT fail the rollup verdict (advisory)', () => {
     const failReport = JSON.stringify({ status: 'fail', rank: 2, margin: -0.05, own_score: 0.4,
       nearest_decoy_score: 0.45, nearest_decoy_okr_id: 'OKR-OTHER', absolute_score: 0.4 });

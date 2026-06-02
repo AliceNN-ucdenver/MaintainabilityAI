@@ -2370,6 +2370,11 @@ interface ParsedPocketWatch {
   nearest_decoy_okr_id?: string | null;
   absolute_score?: number;
   reason?: string;
+  scope_source?: string;
+  /** Mission sections the phase expected but the artifact did not provide. A
+   *  non-empty list means the verdict was scored on a PARTIAL scope (capped at
+   *  needs_review by the runner) — surface it so the receipt is honest. */
+  missing_sections?: string[];
   anchor_coverage?: { critical_present?: number; critical_total?: number; missing_critical?: string[] };
 }
 
@@ -2393,6 +2398,9 @@ export function renderPocketWatchSection(raw: string | undefined | null): string
     '|---|---|',
     `| Pocket Watch (advisory) | ${icon} ${r.status ?? 'unknown'}${r.rank != null ? ` — own OKR ranked #${r.rank}` : ''}${r.margin != null ? ` by ${fmtMargin(r.margin)}` : ''} |`,
   ];
+  if ((r.missing_sections ?? []).length) {
+    lines.push(`| Scope | ⚠ incomplete — missing: ${(r.missing_sections ?? []).join(', ')} (verdict capped at needs_review) |`);
+  }
   if (r.own_score != null) { lines.push(`| Own score | ${r.own_score} |`); }
   if (r.nearest_decoy_okr_id) { lines.push(`| Nearest decoy | ${r.nearest_decoy_okr_id} at ${r.nearest_decoy_score ?? '?'} |`); }
   if (ac?.critical_total != null) {
@@ -2416,7 +2424,8 @@ export function renderPocketWatchRollup(byPhase: Partial<Record<string, string>>
     const icon = POCKET_WATCH_ICON[r.status ?? ''] ?? '?';
     const ac = r.anchor_coverage;
     const anchors = ac?.critical_total != null ? `${ac.critical_present ?? 0}/${ac.critical_total}` : '—';
-    rows.push(`| ${phase.toUpperCase()} | ${icon} ${r.status ?? '—'} | ${r.rank ?? '—'} | ${r.margin != null ? fmtMargin(r.margin) : '—'} | ${r.nearest_decoy_okr_id ?? '—'} | ${anchors} |`);
+    const scopeFlag = (r.missing_sections ?? []).length ? ' · scope incomplete' : '';
+    rows.push(`| ${phase.toUpperCase()} | ${icon} ${r.status ?? '—'}${scopeFlag} | ${r.rank ?? '—'} | ${r.margin != null ? fmtMargin(r.margin) : '—'} | ${r.nearest_decoy_okr_id ?? '—'} | ${anchors} |`);
   }
   if (rows.length === 0) { return ''; }
   return [
