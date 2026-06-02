@@ -65,20 +65,40 @@ export function renderOkrIntent(card: OkrIntentInput): string {
 }
 
 /** Phase → the mission-bearing artifact sections to embed (design §"Phase
- *  artifact scope"). WHAT deliberately omits `Project Structure` and the
- *  per-repo change summary — file/path listings dilute alignment. */
+ *  artifact scope"). The names must match the REAL artifact H2s produced by
+ *  each phase's synthesis pack:
+ *  - WHY (research-doc) + HOW (prd) use un-numbered headers.
+ *  - WHAT (code-design) uses NUMBERED headers (`## 10. …`); matched via
+ *    normalizeH2 below. WHAT deliberately keeps only §2 (the endpoint, which
+ *    anchors the deliverable) + §10 (Design Rationale & Research Traceability,
+ *    the "why this design serves the OKR" narrative); §1 Project Structure and
+ *    §3–9 are implementation inventory and dilute the alignment signal. */
 export const PHASE_SCOPE_SECTIONS: Record<string, string[]> = {
   why: ['Executive Summary', 'Formal Conclusions', 'Recommendations'],
-  how: ['Problem Statement', 'Goals / Non-Goals', 'Functional Requirements', 'Security Requirements'],
-  what: ['Problem Restatement', 'Design Rationale & Research Traceability'],
+  how: ['Problem Statement', 'Goals/Non-Goals', 'Functional Requirements', 'Security Requirements'],
+  what: ['API Endpoint Specifications', 'Design Rationale & Research Traceability'],
 };
+
+/** Normalize an H2 title for tolerant matching against the scope names:
+ *  strip a leading `N.` section number (WHAT renders `## 10. Design Rationale…`),
+ *  drop whitespace around a slash (`Goals / Non-Goals` == `Goals/Non-Goals`),
+ *  collapse remaining whitespace, lower-case. Without this, numbered WHAT
+ *  headers and minor punctuation drift silently miss → an empty scope. */
+export function normalizeH2(title: string): string {
+  return title.trim()
+    .replace(/^\d+\.\s*/, '')
+    .replace(/\s*\/\s*/g, '/')
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
+}
 
 /**
  * Extract a markdown H2 section body: everything between `## <name>` and the
- * next `## ` heading. Heading match is exact (trimmed). Returns '' if absent.
- * Mirrors the awk the workflow used so v1 and v2 read identical bytes.
+ * next `## ` heading. Matching is tolerant (normalizeH2) so numbered WHAT
+ * headers and `/`-spacing variants resolve. Returns '' if absent.
  */
 export function extractSection(markdown: string, name: string): string {
+  const target = normalizeH2(name);
   const lines = markdown.split('\n');
   const out: string[] = [];
   let inSection = false;
@@ -86,7 +106,7 @@ export function extractSection(markdown: string, name: string): string {
     const h2 = /^##\s+(.*?)\s*$/.exec(line);
     if (h2) {
       if (inSection) { break; }            // next H2 → stop
-      if (h2[1].trim() === name) { inSection = true; }
+      if (normalizeH2(h2[1]) === target) { inSection = true; }
       continue;                            // never include the heading line itself
     }
     if (inSection) { out.push(line); }

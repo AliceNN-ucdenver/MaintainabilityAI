@@ -12,7 +12,7 @@
  */
 
 import { createHash } from 'crypto';
-import { renderOkrIntent, renderPhaseScope, type OkrIntentInput } from './objective-renderer';
+import { renderOkrIntent, renderPhaseScope, PHASE_SCOPE_SECTIONS, type OkrIntentInput } from './objective-renderer';
 import { extractAnchors, anchorCoverage } from './anchors';
 import { scoreContrastive, type PocketWatchConfig, type PocketWatchResult } from './pocket-watch';
 
@@ -82,6 +82,13 @@ export async function runPocketWatch(input: PocketWatchRunInput, embed: Embed): 
   const modelId = input.modelId ?? POCKET_WATCH_MODEL_ID;
   const ownIntent = renderOkrIntent(input.ownCard);
   const scope = renderPhaseScope(input.phase, input.artifactMarkdown);
+  // An empty scope (none of the phase's mission-bearing sections resolved —
+  // e.g. renamed/numbered headers the matcher couldn't find) must NOT be scored:
+  // embedding "" against the objective is a meaningless ~0 comparison that would
+  // masquerade as drift. Skip instead (the caller surfaces it advisorily).
+  if (scope.scope.trim() === '') {
+    throw new Error(`empty-scope: no ${input.phase} sections matched (expected one of: ${(PHASE_SCOPE_SECTIONS[input.phase.toLowerCase()] ?? []).join(', ')}; missing: ${scope.missingSections.join(', ')})`);
+  }
   const decoyIntents = input.decoys.map(d => ({ okr_id: d.okr_id, intent: renderOkrIntent(d.card) }));
   const anchors = extractAnchors(input.ownCard);
   const cov = anchorCoverage(anchors, scope.scope);

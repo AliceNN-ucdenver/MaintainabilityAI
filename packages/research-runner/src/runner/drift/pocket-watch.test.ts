@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
-import { renderOkrIntent, extractSection, renderPhaseScope, PHASE_SCOPE_SECTIONS } from './objective-renderer';
+import { renderOkrIntent, extractSection, renderPhaseScope, normalizeH2, PHASE_SCOPE_SECTIONS } from './objective-renderer';
 import { extractAnchors, anchorCoverage } from './anchors';
 import { cosine, scoreContrastive, type ScoreInput } from './pocket-watch';
 import { runPocketWatch } from './pocket-watch-skill';
@@ -57,8 +57,59 @@ test('renderPhaseScope concatenates phase sections + records missing ones', () =
   assert.deepEqual(scope.missingSections, ['Formal Conclusions']);  // expected by WHY, absent here
 });
 
-test('WHAT scope omits Project Structure / per-repo summary (dilution)', () => {
-  assert.deepEqual(PHASE_SCOPE_SECTIONS.what, ['Problem Restatement', 'Design Rationale & Research Traceability']);
+test('WHAT scope = endpoint + design rationale (omits Project Structure / impl detail)', () => {
+  assert.deepEqual(PHASE_SCOPE_SECTIONS.what, ['API Endpoint Specifications', 'Design Rationale & Research Traceability']);
+});
+
+test('normalizeH2: strips numeric prefix + normalizes slash spacing', () => {
+  assert.equal(normalizeH2('## 10. Design Rationale & Research Traceability'.replace(/^##\s+/, '')), 'design rationale & research traceability');
+  assert.equal(normalizeH2('Design Rationale & Research Traceability'), 'design rationale & research traceability');
+  assert.equal(normalizeH2('Goals / Non-Goals'), normalizeH2('Goals/Non-Goals'));
+});
+
+test('extractSection matches NUMBERED WHAT headers (## 10. …) — not exact-only', () => {
+  const md = '## 1. Project Structure\nfiles\n## 10. Design Rationale & Research Traceability\nthis design serves the OKR by reusing ratings\n## References\nx\n';
+  // exact-match would miss the "10." prefix; normalized match resolves it
+  assert.match(extractSection(md, 'Design Rationale & Research Traceability'), /serves the OKR by reusing ratings/);
+  assert.equal(extractSection(md, 'Project Structure'), 'files');
+});
+
+test('extractSection matches HOW Goals/Non-Goals despite slash-spacing drift', () => {
+  const md = '## Goals/Non-Goals\ndeliver recommendations\n## Functional Requirements\nfr\n';
+  assert.match(extractSection(md, 'Goals / Non-Goals'), /deliver recommendations/);  // scope name has spaces, header doesn't
+});
+
+test('renderPhaseScope WHAT: non-empty against a real numbered code-design fixture', () => {
+  const md = [
+    '## 1. Project Structure', '- src/services/recommendations.js',
+    '## 2. API Endpoint Specifications', 'GET /api/movies/recommendations?userId= returns personalized titles',
+    '## 5. Security Control Implementations', 'rate limiting',
+    '## 10. Design Rationale & Research Traceability', 'Reusing catalog + ratings (C2) avoids new PII; collaborative filtering per the research.',
+    '## References', 'x',
+  ].join('\n');
+  const scope = renderPhaseScope('what', md);
+  assert.equal(scope.source, 'artifact-sections');
+  assert.notEqual(scope.scope.trim(), '');
+  assert.match(scope.scope, /GET \/api\/movies\/recommendations/);   // §2 endpoint anchored
+  assert.match(scope.scope, /avoids new PII/);                        // §10 rationale included
+  assert.doesNotMatch(scope.scope, /src\/services\/recommendations\.js/);  // §1 inventory excluded
+});
+
+test('renderPhaseScope WHAT: empty scope when no sections match (renamed/missing)', () => {
+  const scope = renderPhaseScope('what', '## Something Else\nbody\n## Other\nx\n');
+  assert.equal(scope.source, 'none');
+  assert.equal(scope.scope, '');
+});
+
+test('runPocketWatch SKIPS (throws) on an empty scope — never scores "" as drift', async () => {
+  await assert.rejects(
+    runPocketWatch({
+      phase: 'what', okrId: 'O', runId: 'R',
+      ownCard: MOVIE_OKR, artifactMarkdown: '## Wrong Headers\nbody\n',  // no WHAT sections
+      decoys: [],
+    }, async () => { throw new Error('embed should NOT be called on empty scope'); }),
+    /empty-scope: no what sections matched/,
+  );
 });
 
 // ── anchors ─────────────────────────────────────────────────────────────
