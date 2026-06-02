@@ -1128,6 +1128,23 @@ jobs:
       - name: Decide verdict
         id: verdict
         if: steps.gate.outputs.skip != 'true'
+        env:
+          # Bug-GG-quote — prose outputs must pass through env:, not
+          # inline shell assignments. Query-plan failures can contain
+          # literal quotes, e.g. arxiv-search: "recommender systems" -
+          # 2 words, expected 3-6. Inlining that inside double quotes
+          # makes Bash try to execute `systems`.
+          CHAIN_REASON: ${{ steps.chain.outputs.reason }}
+          MANIFEST_MISSING_RAW: ${{ steps.manifest.outputs.missing }}
+          QUERY_PLAN_BAD_RAW: ${{ steps.query_plan.outputs.bad }}
+          STATE_FAIL_OUT: ${{ steps.state_guard.outputs.state_fail }}
+          STATE_FAIL_REASON_OUT: ${{ steps.state_guard.outputs.state_reason }}
+          CHAIN_ROOT_REASON_OUT: ${{ steps.ctx.outputs.chain_root_reason }}
+          ARTIFACT_FORGED: ${{ steps.artifact-expect.outputs.artifact_forged }}
+          ARTIFACT_FORGED_REASON: ${{ steps.artifact-expect.outputs.artifact_forged_reason }}
+          PII_REASON: ${{ steps.pii-rail.outputs.reason }}
+          INJECT_REASON: ${{ steps.inject-rail.outputs.reason }}
+          GROUNDED_REASON: ${{ steps.grounded-rail.outputs.reason }}
         run: |
           EVIDENCE_MODE="${{ steps.ctx.outputs.evidence_mode }}"
           FOUND="${{ steps.audit.outputs.found }}"
@@ -1143,15 +1160,15 @@ jobs:
           H3="${{ steps.structure.outputs.h3_present }}"
           POCKET="${{ steps.pocket.outputs.passed }}"
           CHAIN_OK="${{ steps.chain.outputs.ok }}"
-          CHAIN_REASON="${{ steps.chain.outputs.reason }}"
+          CHAIN_REASON="${CHAIN_REASON:-}"
           SEALED="${{ steps.chain.outputs.sealed }}"
           SEAL_VERIFIED="${{ steps.chain.outputs.seal_verified }}"
           MANIFEST_OK="${{ steps.manifest.outputs.ok }}"
-          MANIFEST_MISSING_RAW="${{ steps.manifest.outputs.missing }}"
-          MANIFEST_MISSING=$(echo "$MANIFEST_MISSING_RAW" | tr '\n' ';' | sed 's/;$//')
+          MANIFEST_MISSING_RAW="${MANIFEST_MISSING_RAW:-}"
+          MANIFEST_MISSING=$(printf '%s' "$MANIFEST_MISSING_RAW" | tr '\n' ';' | sed 's/;$//')
           QUERY_PLAN_OK="${{ steps.query_plan.outputs.ok }}"
-          QUERY_PLAN_BAD_RAW="${{ steps.query_plan.outputs.bad }}"
-          QUERY_PLAN_BAD=$(echo "$QUERY_PLAN_BAD_RAW" | tr '\n' ';' | sed 's/;$//')
+          QUERY_PLAN_BAD_RAW="${QUERY_PLAN_BAD_RAW:-}"
+          QUERY_PLAN_BAD=$(printf '%s' "$QUERY_PLAN_BAD_RAW" | tr '\n' ';' | sed 's/;$//')
 
           VERDICT="ok"; REASON=""
           # Discrete failure-kind flags — used by the label-apply step to
@@ -1171,8 +1188,8 @@ jobs:
           # rationale. Net: a state-tampered PR is asking us to trust a
           # card the agent edited; fail fast with the most specific
           # reason.
-          STATE_FAIL_OUT="${{ steps.state_guard.outputs.state_fail }}"
-          STATE_FAIL_REASON_OUT="${{ steps.state_guard.outputs.state_reason }}"
+          STATE_FAIL_OUT="${STATE_FAIL_OUT:-false}"
+          STATE_FAIL_REASON_OUT="${STATE_FAIL_REASON_OUT:-}"
           STATE_FAIL="false"
           if [ "$STATE_FAIL_OUT" = "true" ]; then
             VERDICT="degraded"; REASON="$STATE_FAIL_REASON_OUT"
@@ -1225,7 +1242,7 @@ jobs:
           # a real mismatch still lands here as CHAIN_FAIL.
           CHAIN_ROOT_OK_OUT="${{ steps.ctx.outputs.chain_root_ok }}"
           if [ "$VERDICT" = "ok" ] && [ "$CHAIN_ROOT_OK_OUT" = "false" ]; then
-            VERDICT="degraded"; REASON="chain_root_hash mismatch: ${{ steps.ctx.outputs.chain_root_reason }}"
+            VERDICT="degraded"; REASON="chain_root_hash mismatch: $CHAIN_ROOT_REASON_OUT"
             CHAIN_FAIL="true"
           fi
 
@@ -1249,8 +1266,8 @@ jobs:
           # was hand-rolled into the JSONL. Finalize would refuse to
           # overwrite it; this gate fails the PR pre-merge so the issue
           # is visible to reviewers.
-          ARTIFACT_FORGED="${{ steps.artifact-expect.outputs.artifact_forged }}"
-          ARTIFACT_FORGED_REASON="${{ steps.artifact-expect.outputs.artifact_forged_reason }}"
+          ARTIFACT_FORGED="${ARTIFACT_FORGED:-}"
+          ARTIFACT_FORGED_REASON="${ARTIFACT_FORGED_REASON:-}"
           if [ "$VERDICT" = "ok" ] && [ "$ARTIFACT_FORGED" = "true" ]; then
             VERDICT="degraded"; REASON="forged artifact_written event detected — chain payload does not match current PR head (Bug Y round-9 reproducibility check). ${ARTIFACT_FORGED_REASON}"
             CHAIN_FAIL="true"
@@ -1325,7 +1342,7 @@ jobs:
           # after the structure check so a missing doc degrades on structure,
           # not here. Not a Red Queen check — this governs evidence, not actions.
           PII_OK='${{ steps.pii-rail.outputs.ok }}'
-          PII_REASON='${{ steps.pii-rail.outputs.reason }}'
+          PII_REASON="${PII_REASON:-}"
           if [ "$VERDICT" = "ok" ] && [ "$DOC_FOUND" = "true" ] && [ "$PII_OK" != "true" ]; then
             VERDICT="degraded"; REASON="Oracle PII rail: ${PII_REASON:-failed}"
             EVIDENCE_FAIL="true"
@@ -1340,7 +1357,7 @@ jobs:
           # rail does NOT hard-fail — it runs + records + comments, but the
           # verdict is not degraded by it.
           INJECT_OK='${{ steps.inject-rail.outputs.ok }}'
-          INJECT_REASON='${{ steps.inject-rail.outputs.reason }}'
+          INJECT_REASON="${INJECT_REASON:-}"
           INJECT_ADVISORY='${{ steps.inject-rail.outputs.advisory }}'
           if [ "$VERDICT" = "ok" ] && [ "$DOC_FOUND" = "true" ] && [ "$INJECT_OK" != "true" ]; then
             if [ "$INJECT_ADVISORY" = "true" ]; then
@@ -1355,7 +1372,7 @@ jobs:
           # aware gate as injection: a non-pass degrades the verdict only when the
           # rail is a required gate; advisory runs warn but do not block.
           GROUNDED_OK='${{ steps.grounded-rail.outputs.ok }}'
-          GROUNDED_REASON='${{ steps.grounded-rail.outputs.reason }}'
+          GROUNDED_REASON="${GROUNDED_REASON:-}"
           GROUNDED_ADVISORY='${{ steps.grounded-rail.outputs.advisory }}'
           if [ "$VERDICT" = "ok" ] && [ "$DOC_FOUND" = "true" ] && [ "$GROUNDED_OK" != "true" ]; then
             if [ "$GROUNDED_ADVISORY" = "true" ]; then
@@ -1383,9 +1400,14 @@ jobs:
 
       - name: Upsert correctness summary comment
         if: steps.gate.outputs.skip != 'true'
+        env:
+          REASON: ${{ steps.verdict.outputs.reason }}
+          POCKET_REASON: ${{ steps.pocket.outputs.reason }}
+          MANIFEST_MISSING_DISPLAY: ${{ steps.manifest.outputs.missing }}
+          QUERY_PLAN_BAD_DISPLAY: ${{ steps.query_plan.outputs.bad }}
         run: |
           VERDICT='${{ steps.verdict.outputs.verdict }}'
-          REASON='${{ steps.verdict.outputs.reason }}'
+          REASON="${REASON:-}"
           BODY=/tmp/audit-body.md
           : > "$BODY"
           printf '%s\n' '<!-- market-research-agent-audit -->' >> "$BODY"
@@ -1413,7 +1435,7 @@ jobs:
           # Pocket Watch row — render true/false/skipped with sensible label.
           POCKET_STATE='${{ steps.pocket.outputs.passed }}'
           POCKET_COS='${{ steps.pocket.outputs.cosine }}'
-          POCKET_REASON='${{ steps.pocket.outputs.reason }}'
+          POCKET_REASON="${POCKET_REASON:-}"
           POCKET_THRESH='${{ steps.pocket.outputs.threshold }}'
           POCKET_THRESH="${POCKET_THRESH:-0.65}"
           case "$POCKET_STATE" in
@@ -1425,14 +1447,14 @@ jobs:
           printf '| Hatter Tag `evidence_mode` | `%s` |\n' '${{ steps.ctx.outputs.evidence_mode }}' >> "$BODY"
           # Task #62 — Required skill_call manifest row.
           MANIFEST_OK_DISPLAY='${{ steps.manifest.outputs.ok }}'
-          MANIFEST_MISSING_DISPLAY='${{ steps.manifest.outputs.missing }}'
+          MANIFEST_MISSING_DISPLAY="${MANIFEST_MISSING_DISPLAY:-}"
           case "$MANIFEST_OK_DISPLAY" in
             true)  printf '| Required skill_call manifest | ✓ all 10 required skills invoked |\n' >> "$BODY" ;;
             false) printf '| Required skill_call manifest | ✗ incomplete — missing: %s |\n' "$(echo "$MANIFEST_MISSING_DISPLAY" | tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g')" >> "$BODY" ;;
             *)     printf '| Required skill_call manifest | — n/a (no chain) |\n' >> "$BODY" ;;
           esac
           QUERY_PLAN_OK_DISPLAY='${{ steps.query_plan.outputs.ok }}'
-          QUERY_PLAN_BAD_DISPLAY='${{ steps.query_plan.outputs.bad }}'
+          QUERY_PLAN_BAD_DISPLAY="${QUERY_PLAN_BAD_DISPLAY:-}"
           case "$QUERY_PLAN_OK_DISPLAY" in
             true)  printf '| Provider query-plan shape | ✓ Tavily / arXiv / USPTO / HN query shapes valid |\n' >> "$BODY" ;;
             false) printf '| Provider query-plan shape | ✗ bad queries: %s |\n' "$(echo "$QUERY_PLAN_BAD_DISPLAY" | tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g')" >> "$BODY" ;;

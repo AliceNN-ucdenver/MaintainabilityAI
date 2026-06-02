@@ -1487,6 +1487,56 @@ describe('Bug-VV: WHAT workflow hardening after second cert-run', () => {
 });
 
 // ──────────────────────────────────────────────────────────────────────
+// Bug-GG-quote — WHY verdict step must not inline prose outputs into
+// shell assignments. The cert run for PR #196 surfaced:
+//   QUERY_PLAN_BAD_RAW="arxiv-search: "recommender systems" - 2 words..."
+// Bash parsed that as a broken assignment and tried to execute `systems`.
+// Same class as VV/WW/XX: pass prose through env:, then read "$VAR".
+// ──────────────────────────────────────────────────────────────────────
+describe('Bug-GG-quote: market-research verdict step shell-safe prose outputs', () => {
+  const marketWorkflowContent = fs.readFileSync(
+    path.join(EXTENSION_PATH, 'code-templates', 'workflows', 'market-research-agent.yml'),
+    'utf8',
+  );
+
+  it('passes quote-bearing query-plan output through env: before Bash reads it', () => {
+    const fromStep = marketWorkflowContent.split('- name: Decide verdict')[1] ?? '';
+    const verdictStep = fromStep.split(/\n {6}- name: /)[0] ?? fromStep;
+    expect(verdictStep, 'market-research Decide verdict step missing').not.toBe('');
+
+    expect(verdictStep).toMatch(/env:[\s\S]+QUERY_PLAN_BAD_RAW:\s*\$\{\{\s*steps\.query_plan\.outputs\.bad\s*\}\}/);
+    expect(verdictStep).toContain('QUERY_PLAN_BAD_RAW="${QUERY_PLAN_BAD_RAW:-}"');
+    expect(verdictStep).toMatch(/printf '%s' "\$QUERY_PLAN_BAD_RAW" \| tr '\\n' ';'/);
+
+    // Regression guard for the exact failure shape from PR #196:
+    // the output can include quotes around the bad query, so it must
+    // never be substituted inside a double-quoted shell assignment.
+    expect(verdictStep).not.toMatch(/QUERY_PLAN_BAD_RAW="\$\{\{\s*steps\.query_plan\.outputs\.bad\s*\}\}"/);
+
+    // Neighboring prose outputs travel the same path so the next
+    // quote-bearing reason does not rediscover this class.
+    expect(verdictStep).toMatch(/CHAIN_REASON:\s*\$\{\{\s*steps\.chain\.outputs\.reason\s*\}\}/);
+    expect(verdictStep).toMatch(/GROUNDED_REASON:\s*\$\{\{\s*steps\.grounded-rail\.outputs\.reason\s*\}\}/);
+    expect(verdictStep).not.toMatch(/GROUNDED_REASON='\$\{\{\s*steps\.grounded-rail\.outputs\.reason\s*\}\}'/);
+    expect(verdictStep).toContain('Bug-GG-quote');
+  });
+
+  it('passes verdict/comment prose fields through env: before rendering the PR audit comment', () => {
+    const fromStep = marketWorkflowContent.split('- name: Upsert correctness summary comment')[1] ?? '';
+    const commentStep = fromStep.split(/\n {6}- name: /)[0] ?? fromStep;
+    expect(commentStep, 'market-research audit comment step missing').not.toBe('');
+
+    expect(commentStep).toMatch(/env:[\s\S]+REASON:\s*\$\{\{\s*steps\.verdict\.outputs\.reason\s*\}\}/);
+    expect(commentStep).toMatch(/QUERY_PLAN_BAD_DISPLAY:\s*\$\{\{\s*steps\.query_plan\.outputs\.bad\s*\}\}/);
+    expect(commentStep).toContain('REASON="${REASON:-}"');
+    expect(commentStep).toContain('QUERY_PLAN_BAD_DISPLAY="${QUERY_PLAN_BAD_DISPLAY:-}"');
+
+    expect(commentStep).not.toMatch(/REASON='\$\{\{\s*steps\.verdict\.outputs\.reason\s*\}\}'/);
+    expect(commentStep).not.toMatch(/QUERY_PLAN_BAD_DISPLAY='\$\{\{\s*steps\.query_plan\.outputs\.bad\s*\}\}'/);
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────
 // Bug-UU-1 — WHY card gap-loop extractor reads BOTH canonical Bug-Y
 // `event_kind: 'gap_loop'` AND the legacy `skill_call` with
 // `payload.skill: 'gap-loop'` shape. Pre-fix the extractor only checked
