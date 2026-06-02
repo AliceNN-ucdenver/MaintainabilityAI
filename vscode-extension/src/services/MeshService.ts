@@ -689,6 +689,104 @@ export class MeshService {
     return matched;
   }
 
+  /**
+   * Seed the movie-api recommendations sample OKR alongside the IMDB-Lite
+   * platform. This is the brownfield OKR the Pocket Watch / groundedness cert
+   * runs exercise (`OKR-<quarter>-IMDB-<NNN>-movie-api`): a personalized
+   * recommendations endpoint on the existing movie-api under APP-IMDB-001.
+   *
+   * Mirrors the real on-disk card so a user can delete it and regenerate it
+   * from the UI from scratch. Idempotent: if a movie-api sample OKR already
+   * exists under this mesh (any quarter, any serial), returns it unchanged
+   * (same targetCodeRepos self-heal as the celeb seed).
+   */
+  scaffoldImdbLiteMovieApiOkr(
+    meshPath: string,
+    opts: { owner?: string; githubOrg?: string } = {},
+  ): OkrCard | null {
+    const existing = this.okrService.readAll(meshPath)
+      .find(s => /^OKR-\d{4}Q[1-4]-IMDB-\d+-movie-api$/.test(s.id));
+    if (existing) {
+      const card = this.okrService.read(meshPath, existing.id);
+      if (!card) { return null; }
+      const hasStaleUrls = card.objectiveAlignment.targetCodeRepos
+        .some(u => u.includes('<org>'));
+      if (!hasStaleUrls) { return card; }
+      const refreshed = this.collectMovieApiSampleTargetRepos(meshPath, opts.githubOrg ?? '<org>');
+      if (refreshed.some(u => u.includes('<org>'))) { return card; }
+      return this.okrService.update(meshPath, existing.id, {
+        objectiveAlignment: { targetCodeRepos: refreshed },
+      });
+    }
+    const owner = opts.owner ?? 'maintainabilityai';
+    const org = opts.githubOrg ?? '<org>';
+
+    const draft: OkrCreateInput = {
+      idSuffix: 'movie-api',
+      quarter: undefined,  // OKRService.create defaults to currentQuarter()
+      owner,
+      objective: {
+        name: 'Add a personalized movie-recommendations endpoint to movie-api',
+        description: [
+          'Enable movie-api to return personalized title recommendations by',
+          'reusing the existing catalog + ratings data, without introducing new',
+          'PII collection or recommendation-bias risk.',
+        ].join(' '),
+        notes: 'Brownfield extension of the existing movie-api under the IMDB Lite Application BAR.',
+      },
+      keyResults: [
+        {
+          id: 'KR-1',
+          metric: 'Recommendation click-through-rate uplift vs baseline',
+          target: '> 8%',
+          measurement: 'A/B test vs the non-personalized list, post-launch week 2',
+        },
+        {
+          id: 'KR-2',
+          metric: 'p95 recommendations-endpoint latency',
+          target: '< 200ms',
+          measurement: 'Synthetic monitoring, 28-day rolling',
+        },
+        {
+          id: 'KR-3',
+          metric: 'New PII fields persisted by the feature',
+          target: '0 (no new PII)',
+          measurement: 'Privacy review checklist at GA',
+        },
+      ],
+      objectiveAlignment: {
+        platformId: 'PLT-IMDB',
+        // movie-api lives on the IMDB Lite Application BAR (APP-IMDB-001).
+        affectedBarIds: ['APP-IMDB-001'],
+        targetCodeRepos: this.collectMovieApiSampleTargetRepos(meshPath, org),
+        intentCascade: {
+          org: 'Grow IMDB-Lite engagement by surfacing relevant titles to each viewer',
+          role: 'Engineering Lead — keep p95 < 250ms across platform endpoints; ship the new endpoint behind a feature flag during ramp',
+          developer: 'Add GET /api/movies/recommendations to the existing movie-api, reusing catalog + ratings; introduce no new PII fields',
+          user: "See movie suggestions I'm likely to enjoy without any extra sign-up",
+        },
+      },
+      governance: {
+        scoreThreshold: 75,
+        maxAutoRounds: 0,
+        maxSeverity: 'MEDIUM',
+      },
+    };
+
+    return this.okrService.create(meshPath, draft);
+  }
+
+  /**
+   * The movie-api recommendations sample OKR targets exactly one repo:
+   * movie-api (on APP-IMDB-001). URL taken verbatim from the BAR's app.yaml
+   * repos[]; falls back to a constructed placeholder if the BAR isn't on disk.
+   */
+  private collectMovieApiSampleTargetRepos(meshPath: string, fallbackOrg: string): string[] {
+    const app = this.findBarById(meshPath, 'APP-IMDB-001');
+    const found = (app?.repos ?? []).find(url => url.split('/').filter(Boolean).pop() === 'movie-api');
+    return [found ?? `https://github.com/${fallbackOrg}/movie-api`];
+  }
+
   // ==========================================================================
   // Mesh workflow provisioning (Oraculum + Research/PRD agents)
   // ==========================================================================

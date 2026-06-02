@@ -6648,6 +6648,10 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
       if (choice.value === 'imdb-lite') {
         try {
           this.meshService.scaffoldImdbLiteOkr(meshPath);
+          // Also seed the movie-api recommendations OKR (the Pocket Watch /
+          // groundedness cert OKR). Idempotent — only creates if absent — so a
+          // user can delete it from disk and regenerate it from scratch here.
+          this.meshService.scaffoldImdbLiteMovieApiOkr(meshPath);
         } catch (okrErr) {
           // Non-fatal: platform is already on disk; surface as info so the
           // user can re-trigger from the OKR tab if needed.

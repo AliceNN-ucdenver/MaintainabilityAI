@@ -287,3 +287,67 @@ describe('MeshService.scaffoldImdbLiteOkr — Celebs-anchored sample', () => {
     expect(fs.existsSync(path.join(okrDir, 'what'))).toBe(true);
   });
 });
+
+describe('MeshService.scaffoldImdbLiteMovieApiOkr — movie-api recommendations sample (cert OKR)', () => {
+  let tmpRoot: string;
+  let svc: MeshService;
+
+  beforeEach(() => {
+    tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'movieapi-okr-test-'));
+    svc = new MeshService();
+    svc.initializeMesh(tmpRoot, 'Test Mesh', 'AcmeCorp', 'shawn');
+    svc.scaffoldImdbLitePlatform(tmpRoot, { githubOrg: 'AliceNN-ucdenver' });
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpRoot, { recursive: true, force: true });
+  });
+
+  it('creates an OKR matching the on-disk cert card id pattern', () => {
+    const card = svc.scaffoldImdbLiteMovieApiOkr(tmpRoot);
+    expect(card).not.toBeNull();
+    expect(card!.meta.id).toMatch(/^OKR-\d{4}Q[1-4]-IMDB-\d+-movie-api$/);
+  });
+
+  it('mirrors the real objective (reuse catalog+ratings, no new PII/bias)', () => {
+    const card = svc.scaffoldImdbLiteMovieApiOkr(tmpRoot)!;
+    expect(card.objective.description).toMatch(/personalized title recommendations/);
+    expect(card.objective.description).toMatch(/reusing the existing catalog \+ ratings/);
+    expect(card.objective.description).toMatch(/no new\s+PII collection or recommendation-bias risk|without introducing new\s+PII/);
+  });
+
+  it('anchors on APP-IMDB-001 (the IMDB Lite Application BAR) and targets movie-api', () => {
+    const card = svc.scaffoldImdbLiteMovieApiOkr(tmpRoot)!;
+    expect(card.objectiveAlignment.affectedBarIds).toEqual(['APP-IMDB-001']);
+    expect(card.objectiveAlignment.targetCodeRepos).toEqual([
+      'https://github.com/AliceNN-ucdenver/movie-api',
+    ]);
+  });
+
+  it('seeds the 3 cert key results (CTR uplift, p95 latency, zero new PII)', () => {
+    const card = svc.scaffoldImdbLiteMovieApiOkr(tmpRoot)!;
+    expect(card.keyResults.map(k => k.id)).toEqual(['KR-1', 'KR-2', 'KR-3']);
+    expect(card.keyResults[0].metric).toMatch(/click-through-rate|CTR/i);
+    expect(card.keyResults[2].metric).toMatch(/PII/i);
+  });
+
+  it('is idempotent — only creates if absent (the regen-from-scratch contract)', () => {
+    const first = svc.scaffoldImdbLiteMovieApiOkr(tmpRoot)!;
+    const second = svc.scaffoldImdbLiteMovieApiOkr(tmpRoot)!;
+    expect(second.meta.id).toBe(first.meta.id);
+    expect(second.meta.intentThreadUuid).toBe(first.meta.intentThreadUuid);
+    const movieOkrs = fs.readdirSync(path.join(tmpRoot, 'okrs'))
+      .filter(d => /-movie-api$/.test(d));
+    expect(movieOkrs).toHaveLength(1);
+  });
+
+  it('coexists with the celeb-api sample (Create IMDB Lite seeds both, no clash)', () => {
+    const celeb = svc.scaffoldImdbLiteOkr(tmpRoot)!;
+    const movie = svc.scaffoldImdbLiteMovieApiOkr(tmpRoot)!;
+    expect(celeb.meta.id).not.toBe(movie.meta.id);
+    expect(celeb.meta.id).toMatch(/-celeb-api$/);
+    expect(movie.meta.id).toMatch(/-movie-api$/);
+    const okrDirs = fs.readdirSync(path.join(tmpRoot, 'okrs')).filter(d => d.startsWith('OKR-'));
+    expect(okrDirs).toHaveLength(2);
+  });
+});
