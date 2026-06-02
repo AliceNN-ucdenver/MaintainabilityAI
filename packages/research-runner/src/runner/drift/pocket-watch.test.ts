@@ -3,6 +3,7 @@ import * as assert from 'node:assert/strict';
 import { renderOkrIntent, extractSection, renderPhaseScope, PHASE_SCOPE_SECTIONS } from './objective-renderer';
 import { extractAnchors, anchorCoverage } from './anchors';
 import { cosine, scoreContrastive, type ScoreInput } from './pocket-watch';
+import { runPocketWatch } from './pocket-watch-skill';
 
 // The movie-api cert OKR (mirrors the on-disk card).
 const MOVIE_OKR = {
@@ -157,4 +158,46 @@ test('cosine: identical vectors = 1, orthogonal = 0, zero-vector safe', () => {
   assert.equal(cosine([1, 2, 3], [1, 2, 3]), 1);
   assert.equal(cosine([1, 0], [0, 1]), 0);
   assert.equal(cosine([0, 0], [1, 1]), 0);  // no NaN
+});
+
+// ── runPocketWatch orchestration (report assembly, injected embed) ──────
+test('runPocketWatch assembles a pinned, replay-able report', async () => {
+  const artifactMd = '## Executive Summary\nmovie-api personalized recommendations reusing ratings, no new pii\n## Recommendations\nimplement GET /api/movies/recommendations\n';
+  // embed() receives [scope, ownIntent, decoyIntent]; return vectors that put
+  // the artifact near its own OKR and far from the celeb decoy.
+  const embed = async (texts: string[]) => {
+    assert.equal(texts.length, 3);  // scope + own + 1 decoy
+    return [[1, 0, 0], [0.96, 0.2, 0], [0, 0, 1]];
+  };
+  const report = await runPocketWatch({
+    phase: 'why', okrId: 'OKR-2026Q2-IMDB-002-movie-api', runId: 'WHY-X',
+    ownCard: MOVIE_OKR, artifactMarkdown: artifactMd,
+    decoys: [{ okr_id: 'OKR-2026Q2-IMDB-001-celeb-api', card: { objective: { description: 'Add celebrity profile API' }, objectiveAlignment: { targetCodeRepos: ['x/celeb-api'] } } }],
+    prNumber: 7, mergeCommitSha: 'm'.repeat(40), config: { marginBand: 0.05 },
+  }, embed);
+
+  assert.equal(report.schema_version, 'pocket-watch-report.v2');
+  assert.equal(report.rail, 'pocket-watch');
+  assert.equal(report.policy, 'contrastive-advisory');
+  assert.equal(report.status, 'pass');
+  assert.equal(report.rank, 1);
+  assert.equal(report.nearest_decoy_okr_id, 'OKR-2026Q2-IMDB-001-celeb-api');
+  // pinned basket + input hashes (the replay contract)
+  assert.equal(report.decoy_basket.length, 1);
+  assert.match(report.decoy_basket[0].intent_sha256, /^[0-9a-f]{64}$/);
+  assert.match(report.inputs.own_intent_sha256, /^[0-9a-f]{64}$/);
+  assert.match(report.inputs.artifact_scope_sha256, /^[0-9a-f]{64}$/);
+  // WHY expects 3 sections; only 2 present → Formal Conclusions recorded missing
+  assert.deepEqual(report.missing_sections, ['Formal Conclusions']);
+  assert.equal(report.scope_source, 'artifact-sections');
+});
+
+test('runPocketWatch throws on embedding count mismatch (infra-skip path)', async () => {
+  await assert.rejects(
+    runPocketWatch({
+      phase: 'why', okrId: 'O', runId: 'R', ownCard: MOVIE_OKR, artifactMarkdown: '## Executive Summary\nx\n',
+      decoys: [],
+    }, async () => [[1, 0]]),  // returns 1 vector for 2 expected (scope + own)
+    /embedding count mismatch/,
+  );
 });

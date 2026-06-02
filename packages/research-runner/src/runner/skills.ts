@@ -41,6 +41,8 @@ import type { ProviderResult } from '../search/provider-result';
 import { buildSearchAuditMetadata } from '../search/audit-preview';
 import type { RankedSource } from '../schemas';
 import { readSessionContext, type SessionContext } from './session-context';
+import { runPocketWatch, embedViaGitHubModels } from './drift/pocket-watch-skill';
+import type { OkrIntentInput } from './drift/objective-renderer';
 import { withGuardrails } from './guardrails/envelope';
 
 /**
@@ -3057,11 +3059,121 @@ const handleAuditSignRedqueenDecisions: SkillHandler = async (input) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────
+// pocket-watch — v2 contrastive alignment rail (mesh I/O + orchestration)
+// ─────────────────────────────────────────────────────────────────────
+
+const PocketWatchInput = z.object({
+  okrId: z.string().optional(),
+  runId: z.string().optional(),
+  phase: z.string().optional(),
+  prNumber: z.number().nullable().optional(),
+  mergeCommitSha: z.string().nullable().optional(),
+  /** Per-mesh-calibrated margin band; defaults inside the scorer. */
+  marginBand: z.number().optional(),
+  /** Cap on the decoy basket. */
+  maxDecoys: z.number().int().positive().optional(),
+});
+
+/** Phase → committed artifact path under okrs/<id>/. */
+const POCKET_WATCH_ARTIFACT: Record<string, string> = {
+  why: 'why/research-doc.md',
+  how: 'how/prd.md',
+  what: 'what/code-design.md',
+};
+
+interface ParsedOkr { okr_id: string; card: OkrIntentInput; status?: string; bars: string[] }
+
+/** Read + parse every okrs/<id>/okr.yaml (skips unreadable ones). */
+function readAllOkrs(mesh: string): ParsedOkr[] {
+  const okrsDir = path.join(mesh, 'okrs');
+  if (!fs.existsSync(okrsDir)) { return []; }
+  const out: ParsedOkr[] = [];
+  for (const entry of fs.readdirSync(okrsDir)) {
+    const yamlPath = path.join(okrsDir, entry, 'okr.yaml');
+    if (!fs.existsSync(yamlPath)) { continue; }
+    try {
+      const card = yaml.load(fs.readFileSync(yamlPath, 'utf8')) as Record<string, unknown>;
+      const meta = (card?.meta ?? {}) as Record<string, unknown>;
+      const oa = (card?.objectiveAlignment ?? {}) as Record<string, unknown>;
+      out.push({
+        okr_id: String(meta.id ?? entry),
+        card: card as OkrIntentInput,
+        status: typeof meta.status === 'string' ? meta.status : undefined,
+        bars: Array.isArray(oa.affectedBarIds) ? (oa.affectedBarIds as string[]) : [],
+      });
+    } catch { /* skip unparseable OKR */ }
+  }
+  return out;
+}
+
+/**
+ * `pocket-watch` — v2 contrastive alignment rail. Reads the own OKR + phase
+ * artifact + a pinned decoy basket of sibling OKRs, embeds them (GH Models),
+ * and returns the durable drift report. Advisory: status is recorded, the
+ * legacy absolute cosine never gates.
+ */
+const handlePocketWatch: SkillHandler = async (input) => {
+  const parsed = PocketWatchInput.safeParse(input ?? {});
+  if (!parsed.success) { return { ok: false, reason: `bad-input: ${parsed.error.message}` }; }
+  const ctx = readSessionContext();
+  const okrId = parsed.data.okrId ?? ctx?.okrId;
+  const runId = parsed.data.runId ?? ctx?.runId;
+  const phase = (parsed.data.phase ?? ctx?.phase ?? 'why').toLowerCase();
+  if (!okrId || !runId) { return { ok: false, reason: 'missing okrId/runId (no session context)' }; }
+
+  const mesh = meshPath();
+  const ownYaml = path.join(mesh, 'okrs', okrId, 'okr.yaml');
+  if (!fs.existsSync(ownYaml)) { return { ok: false, reason: 'okr-not-found' }; }
+  let ownCard: OkrIntentInput;
+  try { ownCard = yaml.load(fs.readFileSync(ownYaml, 'utf8')) as OkrIntentInput; }
+  catch (e) { return { ok: false, reason: `own-okr-parse-failed: ${(e as Error).message}` }; }
+
+  const artifactRel = POCKET_WATCH_ARTIFACT[phase] ?? POCKET_WATCH_ARTIFACT.why;
+  const artifactPath = path.join(mesh, 'okrs', okrId, artifactRel);
+  if (!fs.existsSync(artifactPath)) {
+    return { ok: false, reason: `artifact-not-found: ${artifactRel}` };
+  }
+  const artifactMarkdown = fs.readFileSync(artifactPath, 'utf8');
+
+  // Decoy basket: sibling OKRs, exclude self + abandoned, prefer BAR overlap,
+  // then stable by id, capped. Frozen into the report so replay re-uses it.
+  const ownBars = new Set((ownCard as { objectiveAlignment?: { affectedBarIds?: string[] } })
+    .objectiveAlignment?.affectedBarIds ?? []);
+  const maxDecoys = parsed.data.maxDecoys ?? 8;
+  const siblings = readAllOkrs(mesh)
+    .filter(o => o.okr_id !== okrId && o.status !== 'abandoned')
+    .map(o => ({ ...o, overlap: o.bars.filter(b => ownBars.has(b)).length }))
+    .sort((a, b) => b.overlap - a.overlap || (a.okr_id < b.okr_id ? -1 : 1))
+    .slice(0, maxDecoys)
+    .map(o => ({ okr_id: o.okr_id, card: o.card }));
+
+  const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || '';
+  if (!token) { return { ok: false, reason: 'no GITHUB_TOKEN for embeddings (infra-skip, not drift)' }; }
+
+  try {
+    const report = await runPocketWatch(
+      {
+        phase, okrId, runId, ownCard, artifactMarkdown, decoys: siblings,
+        prNumber: parsed.data.prNumber ?? null,
+        mergeCommitSha: parsed.data.mergeCommitSha ?? null,
+        config: parsed.data.marginBand !== undefined ? { marginBand: parsed.data.marginBand } : undefined,
+      },
+      (texts) => embedViaGitHubModels(texts, token),
+    );
+    return { ok: true, report };
+  } catch (e) {
+    // Embedding/infra failure — skip visibly, never a silent pass or a drift verdict.
+    return { ok: false, reason: `pocket-watch-skipped: ${(e as Error).message}` };
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────
 // Registry + dispatcher
 // ─────────────────────────────────────────────────────────────────────
 
 export const SKILLS: Record<string, SkillHandler> = {
   'knowledge-okr': handleKnowledgeOkr,
+  'pocket-watch': handlePocketWatch,
   'knowledge-mesh-bar': handleKnowledgeMeshBar,
   'knowledge-mesh-platform': handleKnowledgeMeshPlatform,
   'knowledge-mesh-threats': handleKnowledgeMeshThreats,
@@ -3131,6 +3243,10 @@ const NO_AUTO_EMIT_SKILLS = new Set([
   // runSkill auto-emit a skill_call for it would double-log + muddy the
   // final-action story, exactly like audit-emit-event above.
   'audit-sign-redqueen-decisions',
+  // Pocket Watch v2 is an audit-time alignment VERIFIER invoked by the audit
+  // workflow, not agent evidence — a skill_call event for it would pollute the
+  // agent's chain (same rationale as audit-verify-chain).
+  'pocket-watch',
 ]);
 
 export async function runSkill(name: string, input: unknown): Promise<SkillResult> {
