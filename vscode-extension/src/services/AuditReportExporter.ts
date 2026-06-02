@@ -179,6 +179,12 @@ export interface AuditReportInput {
    * fallback, and whether keys were atomically verified.
    */
   sources?: AuditReportInputSources;
+  /**
+   * Pocket Watch v2 — raw drift report (okrs/<id>/audit/drift/<runId>.pocket-
+   * watch.json) for THIS run. When present, the per-action report renders a
+   * "## Drift and alignment" section. Advisory — display only. Absent → omitted.
+   */
+  pocketWatch?: string | null;
 }
 
 /**
@@ -1086,7 +1092,7 @@ ${workflowBlock}
 ## Event timeline
 
 ${timelineBlock}
-${ladderBlock ? '\n\n' + ladderBlock : ''}
+${ladderBlock ? '\n\n' + ladderBlock : ''}${renderPocketWatchSection(input.pocketWatch)}
 
 ## Verifier notes
 
@@ -1244,6 +1250,13 @@ export interface OkrRollupInput {
    * per rail. Order is preserved for display.
    */
   oracleRailsList?: OracleRailRollupInput[];
+  /**
+   * Pocket Watch v2 — durable contrastive drift report per phase (raw JSON from
+   * okrs/<id>/audit/drift/<runId>.pocket-watch.json). Keyed by phase (why/how/
+   * what). ADVISORY: rendered as a per-phase table but NOT folded into the
+   * rollup verdict while calibrating. Undefined / absent phases → omitted.
+   */
+  pocketWatchByPhase?: Partial<Record<string, string>>;
   /**
    * D-PR8 — per-target-repo implementation rows sourced from
    * design-fan-out.yaml + each impl PR body's YAML frontmatter
@@ -2341,6 +2354,82 @@ export function renderOracleRailsSubsection(
   return '\n\n' + lines.join('\n') + '\n';
 }
 
+// ── Pocket Watch v2 — alignment rail (NOT an Oracle evidence rail) ──────────
+// Renders the durable contrastive drift report committed at finalize to
+// okrs/<id>/audit/drift/<runId>.pocket-watch.json. ADVISORY: surfaced for the
+// reviewer but it does NOT participate in computeOkrRollupVerdict (a register-
+// driven false-positive must never fail the rollup while v2 is calibrating).
+
+interface ParsedPocketWatch {
+  status?: 'pass' | 'needs_review' | 'fail' | 'skipped';
+  phase?: string;
+  rank?: number;
+  margin?: number;
+  own_score?: number;
+  nearest_decoy_score?: number;
+  nearest_decoy_okr_id?: string | null;
+  absolute_score?: number;
+  reason?: string;
+  anchor_coverage?: { critical_present?: number; critical_total?: number; missing_critical?: string[] };
+}
+
+function parsePocketWatchReport(raw: string | undefined | null): ParsedPocketWatch | null {
+  if (!raw) { return null; }
+  try { return JSON.parse(raw) as ParsedPocketWatch; } catch { return null; }
+}
+
+const POCKET_WATCH_ICON: Record<string, string> = { pass: '✓', needs_review: '⚠', fail: '✗', skipped: '—' };
+
+/** Per-action "## Drift and alignment" section. '' when no drift report. */
+export function renderPocketWatchSection(raw: string | undefined | null): string {
+  const r = parsePocketWatchReport(raw);
+  if (!r) { return ''; }
+  const icon = POCKET_WATCH_ICON[r.status ?? ''] ?? '?';
+  const ac = r.anchor_coverage;
+  const lines = [
+    '## Drift and alignment',
+    '',
+    '| Check | Result |',
+    '|---|---|',
+    `| Pocket Watch (advisory) | ${icon} ${r.status ?? 'unknown'}${r.rank != null ? ` — own OKR ranked #${r.rank}` : ''}${r.margin != null ? ` by ${fmtMargin(r.margin)}` : ''} |`,
+  ];
+  if (r.own_score != null) { lines.push(`| Own score | ${r.own_score} |`); }
+  if (r.nearest_decoy_okr_id) { lines.push(`| Nearest decoy | ${r.nearest_decoy_okr_id} at ${r.nearest_decoy_score ?? '?'} |`); }
+  if (ac?.critical_total != null) {
+    const miss = (ac.missing_critical ?? []).length ? ` (missing: ${(ac.missing_critical ?? []).join(', ')})` : '';
+    lines.push(`| Critical anchors | ${ac.critical_present ?? 0}/${ac.critical_total} present${miss} |`);
+  }
+  if (r.absolute_score != null) { lines.push(`| Legacy absolute cosine | ${r.absolute_score} (logged-only, no longer gates) |`); }
+  return '\n\n' + lines.join('\n') + '\n';
+}
+
+function fmtMargin(m: number): string { return `${m >= 0 ? '+' : ''}${m}`; }
+
+/** Whole-OKR "## Pocket Watch alignment" per-phase table. '' when no reports. */
+export function renderPocketWatchRollup(byPhase: Partial<Record<string, string>> | undefined): string {
+  if (!byPhase) { return ''; }
+  const order = ['why', 'how', 'what'];
+  const rows: string[] = [];
+  for (const phase of order) {
+    const r = parsePocketWatchReport(byPhase[phase]);
+    if (!r) { continue; }
+    const icon = POCKET_WATCH_ICON[r.status ?? ''] ?? '?';
+    const ac = r.anchor_coverage;
+    const anchors = ac?.critical_total != null ? `${ac.critical_present ?? 0}/${ac.critical_total}` : '—';
+    rows.push(`| ${phase.toUpperCase()} | ${icon} ${r.status ?? '—'} | ${r.rank ?? '—'} | ${r.margin != null ? fmtMargin(r.margin) : '—'} | ${r.nearest_decoy_okr_id ?? '—'} | ${anchors} |`);
+  }
+  if (rows.length === 0) { return ''; }
+  return [
+    '## Pocket Watch alignment',
+    '',
+    '_Advisory: contrastive rank/margin vs sibling OKRs. Recorded, not gating — does not affect the rollup verdict while calibrating._',
+    '',
+    '| Phase | Status | Own rank | Margin | Nearest decoy | Critical anchors |',
+    '|---|---|---:|---:|---|---|',
+    ...rows,
+  ].join('\n') + '\n';
+}
+
 export function buildOkrRollupMarkdown(input: OkrRollupInput): string {
   const { verdict, reason } = computeOkrRollupVerdict(input);
   const verdictBadge = verdict === 'PASS'
@@ -2479,6 +2568,9 @@ _Cited check is a textual reference of the SR-NN string in the artifact body —
   // model-replay verdict; '' when the OKR ran no rail (section omitted).
   const oracleRailsBlock = renderOracleRailsBlock(input);
 
+  // Pocket Watch v2 alignment table (advisory; separate from Oracle evidence rails).
+  const pocketWatchBlock = renderPocketWatchRollup(input.pocketWatchByPhase);
+
   return `# OKR Audit Rollup — ${input.okrId}
 
 > Generated by Looking Glass · ${new Date().toISOString()}
@@ -2510,7 +2602,7 @@ ${ladderBlock}
 _Did each PRD-declared security requirement land in the design? Unioned across all phases._
 
 ${controlBlock}
-${implChainBlock ? `\n## Implementation chain\n\n${implChainBlock}\n` : ''}${oracleRailsBlock}
+${implChainBlock ? `\n## Implementation chain\n\n${implChainBlock}\n` : ''}${oracleRailsBlock}${pocketWatchBlock ? `\n${pocketWatchBlock}` : ''}
 ## Outstanding gaps
 
 ${outstandingGaps}

@@ -1906,6 +1906,19 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
   }
 
   /**
+   * Read the committed Pocket Watch v2 durable drift report for a run
+   * (okrs/<id>/audit/drift/<runId>.pocket-watch.json). Returns the raw JSON
+   * string, or null when absent (pre-Phase-3 runs / not yet finalized). The
+   * exporter parses + renders it; advisory, so a missing report is a no-op.
+   */
+  private readDriftReport(meshPath: string, okrId: string, runId: string): string | null {
+    try {
+      const p = path.join(meshPath, 'okrs', okrId, 'audit', 'drift', `${runId}.pocket-watch.json`);
+      return fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : null;
+    } catch { return null; }
+  }
+
+  /**
    * D-PR8 — assemble the OkrRollupInput.implementationChain field for
    * the rollup export. Reads design-fan-out.yaml, fetches each impl
    * PR's body via the GitHub API for merged rows, parses the
@@ -4748,6 +4761,9 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       prdText,
       artifactText,
       sources,
+      // Pocket Watch v2 — durable drift report for this run (advisory; omitted
+      // when absent, e.g. pre-Phase-3 runs).
+      pocketWatch: this.readDriftReport(meshPath, okrId, runId),
     });
     const exportDir = path.join(meshPath, `okrs/${okrId}/audit/exports`);
     const exportPath = path.join(exportDir, `${runId}-report.md`);
@@ -5298,6 +5314,17 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     const whyRunId = (startedActions.find(s => s.phase === 'why')?.action['runId'] as string | undefined) ?? null;
     const oracleRailsList = this.assembleOracleRails(meshPath, okrId, whyRunId);
 
+    // Pocket Watch v2 — durable drift report per started phase (advisory;
+    // alignment rail, separate from the Oracle evidence rails). Absent reports
+    // (pre-Phase-3 / not-yet-finalized phases) are simply omitted.
+    const pocketWatchByPhase: Partial<Record<string, string>> = {};
+    for (const s of startedActions) {
+      const rid = s.action['runId'] as string | undefined;
+      if (!rid) { continue; }
+      const raw = this.readDriftReport(meshPath, okrId, rid);
+      if (raw) { pocketWatchByPhase[s.phase] = raw; }
+    }
+
     const rollupInput: OkrRollupInput = {
       okrId,
       objective: okrParsed.objective?.name ?? null,
@@ -5323,6 +5350,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       repoInfo: repoInfo ?? null,
       implementationChain: implChainInput,
       oracleRailsList,
+      pocketWatchByPhase,
     };
 
     const markdown = buildOkrRollupMarkdown(rollupInput);

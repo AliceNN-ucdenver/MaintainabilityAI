@@ -18,6 +18,8 @@ import {
   parseRunnerVerdictFromStdout,
   renderOracleRailsSubsection,
   renderOracleRailsBlock,
+  renderPocketWatchSection,
+  renderPocketWatchRollup,
   verifyImplementationChainEntry,
   type AuditReportInput,
   type AuditReportInputSources,
@@ -2506,5 +2508,54 @@ describe('renderOracleRailsSubsection (Oracle & Privacy Rails — pure re-deriva
     const md = renderOracleRailsBlock({ oracleRails: makeInput() });
     expect(md).toContain('## Oracle rails (evidence boundary)');
     expect(md).toContain('### pii');
+  });
+});
+
+describe('Pocket Watch v2 — drift report rendering (advisory alignment rail)', () => {
+  const pwReport = JSON.stringify({
+    schema_version: 'pocket-watch-report.v2', rail: 'pocket-watch', okr_id: 'OKR-X',
+    run_id: 'WHY-1', phase: 'why', policy: 'contrastive-advisory',
+    status: 'pass', rank: 1, margin: 0.1859, own_score: 0.7423,
+    nearest_decoy_score: 0.5564, nearest_decoy_okr_id: 'OKR-2026Q2-IMDB-001-celeb-api',
+    absolute_score: 0.7423,
+    anchor_coverage: { critical_present: 2, critical_total: 2, missing_critical: [] },
+    reason: 'rank #1, margin +0.1859',
+  });
+
+  it('renderPocketWatchSection: renders the per-action "Drift and alignment" table', () => {
+    const md = renderPocketWatchSection(pwReport);
+    expect(md).toContain('## Drift and alignment');
+    expect(md).toContain('✓ pass — own OKR ranked #1 by +0.1859');
+    expect(md).toContain('OKR-2026Q2-IMDB-001-celeb-api at 0.5564');
+    expect(md).toContain('Critical anchors | 2/2 present');
+    expect(md).toContain('logged-only, no longer gates');
+  });
+
+  it('renderPocketWatchSection: empty when no report (omitted, never blank)', () => {
+    expect(renderPocketWatchSection(undefined)).toBe('');
+    expect(renderPocketWatchSection('not json')).toBe('');
+  });
+
+  it('renderPocketWatchRollup: per-phase table, advisory note, omits absent phases', () => {
+    const md = renderPocketWatchRollup({ why: pwReport });
+    expect(md).toContain('## Pocket Watch alignment');
+    expect(md).toContain('does not affect the rollup verdict');
+    expect(md).toMatch(/\| WHY \| ✓ pass \| 1 \| \+0\.1859 \| OKR-2026Q2-IMDB-001-celeb-api \| 2\/2 \|/);
+    expect(md).not.toContain('| HOW |');  // no how report → omitted
+  });
+
+  it('renderPocketWatchRollup: empty when no phase has a report', () => {
+    expect(renderPocketWatchRollup(undefined)).toBe('');
+    expect(renderPocketWatchRollup({})).toBe('');
+  });
+
+  it('a Pocket Watch fail does NOT fail the rollup verdict (advisory)', () => {
+    const failReport = JSON.stringify({ status: 'fail', rank: 2, margin: -0.05, own_score: 0.4,
+      nearest_decoy_score: 0.45, nearest_decoy_okr_id: 'OKR-OTHER', absolute_score: 0.4 });
+    // rendered, but it is not an input to computeOkrRollupVerdict at all —
+    // the verdict function has no pocketWatch parameter, so a fail can't gate.
+    const md = renderPocketWatchRollup({ why: failReport });
+    expect(md).toContain('✗ fail');
+    expect(md).toContain('OKR-OTHER');
   });
 });
