@@ -639,188 +639,57 @@ jobs:
             echo "missing_h3=${MISSING_H3%; }"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Pocket Watch goal-drift (OKR objective vs PR scope)
+      - name: Pocket Watch alignment (v2 contrastive rank/margin)
         id: pocket
         if: steps.gate.outputs.skip != 'true'
-        # Embedding-based check via GitHub Models (text-embedding-3-small,
-        # free via GITHUB_TOKEN). Compares the OKR's frozen objective.description
-        # (read from okr.yaml in the BASE branch) against the PR's title +
-        # first body paragraph. Pass: cosine ≥ 0.85 AND edit-distance ≤ 0.30.
-        # NOTE: Caterpillar's Challenge (cross-phase drift) is omitted on WHY —
-        # there is no prior phase to compare against.
+        # Pocket Watch v2 — CONTRASTIVE alignment rail. Replaces the brittle
+        # absolute-cosine gate (a good on-mission artifact false-degraded at
+        # 0.5822 < 0.65; see design/pocket-watch-alignment-rail.md). The research-
+        # runner skill reads the OKR objective + Executive-Summary scope + a
+        # pinned basket of sibling-OKR objectives, embeds them (GH Models,
+        # models:read via GITHUB_TOKEN), and scores by RANK + margin. ADVISORY
+        # while calibrating: records its verdict but Decide-verdict does NOT
+        # degrade on it; the legacy absolute cosine is logged-only, never gates.
+        env:
+          OKR_ID: ${{ steps.ctx.outputs.okr_id }}
+          RUN_ID: ${{ steps.ctx.outputs.run_id }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set +e  # tolerate per-step failures (curl/yq/python) — we'll
-                  # synthesize a sensible fallback instead of killing the
-                  # whole audit job over a single embedding call.
-
-          OKR_FILE="okrs/${{ steps.ctx.outputs.okr_id }}/okr.yaml"
-          if [ ! -f "$OKR_FILE" ]; then
-            echo "::warning::OKR file missing — skipping Pocket Watch"
-            echo "passed=skipped" >> "$GITHUB_OUTPUT"
-            echo "cosine=" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          # Minimal Pocket Watch implementation — use yq + GH Models embeddings.
-          OBJECTIVE=$(yq -r '.objective.description // .objective.name // ""' "$OKR_FILE" 2>/dev/null || echo "")
-
-          # Pocket Watch comparison surface: prefer the artifact's
-          # `## Executive Summary` section — that's the agent's
-          # substantive synthesis directly addressing the OKR objective.
-          # Empirically (PR #87, run 26182982994) the original design
-          # primitive of "OKR objective vs PR title + body" returned
-          # cosine ~0.43 because PR descriptions are process metadata
-          # ("This PR adds the required market-research synthesis...")
-          # NOT substantive recap of findings. Comparing against the
-          # Executive Summary aligns the comparison with the agent's
-          # actual semantic output.
-          DOC="okrs/${{ steps.ctx.outputs.okr_id }}/why/research-doc.md"
-          PR_SCOPE=""
-          if [ -f "$DOC" ]; then
-            # awk between `## Executive Summary` and the next `## ` heading
-            PR_SCOPE=$(awk '/^## Executive Summary[[:space:]]*$/{flag=1; next} /^## /{if (flag) exit} flag' "$DOC" | head -c 3000)
-          fi
-          # Fallback to PR title + body if Executive Summary not present
-          # (e.g. legacy doc shapes, manual hand-written PRs).
-          if [ -z "$PR_SCOPE" ]; then
-            PR_TITLE='${{ github.event.pull_request.title }}'
-            PR_BODY_FIRST_PARA=$(gh pr view ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --json body --jq .body 2>/dev/null | head -c 2000 || true)
-            PR_SCOPE="$PR_TITLE — $PR_BODY_FIRST_PARA"
-            SCOPE_SOURCE="pr-title+body (fallback)"
-          else
-            SCOPE_SOURCE="research-doc.md#Executive-Summary"
-          fi
-
-          if [ -z "$OBJECTIVE" ] || [ -z "$PR_SCOPE" ]; then
-            echo "::warning::Empty objective or scope ($SCOPE_SOURCE) — skipping Pocket Watch"
-            echo "passed=skipped" >> "$GITHUB_OUTPUT"
-            echo "cosine=" >> "$GITHUB_OUTPUT"
-            echo "reason=empty-objective-or-scope" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          # Log what we're embedding so drift verdicts are auditable. Truncate
-          # to keep log lines readable.
-          echo "::notice::Pocket Watch scope source: $SCOPE_SOURCE"
-          echo "::group::Pocket Watch inputs"
-          echo "OKR objective (${#OBJECTIVE} chars): ${OBJECTIVE:0:300}"
-          echo "PR scope (${#PR_SCOPE} chars, source=$SCOPE_SOURCE): ${PR_SCOPE:0:300}"
-          echo "::endgroup::"
-
-          # Call GitHub Models for both embeddings + compute cosine via python.
-          # We capture the full curl response (with -w "%{http_code}") so we
-          # can distinguish "API reached, real cosine" from "API errored,
-          # null embeddings, cosine artifically = 0.0". The latter must NOT
-          # block research-pass — it's infrastructure noise (e.g. missing
-          # models:read permission, throttling, transient outage). Goal-drift
-          # is the failure we care about, not GH-Models flakiness.
-          a_status=$(curl -s -w "%{http_code}" -o /tmp/a_emb.json -X POST https://models.inference.ai.azure.com/embeddings \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            -d "$(jq -n --arg t "$OBJECTIVE" '{model:"text-embedding-3-small", input:$t}')" || echo "000")
-          b_status=$(curl -s -w "%{http_code}" -o /tmp/b_emb.json -X POST https://models.inference.ai.azure.com/embeddings \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            -d "$(jq -n --arg t "$PR_SCOPE" '{model:"text-embedding-3-small", input:$t}')" || echo "000")
-
-          if [ "$a_status" != "200" ] || [ "$b_status" != "200" ]; then
-            echo "::warning::GH Models endpoint returned a_status=$a_status b_status=$b_status — Pocket Watch skipped (infra issue, NOT goal drift). First 200 chars of response: $(head -c 200 /tmp/a_emb.json 2>/dev/null)"
-            echo "passed=skipped" >> "$GITHUB_OUTPUT"
-            echo "cosine="          >> "$GITHUB_OUTPUT"
-            echo "reason=models-endpoint-status:$a_status/$b_status" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          # Sanity check: confirm the response files contain a parseable
-          # embedding array before invoking python. Use jq -e to fail
-          # cleanly on missing path.
-          if ! jq -e '.data[0].embedding | type == "array" and length > 0' /tmp/a_emb.json >/dev/null 2>&1 \
-             || ! jq -e '.data[0].embedding | type == "array" and length > 0' /tmp/b_emb.json >/dev/null 2>&1; then
-            ERR_A=$(head -c 300 /tmp/a_emb.json 2>/dev/null)
-            ERR_B=$(head -c 300 /tmp/b_emb.json 2>/dev/null)
-            echo "::warning::GH Models returned 200 but response shape unexpected — Pocket Watch skipped. a=$ERR_A | b=$ERR_B"
-            echo "passed=skipped" >> "$GITHUB_OUTPUT"
-            echo "cosine="          >> "$GITHUB_OUTPUT"
-            echo "reason=response-shape-unexpected" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          # Compute cosine via python reading the FILES directly.
-          # NEVER shell-interpolate the 30kB embedding arrays into `python3 -c`
-          # — text-embedding-3-small returns 1536-dim arrays that the API
-          # may return pretty-printed with newlines, which break single-line
-          # python `-c` string literals (the exact bug we hit on PR #87:
-          # SyntaxError on EOL inside a json.loads(' ... ') call).
-          PY_ERR=/tmp/pocket-watch-py.err
-          : > "$PY_ERR"
-          COSINE=$(python3 - 2>"$PY_ERR" <<'PYEOF'
-          import json, sys, math
+          set +e  # advisory — never fail the audit job over Pocket Watch.
+          PR_NUM='${{ github.event.pull_request.number }}'; PR_NUM="${PR_NUM:-null}"
+          RESULT=$(printf '{"okrId":"%s","runId":"%s","phase":"why","prNumber":%s,"marginBand":0.05}' \
+            "$OKR_ID" "$RUN_ID" "$PR_NUM" \
+            | npx -y @maintainabilityai/research-runner@~0.1.64 skill-pocket-watch 2>/tmp/pw-err.txt)
+          printf '%s' "$RESULT" > /tmp/pocket-watch.json
+          python3 <<'PYEOF'
+          import json, os
+          def out(k, v):
+              with open(os.environ['GITHUB_OUTPUT'], 'a') as f: f.write(f'{k}={v}\n')
           try:
-              with open('/tmp/a_emb.json') as f: a_resp = json.load(f)
-              with open('/tmp/b_emb.json') as f: b_resp = json.load(f)
-              a = a_resp['data'][0]['embedding']
-              b = b_resp['data'][0]['embedding']
-              if not isinstance(a, list) or not isinstance(b, list) or not a or not b:
-                  print(f'shape: a_type={type(a).__name__} a_len={len(a) if hasattr(a,"__len__") else "?"} b_type={type(b).__name__} b_len={len(b) if hasattr(b,"__len__") else "?"}', file=sys.stderr)
-                  sys.exit(1)
-              dot = sum(x*y for x, y in zip(a, b))
-              na = math.sqrt(sum(x*x for x in a))
-              nb = math.sqrt(sum(x*x for x in b))
-              if na * nb == 0:
-                  print('zero-norm: na={na} nb={nb}', file=sys.stderr)
-                  sys.exit(1)
-              print(f'{dot / (na * nb):.4f}')
+              obj = json.load(open('/tmp/pocket-watch.json'))
           except Exception as e:
-              print(f'python-exception: {type(e).__name__}: {e}', file=sys.stderr)
-              sys.exit(1)
+              print(f'::warning::Pocket Watch v2 skipped (advisory) — unparseable skill output ({e})')
+              out('status','skipped'); out('passed','skipped'); out('reason','unparseable-skill-output')
+              raise SystemExit(0)
+          if not obj.get('ok'):
+              reason = obj.get('reason','unknown')
+              print(f'::warning::Pocket Watch v2 skipped (advisory, NOT drift) — {reason}')
+              out('status','skipped'); out('passed','skipped'); out('reason',reason)
+              raise SystemExit(0)
+          r = obj['report']
+          status, rank, margin = r['status'], r['rank'], r['margin']
+          out('status', status); out('passed', 'true' if status == 'pass' else 'false')
+          out('rank', rank); out('margin', margin); out('own_score', r['own_score'])
+          out('nearest_score', r['nearest_decoy_score'])
+          out('nearest_okr', r.get('nearest_decoy_okr_id') or '')
+          out('absolute_score', r['absolute_score']); out('reason', r['reason'])
+          icon = {'pass':'✓','needs_review':'⚠','fail':'✗'}.get(status,'?')
+          print(f"::notice::Pocket Watch v2 {icon} {status} — rank #{rank}, margin {margin:+.4f} "
+                f"(own {r['own_score']} vs nearest {r.get('nearest_decoy_okr_id') or 'n/a'} {r['nearest_decoy_score']}); "
+                f"ADVISORY (not gating). Legacy absolute {r['absolute_score']} logged-only.")
           PYEOF
-          )
-
-          if [ -z "$COSINE" ]; then
-            ERR_DETAILS=$(head -c 500 "$PY_ERR" 2>/dev/null || echo "(stderr empty)")
-            RESP_A=$(head -c 200 /tmp/a_emb.json 2>/dev/null || echo "(missing)")
-            # ::error:: is louder than ::warning:: and shows in the run summary.
-            # We still set passed=skipped (audit not blocked) but the error
-            # annotation makes the failure VISIBLE for triage. Per user
-            # feedback: "we need the pocket watch to work" — silent skip is
-            # the wrong default.
-            echo "::error title=Pocket Watch failed::cosine computation failed — $ERR_DETAILS"
-            echo "::group::Pocket Watch diagnostic"
-            echo "PY_ERR contents:"; cat "$PY_ERR"
-            echo "---"
-            echo "a_emb.json head (first 300 chars):"; head -c 300 /tmp/a_emb.json; echo ""
-            echo "b_emb.json head (first 300 chars):"; head -c 300 /tmp/b_emb.json; echo ""
-            echo "::endgroup::"
-            echo "passed=skipped" >> "$GITHUB_OUTPUT"
-            echo "cosine="          >> "$GITHUB_OUTPUT"
-            echo "reason=cosine-failed: ${ERR_DETAILS:0:120}" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          # Pocket Watch threshold: 0.65 for the OKR-objective vs
-          # Executive-Summary primitive (B22). The §9.2 design specified
-          # 0.85 but that was for the OBJECTIVE-vs-OBJECTIVE comparison
-          # (catching subtle rewrites of the same text). We use a
-          # different primitive — OBJECTIVE vs SYNTHESIS-EXECUTIVE-SUMMARY
-          # — which is "same topic, different framing." Empirically (PR
-          # #87 run 26183287182), a well-aligned synthesis directly
-          # addressing the objective scores ~0.70 because the synthesis
-          # adds findings/citations/analysis that dilute cosine.
-          #
-          # 0.65 catches real drift (truly off-topic syntheses score
-          # ~0.40-0.50) while admitting on-topic syntheses (~0.65-0.80).
-          # Consistent with §11.5 Caterpillar's Challenge threshold of
-          # 0.70 for cross-phase drift, with a small buffer for natural
-          # language variance in Executive Summary phrasing.
-          POCKET_THRESHOLD="0.65"
-          if python3 -c "import sys; sys.exit(0 if float('$COSINE') >= $POCKET_THRESHOLD else 1)"; then
-            echo "::notice::Pocket Watch passed — cosine=$COSINE >= $POCKET_THRESHOLD"
-            echo "passed=true"     >> "$GITHUB_OUTPUT"
-          else
-            echo "::warning::Pocket Watch FAILED — cosine=$COSINE < $POCKET_THRESHOLD (objective drift)"
-            echo "passed=false"    >> "$GITHUB_OUTPUT"
-          fi
-          echo "cosine=$COSINE"    >> "$GITHUB_OUTPUT"
-          echo "threshold=$POCKET_THRESHOLD" >> "$GITHUB_OUTPUT"
+          head -3 /tmp/pw-err.txt 2>/dev/null || true
+          exit 0
 
       # ── Oracle & Privacy Rails — PII rail (Hatter-side evidence boundary) ──
       # This is NOT a Red Queen feature. Red Queen governs ACTIONS; this rail
@@ -1158,7 +1027,6 @@ jobs:
           DOC_FOUND="${{ steps.structure.outputs.doc_found }}"
           H2="${{ steps.structure.outputs.h2_present }}"
           H3="${{ steps.structure.outputs.h3_present }}"
-          POCKET="${{ steps.pocket.outputs.passed }}"
           CHAIN_OK="${{ steps.chain.outputs.ok }}"
           CHAIN_REASON="${CHAIN_REASON:-}"
           SEALED="${{ steps.chain.outputs.sealed }}"
@@ -1383,10 +1251,16 @@ jobs:
             fi
           fi
 
-          # Drift
-          if [ "$VERDICT" = "ok" ] && [ "$POCKET" = "false" ]; then
-            VERDICT="degraded"; REASON="Pocket Watch goal-drift exceeded threshold (cosine=${{ steps.pocket.outputs.cosine }} < ${{ steps.pocket.outputs.threshold }})"
-            DRIFT_FAIL="true"
+          # Drift — Pocket Watch v2 is ADVISORY while its contrastive signal
+          # calibrates (design/pocket-watch-alignment-rail.md): it records its
+          # verdict but does NOT degrade the audit verdict, and the legacy
+          # absolute cosine is logged-only and never gates. fail/needs_review
+          # surface as a warning only; promotes to a blocking drift gate after
+          # cert data confirms the per-mesh margin band. `status` is an enum
+          # (pass/needs_review/fail/skipped) so it is safe to inline.
+          POCKET_STATUS="${{ steps.pocket.outputs.status }}"
+          if [ "$POCKET_STATUS" = "fail" ] || [ "$POCKET_STATUS" = "needs_review" ]; then
+            echo "::warning::Pocket Watch v2 alignment=$POCKET_STATUS (ADVISORY, not gating — see the Pocket Watch step notice + audit comment for the rank/margin detail)"
           fi
 
           echo "verdict=$VERDICT" >> "$GITHUB_OUTPUT"
@@ -1432,18 +1306,27 @@ jobs:
           printf '| 10 H2 sections | %s/10 |\n' '${{ steps.structure.outputs.h2_present }}' >> "$BODY"
           printf '| 4 H3 sub-sections | %s/4 |\n' '${{ steps.structure.outputs.h3_present }}' >> "$BODY"
           printf '| Formal Conclusions cite ≥1 S[N] | %s/%s |\n' '${{ steps.structure.outputs.conclusions_with_cites }}' '${{ steps.structure.outputs.conclusions }}' >> "$BODY"
-          # Pocket Watch row — render true/false/skipped with sensible label.
-          POCKET_STATE='${{ steps.pocket.outputs.passed }}'
-          POCKET_COS='${{ steps.pocket.outputs.cosine }}'
+          # Pocket Watch v2 row — contrastive rank/margin (ADVISORY, not gating).
+          # status/rank/margin/own/nearest are enums+numbers (safe to inline);
+          # the prose reason travels through env (POCKET_REASON).
+          POCKET_STATUS='${{ steps.pocket.outputs.status }}'
+          POCKET_RANK='${{ steps.pocket.outputs.rank }}'
+          POCKET_MARGIN='${{ steps.pocket.outputs.margin }}'
+          POCKET_OWN='${{ steps.pocket.outputs.own_score }}'
+          POCKET_NEAREST='${{ steps.pocket.outputs.nearest_okr }}'
+          POCKET_NEAREST_SCORE='${{ steps.pocket.outputs.nearest_score }}'
+          POCKET_ABS='${{ steps.pocket.outputs.absolute_score }}'
           POCKET_REASON="${POCKET_REASON:-}"
-          POCKET_THRESH='${{ steps.pocket.outputs.threshold }}'
-          POCKET_THRESH="${POCKET_THRESH:-0.65}"
-          case "$POCKET_STATE" in
-            true)    printf '| Pocket Watch goal-drift | ✓ pass (cosine=%s ≥ %s) |\n' "$POCKET_COS" "$POCKET_THRESH" >> "$BODY" ;;
-            false)   printf '| Pocket Watch goal-drift | ✗ fail (cosine=%s < %s) |\n' "$POCKET_COS" "$POCKET_THRESH" >> "$BODY" ;;
-            skipped) printf '| Pocket Watch goal-drift | — skipped (`%s`) — does NOT block research-pass |\n' "${POCKET_REASON:-no reason}" >> "$BODY" ;;
-            *)       printf '| Pocket Watch goal-drift | `%s` (cosine=%s) |\n' "$POCKET_STATE" "$POCKET_COS" >> "$BODY" ;;
+          case "$POCKET_STATUS" in
+            pass)         printf '| Pocket Watch alignment (advisory) | ✓ rank #%s, margin %s (own %s vs nearest %s %s) |\n' "$POCKET_RANK" "$POCKET_MARGIN" "$POCKET_OWN" "${POCKET_NEAREST:-n/a}" "$POCKET_NEAREST_SCORE" >> "$BODY" ;;
+            needs_review) printf '| Pocket Watch alignment (advisory) | ⚠ rank #%s, margin %s — %s |\n' "$POCKET_RANK" "$POCKET_MARGIN" "${POCKET_REASON:-narrow margin / similar sibling}" >> "$BODY" ;;
+            fail)         printf '| Pocket Watch alignment (advisory) | ✗ rank #%s — %s |\n' "$POCKET_RANK" "${POCKET_REASON:-another OKR matched better}" >> "$BODY" ;;
+            skipped)      printf '| Pocket Watch alignment (advisory) | — skipped (`%s`) — does NOT block research-pass |\n' "${POCKET_REASON:-no reason}" >> "$BODY" ;;
+            *)            printf '| Pocket Watch alignment (advisory) | `%s` |\n' "$POCKET_STATUS" >> "$BODY" ;;
           esac
+          if [ -n "$POCKET_ABS" ] && [ "$POCKET_STATUS" != "skipped" ]; then
+            printf '| Pocket Watch absolute cosine | logged-only: %s (retired 0.65 threshold, no longer gates) |\n' "$POCKET_ABS" >> "$BODY"
+          fi
           printf '| Hatter Tag `evidence_mode` | `%s` |\n' '${{ steps.ctx.outputs.evidence_mode }}' >> "$BODY"
           # Task #62 — Required skill_call manifest row.
           MANIFEST_OK_DISPLAY='${{ steps.manifest.outputs.ok }}'

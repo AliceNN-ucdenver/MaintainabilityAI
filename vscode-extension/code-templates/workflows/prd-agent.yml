@@ -871,103 +871,55 @@ jobs:
               print(f'::notice::citation integrity OK ({len(cited_set)} cited, all defined)')
           PYEOF
 
-      - name: Pocket Watch goal-drift (OKR objective vs PRD Problem Statement)
+      - name: Pocket Watch alignment (v2 contrastive rank/margin)
         id: pocket
         if: steps.gate.outputs.skip != 'true'
-        # Pattern identical to market-research-agent.yml. The primitive
-        # is "OKR objective vs PRD's ## Problem Statement section"
-        # because that section is the PRD's substantive recap of why
-        # the work matters — directly addressing the OKR objective.
+        # Pocket Watch v2 — CONTRASTIVE alignment rail (HOW). Replaces the brittle
+        # absolute-cosine gate. The research-runner skill reads the OKR objective +
+        # the PRD's ## Problem Statement scope + a pinned basket of sibling-OKR
+        # objectives, embeds them (GH Models), and scores by RANK + margin.
+        # ADVISORY while calibrating: records its verdict but Decide-verdict does
+        # NOT degrade on it; the legacy absolute cosine is logged-only.
+        env:
+          OKR_ID: ${{ steps.ctx.outputs.okr_id }}
+          RUN_ID: ${{ steps.ctx.outputs.run_id }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set +e
-          OKR_FILE="okrs/${{ steps.ctx.outputs.okr_id }}/okr.yaml"
-          if [ ! -f "$OKR_FILE" ]; then
-            echo "::warning::OKR file missing — skipping Pocket Watch"
-            echo "passed=skipped" >> "$GITHUB_OUTPUT"; echo "cosine=" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          OBJECTIVE=$(yq -r '.objective.description // .objective.name // ""' "$OKR_FILE" 2>/dev/null || echo "")
-
-          DOC="okrs/${{ steps.ctx.outputs.okr_id }}/how/prd.md"
-          PRD_SCOPE=""
-          if [ -f "$DOC" ]; then
-            PRD_SCOPE=$(awk '/^## Problem Statement[[:space:]]*$/{flag=1; next} /^## /{if (flag) exit} flag' "$DOC" | head -c 3000)
-          fi
-          if [ -z "$PRD_SCOPE" ]; then
-            PR_TITLE='${{ github.event.pull_request.title }}'
-            PR_BODY=$(gh pr view ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --json body --jq .body 2>/dev/null | head -c 2000 || true)
-            PRD_SCOPE="$PR_TITLE — $PR_BODY"
-            SCOPE_SOURCE="pr-title+body (fallback)"
-          else
-            SCOPE_SOURCE="prd.md#Problem-Statement"
-          fi
-          if [ -z "$OBJECTIVE" ] || [ -z "$PRD_SCOPE" ]; then
-            echo "::warning::Empty objective or scope — skipping Pocket Watch"
-            echo "passed=skipped" >> "$GITHUB_OUTPUT"; echo "cosine=" >> "$GITHUB_OUTPUT"
-            echo "reason=empty-objective-or-scope" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          echo "::notice::Pocket Watch scope source: $SCOPE_SOURCE"
-
-          a_status=$(curl -s -w "%{http_code}" -o /tmp/a_emb.json -X POST https://models.inference.ai.azure.com/embeddings \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Content-Type: application/json" \
-            -d "$(jq -n --arg t "$OBJECTIVE" '{model:"text-embedding-3-small", input:$t}')" || echo "000")
-          b_status=$(curl -s -w "%{http_code}" -o /tmp/b_emb.json -X POST https://models.inference.ai.azure.com/embeddings \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Content-Type: application/json" \
-            -d "$(jq -n --arg t "$PRD_SCOPE" '{model:"text-embedding-3-small", input:$t}')" || echo "000")
-
-          if [ "$a_status" != "200" ] || [ "$b_status" != "200" ]; then
-            echo "::warning::GH Models a=$a_status b=$b_status — Pocket Watch skipped"
-            echo "passed=skipped" >> "$GITHUB_OUTPUT"; echo "cosine=" >> "$GITHUB_OUTPUT"
-            echo "reason=models-endpoint-status:$a_status/$b_status" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          if ! jq -e '.data[0].embedding | type == "array" and length > 0' /tmp/a_emb.json >/dev/null 2>&1 \
-             || ! jq -e '.data[0].embedding | type == "array" and length > 0' /tmp/b_emb.json >/dev/null 2>&1; then
-            echo "::warning::Response shape unexpected — Pocket Watch skipped"
-            echo "passed=skipped" >> "$GITHUB_OUTPUT"; echo "cosine=" >> "$GITHUB_OUTPUT"
-            echo "reason=response-shape-unexpected" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          PY_ERR=/tmp/pocket-watch-py.err
-          : > "$PY_ERR"
-          COSINE=$(python3 - 2>"$PY_ERR" <<'PYEOF'
-          import json, sys, math
+          set +e  # advisory — never fail the audit job over Pocket Watch.
+          PR_NUM='${{ github.event.pull_request.number }}'; PR_NUM="${PR_NUM:-null}"
+          RESULT=$(printf '{"okrId":"%s","runId":"%s","phase":"how","prNumber":%s,"marginBand":0.05}' \
+            "$OKR_ID" "$RUN_ID" "$PR_NUM" \
+            | npx -y @maintainabilityai/research-runner@~0.1.64 skill-pocket-watch 2>/tmp/pw-err.txt)
+          printf '%s' "$RESULT" > /tmp/pocket-watch.json
+          python3 <<'PYEOF'
+          import json, os
+          def out(k, v):
+              with open(os.environ['GITHUB_OUTPUT'], 'a') as f: f.write(f'{k}={v}\n')
           try:
-              with open('/tmp/a_emb.json') as f: a_resp = json.load(f)
-              with open('/tmp/b_emb.json') as f: b_resp = json.load(f)
-              a = a_resp['data'][0]['embedding']
-              b = b_resp['data'][0]['embedding']
-              dot = sum(x*y for x, y in zip(a, b))
-              na = math.sqrt(sum(x*x for x in a))
-              nb = math.sqrt(sum(x*x for x in b))
-              if na * nb == 0: sys.exit(1)
-              print(f'{dot / (na * nb):.4f}')
+              obj = json.load(open('/tmp/pocket-watch.json'))
           except Exception as e:
-              print(f'python-exception: {type(e).__name__}: {e}', file=sys.stderr)
-              sys.exit(1)
+              print(f'::warning::Pocket Watch v2 skipped (advisory) — unparseable skill output ({e})')
+              out('status','skipped'); out('passed','skipped'); out('reason','unparseable-skill-output')
+              raise SystemExit(0)
+          if not obj.get('ok'):
+              reason = obj.get('reason','unknown')
+              print(f'::warning::Pocket Watch v2 skipped (advisory, NOT drift) — {reason}')
+              out('status','skipped'); out('passed','skipped'); out('reason',reason)
+              raise SystemExit(0)
+          r = obj['report']
+          status, rank, margin = r['status'], r['rank'], r['margin']
+          out('status', status); out('passed', 'true' if status == 'pass' else 'false')
+          out('rank', rank); out('margin', margin); out('own_score', r['own_score'])
+          out('nearest_score', r['nearest_decoy_score'])
+          out('nearest_okr', r.get('nearest_decoy_okr_id') or '')
+          out('absolute_score', r['absolute_score']); out('reason', r['reason'])
+          icon = {'pass':'✓','needs_review':'⚠','fail':'✗'}.get(status,'?')
+          print(f"::notice::Pocket Watch v2 {icon} {status} — rank #{rank}, margin {margin:+.4f} "
+                f"(own {r['own_score']} vs nearest {r.get('nearest_decoy_okr_id') or 'n/a'} {r['nearest_decoy_score']}); "
+                f"ADVISORY (not gating). Legacy absolute {r['absolute_score']} logged-only.")
           PYEOF
-          )
-          if [ -z "$COSINE" ]; then
-            ERR_DETAILS=$(head -c 300 "$PY_ERR" 2>/dev/null || echo "(empty)")
-            echo "::error title=Pocket Watch failed::$ERR_DETAILS"
-            echo "passed=skipped" >> "$GITHUB_OUTPUT"; echo "cosine=" >> "$GITHUB_OUTPUT"
-            echo "reason=cosine-failed: ${ERR_DETAILS:0:120}" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          # 0.65 threshold — same calibration as market-research-agent.yml.
-          POCKET_THRESHOLD="0.65"
-          if python3 -c "import sys; sys.exit(0 if float('$COSINE') >= $POCKET_THRESHOLD else 1)"; then
-            echo "::notice::Pocket Watch passed — cosine=$COSINE >= $POCKET_THRESHOLD"
-            echo "passed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "::warning::Pocket Watch FAILED — cosine=$COSINE < $POCKET_THRESHOLD"
-            echo "passed=false" >> "$GITHUB_OUTPUT"
-          fi
-          echo "cosine=$COSINE" >> "$GITHUB_OUTPUT"
-          echo "threshold=$POCKET_THRESHOLD" >> "$GITHUB_OUTPUT"
+          head -3 /tmp/pw-err.txt 2>/dev/null || true
+          exit 0
 
       - name: Caterpillar's Challenge — cross-phase drift (PRD vs research-doc)
         id: caterpillar
@@ -1088,7 +1040,6 @@ jobs:
           NFR_CITED="${{ steps.structure.outputs.nfr_with_cites }}"; NFR_CITED="${NFR_CITED:-0}"
           SR_COUNT="${{ steps.structure.outputs.sr_count }}"; SR_COUNT="${SR_COUNT:-0}"
           SR_ANCHORED="${{ steps.structure.outputs.sr_with_anchors }}"; SR_ANCHORED="${SR_ANCHORED:-0}"
-          POCKET="${{ steps.pocket.outputs.passed }}"
           CAT="${{ steps.caterpillar.outputs.passed }}"
           # B24: self-critique outcome — if the agent exhausted its
           # auto-revision budget without converging, the audit flags it
@@ -1232,9 +1183,12 @@ jobs:
             fi
           fi
 
-          if [ "$VERDICT" = "ok" ] && [ "$POCKET" = "false" ]; then
-            VERDICT="degraded"; REASON="Pocket Watch goal-drift (cosine=${{ steps.pocket.outputs.cosine }} < ${{ steps.pocket.outputs.threshold }})"
-            DRIFT_FAIL="true"
+          # Pocket Watch v2 is ADVISORY while its contrastive signal calibrates
+          # — record but do NOT degrade (status is an enum, safe to inline).
+          # Caterpillar (below) still gates cross-phase drift.
+          POCKET_STATUS="${{ steps.pocket.outputs.status }}"
+          if [ "$POCKET_STATUS" = "fail" ] || [ "$POCKET_STATUS" = "needs_review" ]; then
+            echo "::warning::Pocket Watch v2 alignment=$POCKET_STATUS (ADVISORY, not gating — see the Pocket Watch step notice + audit comment for rank/margin detail)"
           fi
           if [ "$VERDICT" = "ok" ] && [ "$CAT" = "false" ]; then
             VERDICT="degraded"; REASON="Caterpillar cross-phase drift (cosine=${{ steps.caterpillar.outputs.cosine }} < ${{ steps.caterpillar.outputs.threshold }})"
@@ -1355,15 +1309,25 @@ jobs:
           else
             printf '| Self-review (B24) | — skipped (Restricted tier or no events) |\n' >> "$BODY"
           fi
-          POCKET_STATE='${{ steps.pocket.outputs.passed }}'
-          POCKET_COS='${{ steps.pocket.outputs.cosine }}'
+          # Pocket Watch v2 row — contrastive rank/margin (ADVISORY, not gating).
+          POCKET_STATUS='${{ steps.pocket.outputs.status }}'
+          POCKET_RANK='${{ steps.pocket.outputs.rank }}'
+          POCKET_MARGIN='${{ steps.pocket.outputs.margin }}'
+          POCKET_OWN='${{ steps.pocket.outputs.own_score }}'
+          POCKET_NEAREST='${{ steps.pocket.outputs.nearest_okr }}'
+          POCKET_NEAREST_SCORE='${{ steps.pocket.outputs.nearest_score }}'
+          POCKET_ABS='${{ steps.pocket.outputs.absolute_score }}'
           POCKET_REASON="${POCKET_REASON:-}"
-          POCKET_THRESH='${{ steps.pocket.outputs.threshold }}'; POCKET_THRESH="${POCKET_THRESH:-0.65}"
-          case "$POCKET_STATE" in
-            true)    printf '| Pocket Watch goal-drift | ✓ pass (cosine=%s ≥ %s) |\n' "$POCKET_COS" "$POCKET_THRESH" >> "$BODY" ;;
-            false)   printf '| Pocket Watch goal-drift | ✗ fail (cosine=%s < %s) |\n' "$POCKET_COS" "$POCKET_THRESH" >> "$BODY" ;;
-            skipped) printf '| Pocket Watch goal-drift | — skipped (`%s`) |\n' "${POCKET_REASON:-no reason}" >> "$BODY" ;;
+          case "$POCKET_STATUS" in
+            pass)         printf '| Pocket Watch alignment (advisory) | ✓ rank #%s, margin %s (own %s vs nearest %s %s) |\n' "$POCKET_RANK" "$POCKET_MARGIN" "$POCKET_OWN" "${POCKET_NEAREST:-n/a}" "$POCKET_NEAREST_SCORE" >> "$BODY" ;;
+            needs_review) printf '| Pocket Watch alignment (advisory) | ⚠ rank #%s, margin %s — %s |\n' "$POCKET_RANK" "$POCKET_MARGIN" "${POCKET_REASON:-narrow margin / similar sibling}" >> "$BODY" ;;
+            fail)         printf '| Pocket Watch alignment (advisory) | ✗ rank #%s — %s |\n' "$POCKET_RANK" "${POCKET_REASON:-another OKR matched better}" >> "$BODY" ;;
+            skipped)      printf '| Pocket Watch alignment (advisory) | — skipped (`%s`) |\n' "${POCKET_REASON:-no reason}" >> "$BODY" ;;
+            *)            printf '| Pocket Watch alignment (advisory) | `%s` |\n' "$POCKET_STATUS" >> "$BODY" ;;
           esac
+          if [ -n "$POCKET_ABS" ] && [ "$POCKET_STATUS" != "skipped" ]; then
+            printf '| Pocket Watch absolute cosine | logged-only: %s (retired 0.65 threshold, no longer gates) |\n' "$POCKET_ABS" >> "$BODY"
+          fi
           CAT_STATE='${{ steps.caterpillar.outputs.passed }}'
           CAT_COS='${{ steps.caterpillar.outputs.cosine }}'
           CAT_REASON="${CAT_REASON:-}"
