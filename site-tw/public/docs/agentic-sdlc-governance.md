@@ -351,7 +351,7 @@ Agentic engineering reshapes who sits at the table. The keyboard is no longer th
   <text x="500" y="266" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700" font-family="system-ui, sans-serif">the Caterpillar</text>
   <text x="500" y="280" text-anchor="middle" fill="#94a3b8" font-size="8" font-family="system-ui, sans-serif">cross-phase drift</text>
   <text x="640" y="266" text-anchor="middle" fill="#c4b5fd" font-size="10" font-weight="700" font-family="system-ui, sans-serif">the Pocket Watch</text>
-  <text x="640" y="280" text-anchor="middle" fill="#94a3b8" font-size="8" font-family="system-ui, sans-serif">goal drift gate</text>
+  <text x="640" y="280" text-anchor="middle" fill="#94a3b8" font-size="8" font-family="system-ui, sans-serif">ranked alignment</text>
   <line x1="60" y1="296" x2="720" y2="296" stroke="rgba(125,211,252,0.25)" stroke-width="1" stroke-dasharray="3 3"/>
   <text x="400" y="318" text-anchor="middle" fill="#bae6fd" font-size="10" font-weight="600" font-family="system-ui, sans-serif">CALM architecture · STRIDE threats · NIST controls · ADRs · fitness functions</text>
   <text x="400" y="338" text-anchor="middle" fill="#94a3b8" font-size="9" font-style="italic" font-family="system-ui, sans-serif">human judgment captured once, applied to every agent run</text>
@@ -1279,7 +1279,7 @@ Earlier we said most agentic systems break the chain of trust. Here is how we do
 <div class="docs-heading">The new SDLC is not a loop. It is a governed evidence pipeline.</div>
 </div>
 
-<img src="/images/diagrams/governed-sdlc-rail-map.svg" alt="The governed SDLC rail map. Five lifecycle stages: OKR, WHY, HOW, WHAT, and BUILD fan-out, all shipped. Each carries four parallel rails: agent judgment, evidence capture, deterministic audit, and human governance. The planning chain lives in the mesh; the implementation chain lives in each target repo; the two stitch at the merge commit." class="docs-svg" />
+<img src="/images/diagrams/governed-sdlc-rail-map.svg" alt="The governed SDLC rail map. Five lifecycle stages: OKR, WHY, HOW, WHAT, and BUILD fan-out, all shipped. Each carries four parallel rails: agent judgment, evidence capture, deterministic audit, and human governance. The deterministic rail includes phase-scoped Pocket Watch alignment receipts. The planning chain lives in the mesh; the implementation chain lives in each target repo; the two stitch at the merge commit." class="docs-svg" />
 
 
 <div class="docs-grid docs-grid-wide">
@@ -1316,7 +1316,7 @@ Earlier we said most agentic systems break the chain of trust. Here is how we do
     <rect x="0" y="0" width="178" height="84" rx="10" fill="rgba(74,222,128,0.10)" stroke="rgba(74,222,128,0.4)"/>
     <text x="89" y="38" text-anchor="middle" fill="#86efac" font-size="22" font-weight="800" font-family="system-ui, sans-serif">✓ all green</text>
     <text x="89" y="56" text-anchor="middle" fill="#bbf7d0" font-size="10" font-weight="700" letter-spacing="1" font-family="system-ui, sans-serif">RUNTIME TESTS</text>
-    <text x="89" y="72" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">signing, chain, drift, allowlist</text>
+    <text x="89" y="72" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">signing, chain, alignment</text>
   </g>
   <g transform="translate(214,56)">
     <rect x="0" y="0" width="178" height="84" rx="10" fill="rgba(74,222,128,0.10)" stroke="rgba(74,222,128,0.4)"/>
@@ -1338,10 +1338,20 @@ Earlier we said most agentic systems break the chain of trust. Here is how we do
     <text x="93" y="79" text-anchor="middle" fill="#94a3b8" font-size="8.5" font-family="system-ui, sans-serif">replayed rail reports</text>
   </g>
   <rect x="28" y="160" width="744" height="44" rx="10" fill="rgba(99,102,241,0.10)" stroke="rgba(99,102,241,0.35)"/>
-  <text x="400" y="180" text-anchor="middle" fill="#c7d2fe" font-size="11" font-weight="700" letter-spacing="2" font-family="system-ui, sans-serif">AUDIT GATES · WHY SOURCES · HOW REQUIREMENTS · WHAT PATHS · BUILD MERGE SHA</text>
-  <text x="400" y="196" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">Evidence is captured as the work happens. Audit checks decide whether a pass label is allowed.</text>
+  <text x="400" y="180" text-anchor="middle" fill="#c7d2fe" font-size="11" font-weight="700" letter-spacing="2" font-family="system-ui, sans-serif">AUDIT GATES · POCKET WATCH RANK · ORACLE RAILS · BUILD MERGE SHA</text>
+  <text x="400" y="196" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="system-ui, sans-serif">Evidence is captured as the work happens. Receipts record what was checked and why it passed.</text>
   <text x="400" y="232" text-anchor="middle" fill="#94a3b8" font-size="10" font-style="italic" font-family="system-ui, sans-serif">Trust earned, not granted. Per agent, per session, per event.</text>
 </svg>
+
+**Pocket Watch is an alignment receipt, not a single similarity score.** The old failure mode was brittle: a good research document could fall below a fixed cosine threshold because research prose is longer and denser than the OKR objective. The upgraded rail asks a better question: did this artifact rank closest to *its own* OKR objective, or did it look more like a sibling OKR? The audit records the scoped text mode, own-objective score, nearest competing OKR, rank, margin, and legacy absolute score for comparison.
+
+| Phase | Mission-bearing slice Pocket Watch checks | What the receipt proves |
+|---|---|---|
+| **WHY** | Executive summary, formal conclusions, recommendations, and support claims when present | The research stayed on the approved objective instead of drifting toward an adjacent market or another OKR |
+| **HOW** | Problem statement, goals / non-goals, and feature + security requirement intent | The PRD is specifying the same problem the OKR authorized, not a plausible but different product |
+| **WHAT** | Problem restatement plus design rationale / research traceability | The code design is still for the approved work while separate deterministic checks handle repo paths, inventories, and coordination YAML |
+
+That makes it a better receipt than cosine similarity alone. A reviewer does not have to accept "0.65 means aligned." They can see the exact slice checked, the closest competing objective, and whether the artifact won its own comparison by a real margin. While the contrastive signal is still certifying, it records advisorily; once certified, drift returns to the blocking gate.
 
 **How the three lanes work.** The runtime logs every skill call automatically; the agent never touches that log. The agent signs its own review scores because judgment is not deterministic, and a signature is what makes it auditable later. The workflow records what it can re-derive from git and pull-request state: file changes, label flips, reviewer approvals. Each event kind belongs to exactly one of those three lanes; if the wrong lane tries to emit something, the verifier won't accept it.
 
@@ -1480,7 +1490,7 @@ These actors do not all attack the same layer. The point of the framework is tha
       <p class="docs-proof-title">The audit record is tamper-evident</p>
       <p class="docs-proof-body">Every step the agent takes is hash-chained. Modifying a past entry breaks every entry after it, detectable online in CI and offline by an auditor replaying the JSONL.</p>
     </div>
-    <div class="docs-proof-evidence"><strong>Proof:</strong> <code>audit-verify-chain</code> replays the SHA-256 chain; Pocket Watch catches goal drift; tier is frozen at run start.</div>
+    <div class="docs-proof-evidence"><strong>Proof:</strong> <code>audit-verify-chain</code> replays the SHA-256 chain; Pocket Watch records phase-scoped rank/margin alignment; tier is frozen at run start.</div>
   </div>
   <div class="docs-proof-row">
     <span class="docs-proof-status docs-proof-status-shipped">✓ Shipped</span>
@@ -1543,7 +1553,7 @@ These actors do not all attack the same layer. The point of the framework is tha
 | **Tamper** | Merged artifact edited after the fact | Hatter Tag frontmatter is canonical, immutable via merged commit SHA; PR-description copy is the display mirror; `verify-chain` CLI validates frontmatter vs JSONL chain | 🛠 |
 | **Tamper** | Audit JSONL chain modified | Hash-chained CloudEvents v1.0; partitioned per-run-id; POSIX advisory locking within file; per-run filenames prevent cross-run collision | ✓ |
 | **Tamper** | OKR YAML corrupted by simultaneous phase merges | `concurrency:` group on `okr-bus.yml` keyed by `okr_id` serializes writes per OKR; different OKRs run parallel | ✓ |
-| **Tamper** | Goal drift via subtle objective rewrite | White Rabbit's Pocket Watch hashes the canonicalized objective, then checks the phase artifact ranks its *own* OKR above other active OKRs' objectives — a contrastive rank/margin signal that replaces a brittle absolute-similarity cutoff (a genuinely on-mission artifact can fall under a fixed threshold purely on register, so ranking is the robust axis); the `goal-drift-detected` label blocks merge. Contrastive scoring ships advisory while calibrated, then promotes to the blocking gate | 🛠 |
+| **Tamper** | Goal drift via subtle objective rewrite | White Rabbit's Pocket Watch hashes the canonicalized objective, scopes each phase to the text that actually carries mission intent (WHY synthesis, HOW problem + requirements, WHAT problem restatement + rationale), then checks that slice ranks its *own* OKR above other active OKRs' objectives. The contrastive rank/margin receipt replaces a brittle absolute-similarity cutoff; a genuinely on-mission artifact can fall under a fixed threshold purely on register, while the nearest-OKR comparison still shows it belongs to the right objective. Contrastive scoring ships advisory while calibrated, then promotes to the blocking gate | 🛠 |
 | **Tamper** | Tier creep mid-pipeline as BAR score bumps | Governance tier frozen on the Hatter Tag at run start; recorded tier applies for the run regardless of mesh-state changes | ✓ |
 | **Tamper** | Agent claims it called Skills it never actually invoked (evidence laundering) | `audit-validate.yml` cross-checks the Hatter Tag's `evidence_mode` declaration against the per-run audit JSONL; if the agent declared `live` evidence but the log contains 0 successful `skill_call` events for any of the four search providers, the `degraded-evidence` label is applied and `okr-state-machine.yml` refuses to promote `governance-pass`. WHY-phase research PRs gate on `research-pass` from this same workflow | ✓ |
 | **Tamper** | Agent cites fake sources or fake brownfield paths | WHY search skills record provider queries and bounded result previews. After dedupe, the runner writes a hash-pinned source registry for the `S[N]` rows the research document is allowed to cite. The WHY audit verifies titles and URLs against that registry, with preview fallback for legacy runs. WHAT-phase brownfield runs record `inventory_paths` from `knowledge-code`, require `knowledge-code-read` per brownfield repo, and fail the path-citation gate if any cited path is missing from the inventory | ✓ |
@@ -1594,7 +1604,7 @@ STRIDE alone doesn't cover agent-specific failure modes like goal drift, evidenc
     <span class="docs-proof-status docs-proof-status-partial">🛠 Partial</span>
     <div>
       <p class="docs-proof-title">Aegis Protocol</p>
-      <p class="docs-proof-body"><strong>Executive question:</strong> can we prove the agent stayed on the approved goal? Pocket Watch ranks each phase artifact against its own OKR <em>and</em> other active OKRs, and flags it when another OKR is a better match than its own — a contrastive rank check that is more robust than scoring against a single absolute cutoff. Advisory while the signal is calibrated, then it blocks merge on drift.</p>
+      <p class="docs-proof-body"><strong>Executive question:</strong> can we prove the agent stayed on the approved goal? Pocket Watch ranks the mission-bearing slice of each phase artifact against its own OKR <em>and</em> other active OKRs, then records rank, margin, nearest competitor, and legacy cosine. That is more robust than scoring the whole artifact against one absolute cutoff. Advisory while the signal is calibrated, then it blocks merge on drift.</p>
     </div>
     <div class="docs-proof-evidence"><strong>Not claimed:</strong> decentralized identity, post-quantum channels, or zero-knowledge policy proofs. <br><a href="https://arxiv.org/abs/2508.19267">arXiv 2508.19267</a></div>
   </div>
