@@ -160,6 +160,10 @@ test('cosine: identical vectors = 1, orthogonal = 0, zero-vector safe', () => {
   assert.equal(cosine([0, 0], [1, 1]), 0);  // no NaN
 });
 
+test('cosine: rejects mismatched non-zero dimensions (no silent truncation)', () => {
+  assert.throws(() => cosine([1, 2, 3], [1, 2]), /dimension mismatch/);
+});
+
 // ── runPocketWatch orchestration (report assembly, injected embed) ──────
 test('runPocketWatch assembles a pinned, replay-able report', async () => {
   const artifactMd = '## Executive Summary\nmovie-api personalized recommendations reusing ratings, no new pii\n## Recommendations\nimplement GET /api/movies/recommendations\n';

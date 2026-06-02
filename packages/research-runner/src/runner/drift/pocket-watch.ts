@@ -67,6 +67,12 @@ export interface PocketWatchResult {
 const DEFAULT_MARGIN_BAND = 0.05;
 
 export function cosine(a: Vector, b: Vector): number {
+  // Reject mismatched non-zero dimensions rather than silently truncating —
+  // replay-grade code must not score a truncated vector (a model returning a
+  // different embedding width is a real error, not a 0.x to average over).
+  if (a.length > 0 && b.length > 0 && a.length !== b.length) {
+    throw new Error(`cosine: dimension mismatch (${a.length} vs ${b.length})`);
+  }
   const n = Math.min(a.length, b.length);
   let dot = 0, na = 0, nb = 0;
   for (let i = 0; i < n; i++) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }
