@@ -1398,8 +1398,8 @@ These actors do not all attack the same layer. The point of the framework is tha
   <text x="210" y="123" text-anchor="middle" fill="#86efac" font-size="9" font-weight="600" font-family="system-ui, sans-serif">Hash-chained JSONL</text>
   <rect x="155" y="136" width="110" height="22" rx="6" fill="rgba(74,222,128,0.16)" stroke="rgba(74,222,128,0.4)"/>
   <text x="210" y="151" text-anchor="middle" fill="#86efac" font-size="9" font-weight="600" font-family="system-ui, sans-serif">Concurrency groups</text>
-  <rect x="155" y="164" width="110" height="22" rx="6" fill="rgba(74,222,128,0.16)" stroke="rgba(74,222,128,0.4)"/>
-  <text x="210" y="179" text-anchor="middle" fill="#86efac" font-size="9" font-weight="600" font-family="system-ui, sans-serif">Pocket Watch gate</text>
+  <rect x="155" y="164" width="110" height="22" rx="6" fill="rgba(252,211,77,0.16)" stroke="rgba(252,211,77,0.4)"/>
+  <text x="210" y="179" text-anchor="middle" fill="#fcd34d" font-size="9" font-weight="600" font-family="system-ui, sans-serif">Pocket Watch (calibrating)</text>
   <rect x="155" y="192" width="110" height="22" rx="6" fill="rgba(74,222,128,0.16)" stroke="rgba(74,222,128,0.4)"/>
   <text x="210" y="207" text-anchor="middle" fill="#86efac" font-size="9" font-weight="600" font-family="system-ui, sans-serif">Tier freeze</text>
   <rect x="282" y="108" width="110" height="22" rx="6" fill="rgba(74,222,128,0.16)" stroke="rgba(74,222,128,0.4)"/>
@@ -1543,7 +1543,7 @@ These actors do not all attack the same layer. The point of the framework is tha
 | **Tamper** | Merged artifact edited after the fact | Hatter Tag frontmatter is canonical, immutable via merged commit SHA; PR-description copy is the display mirror; `verify-chain` CLI validates frontmatter vs JSONL chain | 🛠 |
 | **Tamper** | Audit JSONL chain modified | Hash-chained CloudEvents v1.0; partitioned per-run-id; POSIX advisory locking within file; per-run filenames prevent cross-run collision | ✓ |
 | **Tamper** | OKR YAML corrupted by simultaneous phase merges | `concurrency:` group on `okr-bus.yml` keyed by `okr_id` serializes writes per OKR; different OKRs run parallel | ✓ |
-| **Tamper** | Goal drift via subtle objective rewrite | White Rabbit's Pocket Watch hashes the canonicalized objective; compares with semantic similarity ≥ 0.85 AND edit-distance ≤ 0.30; `goal-drift-detected` label blocks merge | ✓ |
+| **Tamper** | Goal drift via subtle objective rewrite | White Rabbit's Pocket Watch hashes the canonicalized objective, then checks the phase artifact ranks its *own* OKR above other active OKRs' objectives — a contrastive rank/margin signal that replaces a brittle absolute-similarity cutoff (a genuinely on-mission artifact can fall under a fixed threshold purely on register, so ranking is the robust axis); the `goal-drift-detected` label blocks merge. Contrastive scoring ships advisory while calibrated, then promotes to the blocking gate | 🛠 |
 | **Tamper** | Tier creep mid-pipeline as BAR score bumps | Governance tier frozen on the Hatter Tag at run start; recorded tier applies for the run regardless of mesh-state changes | ✓ |
 | **Tamper** | Agent claims it called Skills it never actually invoked (evidence laundering) | `audit-validate.yml` cross-checks the Hatter Tag's `evidence_mode` declaration against the per-run audit JSONL; if the agent declared `live` evidence but the log contains 0 successful `skill_call` events for any of the four search providers, the `degraded-evidence` label is applied and `okr-state-machine.yml` refuses to promote `governance-pass`. WHY-phase research PRs gate on `research-pass` from this same workflow | ✓ |
 | **Tamper** | Agent cites fake sources or fake brownfield paths | WHY search skills record provider queries and bounded result previews. After dedupe, the runner writes a hash-pinned source registry for the `S[N]` rows the research document is allowed to cite. The WHY audit verifies titles and URLs against that registry, with preview fallback for legacy runs. WHAT-phase brownfield runs record `inventory_paths` from `knowledge-code`, require `knowledge-code-read` per brownfield repo, and fail the path-citation gate if any cited path is missing from the inventory | ✓ |
@@ -1594,7 +1594,7 @@ STRIDE alone doesn't cover agent-specific failure modes like goal drift, evidenc
     <span class="docs-proof-status docs-proof-status-partial">🛠 Partial</span>
     <div>
       <p class="docs-proof-title">Aegis Protocol</p>
-      <p class="docs-proof-body"><strong>Executive question:</strong> can we prove the agent stayed on the approved goal? Pocket Watch compares the pull request against the OKR and refuses merge when work drifts too far from the approved objective.</p>
+      <p class="docs-proof-body"><strong>Executive question:</strong> can we prove the agent stayed on the approved goal? Pocket Watch ranks each phase artifact against its own OKR <em>and</em> other active OKRs, and flags it when another OKR is a better match than its own — a contrastive rank check that is more robust than scoring against a single absolute cutoff. Advisory while the signal is calibrated, then it blocks merge on drift.</p>
     </div>
     <div class="docs-proof-evidence"><strong>Not claimed:</strong> decentralized identity, post-quantum channels, or zero-knowledge policy proofs. <br><a href="https://arxiv.org/abs/2508.19267">arXiv 2508.19267</a></div>
   </div>

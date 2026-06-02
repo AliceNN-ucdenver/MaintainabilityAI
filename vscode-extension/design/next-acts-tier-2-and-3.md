@@ -39,6 +39,7 @@ Single source of truth for what's open. When an item ships, flip it here AND in 
 | **`redqueen-action` standalone hard gate (AST diff / contract diffs)** | Tier 2.5 · slice (b) | — | Gap 13 / "Phase 9" | CLAUDE.md "Planned 🚧" |
 | **Cross-chain inclusion proofs + SIEM/CloudEvents export** | Tier 2.5 · slice (c) | — | Gap 1 | CLAUDE.md "Planned 🚧" |
 | **Oracle Guardrails + Privacy Rails for skills/audit** | Tier 2.5 · slice (d) | EoP + Info Disclosure rows; ASTRIDE prompt-injection / memory-poisoning controls | Gap (harness) + privacy/audit-retention hardening | Marketing pages should explain "Red Queen governs actions; Oracle Rails govern evidence entering the chain" once shipped |
+| **Pocket Watch contrastive alignment v2** | Companion design: [`pocket-watch-alignment-rail.md`](pocket-watch-alignment-rail.md) | Goal-drift false-positive hardening; replace brittle absolute cosine with rank/margin against sibling OKRs | Roadmap once advisory cert proves margin separation | UI cards + Audit Report export should show `own rank #1 + margin`, not only `cosine >= threshold` |
 | **Knight's Seal v2 (cosign/sigstore)** | Tier 3 · T3-1 | "Repudiate" row (persistent verifiability "next act") line ~1505 | Gap 8 | — |
 | **Redacted external bundle** | Tier 3 · T3-3 | Info-disclosure `⚠` line ~1508 + proof card ~1457 | Gap 11 | — |
 | **Prompt injection / sanitization** | Tier 2.5 · slice (d) | EoP `⚠` line ~1513; ASTRIDE | Gap (harness) | — |

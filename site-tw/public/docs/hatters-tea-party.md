@@ -165,7 +165,7 @@ The five stages are the chapters of the audit story. Every chapter writes a **Ha
 
 An OKR card is **declarative intent that travels with the work.** It is not a Jira ticket. It is a single source of truth that every downstream agent reads at the start of its run.
 
-The intent cascade (**Org → Role → Developer → User**) is the Court Hierarchy from the governance roadmap. Lower layers may only *narrow* the intent above them, never broaden. If the User-level intent ever drifts from the Org-level intent, the **White Rabbit's Pocket Watch** (a goal-drift gate at each phase boundary) catches it before merge.
+The intent cascade (**Org → Role → Developer → User**) is the Court Hierarchy from the governance roadmap. Lower layers may only *narrow* the intent above them, never broaden. If the User-level intent ever drifts from the Org-level intent, the **White Rabbit's Pocket Watch** (a goal-drift rail at each phase boundary) catches it. Its drift signal is being upgraded from a brittle absolute-similarity cutoff to a more robust contrastive rank check; that contrastive version runs **advisory while it recalibrates, then blocks merge again** once certified (see the Why-stage guard table below).
 
 <div class="docs-grid docs-grid-wide">
   <div class="docs-card docs-card-indigo">
@@ -284,19 +284,19 @@ This stage does the opposite. It pulls from **four independent kinds of evidence
 
 ### How it's guarded
 
-The Why stage has no human-style reviewer because research is descriptive, not a design decision. There is no "architect's call" to grade. Instead the merge gate is mechanical: before the document can advance, the system independently runs **six blocking checks plus one advisory evidence check**.
+The Why stage has no human-style reviewer because research is descriptive, not a design decision. There is no "architect's call" to grade. Instead the merge gate is mechanical: before the document can advance, the system independently runs **five blocking checks plus two advisory checks** (mission alignment and groundedness).
 
 | Check | What it confirms | Gate |
 |---|---|---|
 | **The agent actually searched** | The run's activity log shows successful calls to each evidence source, not a silent fall-back to reading already-committed files | blocks |
 | **The document is structurally complete** | All ten required sections are present, in the canonical order | blocks |
 | **Every claim is sourced** | Every formal conclusion in the document cites at least one evidence tag, and each cited source tag must match the hash-pinned source registry | blocks |
-| **The synthesis is on-topic** | The document's executive summary is semantically close to the original objective. This catches an agent that drifted onto an adjacent topic | blocks |
+| **The synthesis stays on mission** | The document is compared against its *own* OKR objective **and** the objectives of other active OKRs — it should match its own mission more closely than any of the alternatives. This catches an agent that drifted onto an adjacent topic, or onto a *different OKR's* goal, and is more robust than scoring one similarity against a fixed cutoff (a genuinely on-mission summary can sit below an absolute threshold purely because research prose reads differently from a one-line objective). | advisory while the contrastive signal is calibrated; promotes to blocking after cert data |
 | **No prompt injection in the evidence** | A local prompt-injection model (Llama Prompt Guard 2) scores the retrieved snippets and the source registry. A crafted "ignore your instructions"-style payload smuggled into a search result hard-fails the merge before it can steer the next stage. A quoted or code-fenced example of an attack is recognized as *discussion*, not an attack | blocks |
 | **No PII or secrets leaked in** | A local PII model (Microsoft Presidio) scans the research doc and registry. Contact / identity / secret classes (SSN, card, private email, IP, tokens) hard-fail; public-figure names are allowed and recorded with a redaction summary; an ambiguous case in a sensitive context goes to human review | blocks |
 | **Conclusions are grounded in their sources** | A local NLI model pairs each formal conclusion against the source excerpts it cites and checks the claim is actually *entailed* by them — catching a confident conclusion that cites a real source which doesn't support it. Ships **advisory** today (records every conclusion's grounding; not yet blocking) until a cert tunes its thresholds; a source that *contradicts* its claim is the signal it will block on first | advisory |
 
-Only when all six blocking checks pass does the system apply the green-flag label that unlocks merge; the groundedness check records its verdict alongside but does not yet gate. If any blocking check fails, the system applies a specific failure label naming exactly which one, so a reviewer knows where to look. The repository's branch protection refuses merges without the green flag, so the gate is structural, not procedural.
+Only when all five blocking checks pass does the system apply the green-flag label that unlocks merge; the mission-alignment and groundedness checks record their verdicts alongside but do not yet gate. If any blocking check fails, the system applies a specific failure label naming exactly which one, so a reviewer knows where to look. The repository's branch protection refuses merges without the green flag, so the gate is structural, not procedural.
 
 ### Why the audit is trustworthy
 
@@ -404,7 +404,7 @@ The next stage (the code design) starts the same way. Persona-switch self-critiq
 
 ### How it's guarded
 
-The same merge gate pattern as Stage 2 applies. The pull request stays blocked until the system can independently confirm the evidence, structure, traceability, drift checks, and self-critique outcome.
+The same merge gate pattern as Stage 2 applies. The pull request stays blocked until the system can independently confirm the evidence, structure, traceability, cross-phase continuity (the Caterpillar), and self-critique outcome. Objective-alignment drift — the Pocket Watch rail — records advisorily while its contrastive signal recalibrates, then returns to blocking once certified.
 
 | Check | What it confirms |
 |---|---|
@@ -413,11 +413,11 @@ The same merge gate pattern as Stage 2 applies. The pull request stays blocked u
 | **The spec is structurally complete** | All ten required sections are present, in canonical order |
 | **Every feature requirement traces to a source** | Each feature requirement carries a tag pointing back to a specific research finding or expert input. Missing tags → reject |
 | **Every security requirement traces to a known threat** | Each security requirement carries at least one industry-standard category (STRIDE threat id or OWASP risk category). Unbacked security claims → reject |
-| **The spec hasn't drifted off the objective** | A meaning-based comparison (not just keyword overlap) between the original objective and the spec's problem statement. Catches an agent that started writing a spec for an adjacent problem |
-| **The spec hasn't drifted from the research** | The same meaning-based comparison between the spec's problem statement and the prior-stage research summary. Catches an agent that quietly lost the research findings in translation |
+| **The spec stays on its own objective** | The spec's problem statement is ranked against its *own* OKR objective and the objectives of other active OKRs; it should match its own more closely than any alternative. Catches an agent that started writing a spec for an adjacent problem — or another OKR's problem. (The Pocket Watch alignment rail; advisory while its contrastive signal is calibrated, then promotes to blocking.) |
+| **The spec hasn't drifted from the research** | A separate cross-phase check (the Caterpillar): a meaning-based comparison between the spec's problem statement and the prior-stage research summary. Catches an agent that quietly lost the research findings in translation |
 | **The agent's self-critique converged** | The architect and security verdicts from the final round are both `pass` or `minor`. If the agent ran out of revision rounds without converging, the spec ships but flagged for mandatory human review |
 
-When all checks pass, the system applies the green-flag label that unlocks merge. When a check fails, the PR gets one plain failure label for the class of problem: chain integrity, evidence, structure, objective drift, research drift, or self-review exhaustion. The audit comment carries the exact scores and findings, so the reviewer sees both the headline and the place to fix it.
+When all checks pass, the system applies the green-flag label that unlocks merge. When a check fails, the PR gets one plain failure label for the class of problem: chain integrity, evidence, structure, research drift (cross-phase), or self-review exhaustion. Objective-alignment drift (Pocket Watch) records advisorily while its contrastive signal recalibrates and does not apply a blocking label during that window; once certified it re-joins the blocking set. The audit comment carries the exact scores and findings, so the reviewer sees both the headline and the place to fix it.
 
 > 🍵 **This stage is the intent gate, not the implementation gate.** A perfectly grounded spec can still propose something the actual code can't absorb without breaking. That's why the next stage exists.
 
