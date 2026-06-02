@@ -111,10 +111,11 @@ export interface OkrPhaseSignal {
    *  the "structural correctness" line in both Why and How cards. */
   h2Present?: number;
   h2Total?: number;
-  /** Pocket Watch drift-check result (objective vs synthesis section). */
-  pocketWatch?: { passed: 'true' | 'false' | 'skipped'; cosine?: number; threshold?: number; reason?: string };
+  /** Pocket Watch alignment result. v2 is contrastive (rank/margin); cosine/
+   *  threshold are legacy (Caterpillar still uses them). */
+  pocketWatch?: { passed: 'true' | 'false' | 'skipped'; status?: 'pass' | 'needs_review' | 'fail' | 'skipped'; cosine?: number; threshold?: number; rank?: number; margin?: number; nearestOkr?: string; reason?: string };
   /** Caterpillar's Challenge cross-phase drift result (HOW + later phases). */
-  caterpillar?: { passed: 'true' | 'false' | 'skipped'; cosine?: number; threshold?: number; reason?: string };
+  caterpillar?: { passed: 'true' | 'false' | 'skipped'; status?: 'pass' | 'needs_review' | 'fail' | 'skipped'; cosine?: number; threshold?: number; rank?: number; margin?: number; nearestOkr?: string; reason?: string };
   /** B24: self-critique convergence — number of rounds the prd-agent ran
    *  Architect + Security persona self-reviews (one event per persona per
    *  round in the audit JSONL). Derived from `event_kind: self_review`. */
@@ -1062,14 +1063,21 @@ function renderDriftLine(s: OkrPhaseSignal | undefined, phase: OkrPhase): string
   const parts: string[] = [];
   const fmt = (
     label: string,
-    check: { passed: 'true' | 'false' | 'skipped'; cosine?: number; threshold?: number; reason?: string } | undefined,
+    check: { passed: 'true' | 'false' | 'skipped'; status?: 'pass' | 'needs_review' | 'fail' | 'skipped'; cosine?: number; threshold?: number; rank?: number; margin?: number; reason?: string } | undefined,
   ): string | null => {
     if (!check) { return null; }
+    if (check.passed === 'skipped' || check.status === 'skipped') { return `${label} — skipped`; }
+    // v2 contrastive (Pocket Watch): rank #N + margin, advisory while calibrating.
+    if (check.rank != null) {
+      const icon = check.status === 'needs_review' ? '⚠' : check.status === 'fail' ? '✗' : '✓';
+      const margin = check.margin != null ? ` ${check.margin >= 0 ? '+' : ''}${check.margin.toFixed(2)}` : '';
+      return `${label} ${icon} rank #${check.rank}${margin}`;
+    }
+    // legacy absolute cosine ≥ threshold (Caterpillar).
     const cosine = check.cosine != null ? check.cosine.toFixed(2) : '?';
     const threshold = check.threshold != null ? check.threshold.toFixed(2) : '?';
     if (check.passed === 'true') { return `${label} ✓ ${cosine} ≥ ${threshold}`; }
-    if (check.passed === 'false') { return `${label} ✗ ${cosine} &lt; ${threshold}`; }
-    return `${label} — skipped`;
+    return `${label} ✗ ${cosine} &lt; ${threshold}`;
   };
   const pw = fmt('Pocket Watch', s.pocketWatch);
   if (pw) { parts.push(pw); }

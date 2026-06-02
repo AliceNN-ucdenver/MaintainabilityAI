@@ -26,7 +26,56 @@ import {
   countUniqueSourceIds,
   extractWhatArtifactSignals,
   extractSelfReviewFromArtifact,
+  parseDriftRow,
 } from '../regexCounters';
+
+describe('parseDriftRow — Pocket Watch v2 (contrastive) + legacy/Caterpillar (absolute)', () => {
+  // The v2 audit comment renders BOTH a contrastive alignment row and a
+  // logged-only absolute row; the parser must pick the alignment row first.
+  const v2Comment = [
+    '| Pocket Watch alignment (advisory) | ✓ rank #1, margin +0.1859 (own 0.7423 vs nearest OKR-2026Q2-IMDB-001-celeb-api 0.5564) |',
+    '| Pocket Watch absolute cosine | logged-only: 0.7423 (retired 0.65 threshold, no longer gates) |',
+  ].join('\n');
+
+  it('parses the v2 pass row (rank #1 + margin), not the absolute cosine row', () => {
+    const pw = parseDriftRow(v2Comment, 'Pocket Watch')!;
+    expect(pw.status).toBe('pass');
+    expect(pw.passed).toBe('true');
+    expect(pw.rank).toBe(1);
+    expect(pw.margin).toBeCloseTo(0.1859, 4);
+    expect(pw.nearestOkr).toBe('OKR-2026Q2-IMDB-001-celeb-api');
+    expect(pw.cosine).toBeUndefined();  // must NOT pick up the absolute row
+  });
+
+  it('parses needs_review (⚠) and fail (✗) v2 rows', () => {
+    const nr = parseDriftRow('| Pocket Watch alignment (advisory) | ⚠ rank #1, margin +0.0400 — similar sibling |', 'Pocket Watch')!;
+    expect(nr.status).toBe('needs_review');
+    expect(nr.passed).toBe('false');
+    expect(nr.rank).toBe(1);
+    const f = parseDriftRow('| Pocket Watch alignment (advisory) | ✗ rank #2 — another OKR matched better |', 'Pocket Watch')!;
+    expect(f.status).toBe('fail');
+    expect(f.rank).toBe(2);
+  });
+
+  it('parses a skipped row with its reason', () => {
+    const sk = parseDriftRow('| Pocket Watch alignment (advisory) | — skipped (`no GITHUB_TOKEN`) — does NOT block research-pass |', 'Pocket Watch')!;
+    expect(sk.status).toBe('skipped');
+    expect(sk.passed).toBe('skipped');
+    expect(sk.reason).toBe('no GITHUB_TOKEN');
+  });
+
+  it('still parses the legacy/Caterpillar absolute cosine row', () => {
+    const cat = parseDriftRow("| Caterpillar's Challenge (PRD vs research-doc) | ✓ pass (cosine=0.81 ≥ 0.70) |", 'Caterpillar')!;
+    expect(cat.status).toBe('pass');
+    expect(cat.cosine).toBeCloseTo(0.81, 2);
+    expect(cat.threshold).toBeCloseTo(0.70, 2);
+    expect(cat.rank).toBeUndefined();
+  });
+
+  it('returns null when no matching row is present', () => {
+    expect(parseDriftRow('| Some other check | ✓ ok |', 'Pocket Watch')).toBeNull();
+  });
+});
 
 /**
  * Synthetic doc modeled on cert-run-2's research-doc.md:

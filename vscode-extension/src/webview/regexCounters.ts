@@ -252,3 +252,55 @@ export function extractWhatArtifactSignals(docText: string): WhatArtifactSignals
     perRepoChangeCount: perRepoSubsections,
   };
 }
+
+export interface DriftRow {
+  passed: 'true' | 'false' | 'skipped';
+  status?: 'pass' | 'needs_review' | 'fail' | 'skipped';
+  /** Legacy absolute (Caterpillar still emits these). */
+  cosine?: number;
+  threshold?: number;
+  /** Pocket Watch v2 contrastive fields. */
+  rank?: number;
+  margin?: number;
+  nearestOkr?: string;
+  reason?: string;
+}
+
+/**
+ * Parse a drift row out of the audit PR comment by the left-cell label prefix
+ * ("Pocket Watch" | "Caterpillar"). Handles BOTH the Pocket Watch v2 contrastive
+ * row (`✓ rank #1, margin +0.19 (own … vs nearest OKR-X …)`) and the legacy /
+ * Caterpillar absolute row (`✓ pass (cosine=0.81 ≥ 0.70)`). Pure — no VS Code
+ * runtime, so it is unit-testable. Returns null when no matching row is found.
+ */
+export function parseDriftRow(commentBody: string, labelPrefix: string): DriftRow | null {
+  const escaped = labelPrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // First row whose left cell contains the label — for Pocket Watch v2 that's
+  // the "alignment (advisory)" row, ahead of the "absolute cosine" logged-only row.
+  const rowRe = new RegExp(`\\|[^|\\n]*${escaped}[^|\\n]*\\|([^|\\n]*)\\|`, 'i');
+  const m = commentBody.match(rowRe);
+  if (!m) { return null; }
+  const cell = m[1].trim();
+  if (/skipped/i.test(cell)) {
+    const reasonM = cell.match(/skipped\s*\(`?([^`)]+)`?\)/i);
+    return { passed: 'skipped', status: 'skipped', reason: reasonM ? reasonM[1] : undefined };
+  }
+  const cosineM = cell.match(/cosine\s*=\s*([0-9.]+)/i);
+  const thresholdM = cell.match(/[≥<]\s*([0-9.]+)/);
+  const rankM = cell.match(/rank\s*#\s*([0-9]+)/i);
+  const marginM = cell.match(/margin\s*([+-]?[0-9.]+)/i);
+  const nearestM = cell.match(/nearest\s+(\S+)/i);
+  const status: 'pass' | 'needs_review' | 'fail' = /^✓/.test(cell) ? 'pass'
+    : /^⚠/.test(cell) ? 'needs_review'
+    : /^✗/.test(cell) ? 'fail'
+    : /pass/i.test(cell) ? 'pass' : 'fail';
+  return {
+    passed: status === 'pass' ? 'true' : 'false',
+    status,
+    cosine: cosineM ? parseFloat(cosineM[1]) : undefined,
+    threshold: thresholdM ? parseFloat(thresholdM[1]) : undefined,
+    rank: rankM ? parseInt(rankM[1], 10) : undefined,
+    margin: marginM ? parseFloat(marginM[1]) : undefined,
+    nearestOkr: nearestM ? nearestM[1] : undefined,
+  };
+}

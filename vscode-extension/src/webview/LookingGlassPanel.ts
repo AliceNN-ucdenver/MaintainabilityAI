@@ -70,7 +70,7 @@ import type { GovernanceTimestamps } from '../types/redqueen';
 // Structural-id counters + WHAT artifact signal extractor live in
 // their own module so unit tests can exercise them without dragging
 // in the VS Code runtime. See `regexCounters.ts` for the full rationale.
-import { countUniqueIds, countUniqueSourceIds, extractWhatArtifactSignals, extractSelfReviewFromArtifact } from './regexCounters';
+import { countUniqueIds, countUniqueSourceIds, extractWhatArtifactSignals, extractSelfReviewFromArtifact, parseDriftRow } from './regexCounters';
 // Audit-chain verification (Bug W / Codex round-7) — UI-side mirror
 // of the runner's allowlist + signature gate. Lives in chainVerify.ts
 // so vitest tests run without the VS Code runtime + the constant
@@ -9492,28 +9492,8 @@ function renderOkrPhaseIssueBody(card: OkrCard, phase: 'why' | 'how' | 'what', a
  * `labelPrefix` is the leading text in the leftmost column (e.g.
  * "Pocket Watch", "Caterpillar") so the same parser handles both.
  */
-function parseDriftRow(
-  commentBody: string,
-  labelPrefix: string,
-): { passed: 'true' | 'false' | 'skipped'; cosine?: number; threshold?: number; reason?: string } | null {
-  const escaped = labelPrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const rowRe = new RegExp(`\\|[^|\\n]*${escaped}[^|\\n]*\\|([^|\\n]*)\\|`, 'i');
-  const m = commentBody.match(rowRe);
-  if (!m) { return null; }
-  const cell = m[1].trim();
-  if (/^—\s*skipped/i.test(cell) || /skipped/i.test(cell)) {
-    const reasonM = cell.match(/skipped\s*\(`?([^`)]+)`?\)/i);
-    return { passed: 'skipped', reason: reasonM ? reasonM[1] : undefined };
-  }
-  const cosineM = cell.match(/cosine\s*=\s*([0-9.]+)/i);
-  const thresholdM = cell.match(/[≥<]\s*([0-9.]+)/);
-  const passed: 'true' | 'false' = /^✓|pass/i.test(cell) ? 'true' : 'false';
-  return {
-    passed,
-    cosine: cosineM ? parseFloat(cosineM[1]) : undefined,
-    threshold: thresholdM ? parseFloat(thresholdM[1]) : undefined,
-  };
-}
+// parseDriftRow moved to regexCounters.ts (pure-helper module, unit-testable
+// without the VS Code runtime). Imported at the top of this file.
 
 /**
  * Format a ZodError into a one-line, user-readable hint. Strips the
