@@ -87,7 +87,8 @@ export async function runPocketWatch(input: PocketWatchRunInput, embed: Embed): 
   // embedding "" against the objective is a meaningless ~0 comparison that would
   // masquerade as drift. Skip instead (the caller surfaces it advisorily).
   if (scope.scope.trim() === '') {
-    throw new Error(`empty-scope: no ${input.phase} sections matched (expected one of: ${(PHASE_SCOPE_SECTIONS[input.phase.toLowerCase()] ?? []).join(', ')}; missing: ${scope.missingSections.join(', ')})`);
+    const expected = (PHASE_SCOPE_SECTIONS[input.phase.toLowerCase()] ?? []).map(a => a[0]).join(', ');
+    throw new Error(`empty-scope: no ${input.phase} sections matched (expected one of: ${expected}; missing: ${scope.missingSections.join(', ')})`);
   }
   const decoyIntents = input.decoys.map(d => ({ okr_id: d.okr_id, intent: renderOkrIntent(d.card) }));
   const anchors = extractAnchors(input.ownCard);
@@ -112,6 +113,19 @@ export async function runPocketWatch(input: PocketWatchRunInput, embed: Embed): 
     config: input.config,
   });
 
+  // Honesty cap: a PARTIAL scope (some mission sections resolved, at least one
+  // missing) must never present a clean `pass` — the receipt would look stronger
+  // than the text actually checked (e.g. a code-design with §10 rationale but no
+  // §2 endpoint, or a 3/4 PRD). Score it (rank/margin are still informative) but
+  // downgrade pass→needs_review and name the gap in the reason. A FULLY empty
+  // scope was already rejected (thrown) above.
+  let status = result.status;
+  let reason = result.reason;
+  if (scope.missingSections.length > 0) {
+    reason = `incomplete-scope (missing ${scope.missingSections.join(', ')}); ${reason}`;
+    if (status === 'pass') { status = 'needs_review'; }
+  }
+
   // Map the pinned basket with each decoy's committed score + rank.
   const rankByOkr = new Map(result.ranked.map((r, idx) => [r.okr_id, { score: r.score, rank: idx + 1 }]));
   const decoyBasket = decoyIntents.map(d => ({
@@ -133,8 +147,8 @@ export async function runPocketWatch(input: PocketWatchRunInput, embed: Embed): 
     policy: 'contrastive-advisory',
     scope_source: scope.source,
     missing_sections: scope.missingSections,
-    status: result.status,
-    reason: result.reason,
+    status,
+    reason,
     own_score: result.own_score,
     nearest_decoy_score: result.nearest_decoy_score,
     nearest_decoy_okr_id: result.nearest_decoy_okr_id,

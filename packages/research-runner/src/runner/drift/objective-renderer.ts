@@ -65,18 +65,33 @@ export function renderOkrIntent(card: OkrIntentInput): string {
 }
 
 /** Phase → the mission-bearing artifact sections to embed (design §"Phase
- *  artifact scope"). The names must match the REAL artifact H2s produced by
- *  each phase's synthesis pack:
- *  - WHY (research-doc) + HOW (prd) use un-numbered headers.
- *  - WHAT (code-design) uses NUMBERED headers (`## 10. …`); matched via
- *    normalizeH2 below. WHAT deliberately keeps only §2 (the endpoint, which
- *    anchors the deliverable) + §10 (Design Rationale & Research Traceability,
- *    the "why this design serves the OKR" narrative); §1 Project Structure and
- *    §3–9 are implementation inventory and dilute the alignment signal. */
-export const PHASE_SCOPE_SECTIONS: Record<string, string[]> = {
-  why: ['Executive Summary', 'Formal Conclusions', 'Recommendations'],
-  how: ['Problem Statement', 'Goals/Non-Goals', 'Functional Requirements', 'Security Requirements'],
-  what: ['API Endpoint Specifications', 'Design Rationale & Research Traceability'],
+ *  artifact scope"). Each section is a list of ACCEPTED heading variants
+ *  (aliases): the first entry is the canonical/display name, the rest are known
+ *  equivalents that must also resolve. A section matches if ANY alias is
+ *  normalizeH2-equal to an artifact H2.
+ *
+ *  Why aliases (HOW especially): the committed PRD artifacts use the SHORT
+ *  headings (`## Problem Statement`, `## Goals/Non-Goals`, …) — verified across
+ *  celeb-api + movie-api prd.md — while the PRD synthesis pack and prd-validator
+ *  (`CANONICAL_PRD_SECTIONS`) mandate the LONG names (`Problem Statement and
+ *  Scope`, `Goals and Non-Goals`, `Functional Requirements with Traceability`,
+ *  `Security Requirements with Threat Tracing`). That contract skew is real and
+ *  unenforced today (validatePrd runs against the LLM draft, not the committed
+ *  file), so the rail accepts BOTH shapes rather than silently going empty the
+ *  day an artifact follows the pack. WHY/WHAT match their real artifacts 1:1
+ *  (no alias needed); WHAT's NUMBERED headers (`## 10. …`) resolve via
+ *  normalizeH2. WHAT keeps only §2 (the endpoint, the deliverable anchor) + §10
+ *  (Design Rationale & Research Traceability); §1 Project Structure and §3–9 are
+ *  implementation inventory that dilute the alignment signal. */
+export const PHASE_SCOPE_SECTIONS: Record<string, string[][]> = {
+  why: [['Executive Summary'], ['Formal Conclusions'], ['Recommendations']],
+  how: [
+    ['Problem Statement', 'Problem Statement and Scope'],
+    ['Goals/Non-Goals', 'Goals and Non-Goals'],
+    ['Functional Requirements', 'Functional Requirements with Traceability'],
+    ['Security Requirements', 'Security Requirements with Threat Tracing'],
+  ],
+  what: [['API Endpoint Specifications'], ['Design Rationale & Research Traceability']],
 };
 
 /** Normalize an H2 title for tolerant matching against the scope names:
@@ -132,9 +147,15 @@ export function renderPhaseScope(phase: string, markdown: string, maxChars = 300
   const sections = PHASE_SCOPE_SECTIONS[phase.toLowerCase()] ?? PHASE_SCOPE_SECTIONS.why;
   const parts: string[] = [];
   const missing: string[] = [];
-  for (const name of sections) {
-    const body = extractSection(markdown, name);
-    if (body) { parts.push(body); } else { missing.push(name); }
+  for (const aliases of sections) {
+    // First non-empty alias body wins; record the canonical name (aliases[0])
+    // as missing only when NONE of the accepted variants resolved.
+    let body = '';
+    for (const name of aliases) {
+      body = extractSection(markdown, name);
+      if (body) { break; }
+    }
+    if (body) { parts.push(body); } else { missing.push(aliases[0]); }
   }
   const scope = parts.join('\n\n').slice(0, maxChars);
   return {

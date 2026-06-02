@@ -58,7 +58,58 @@ test('renderPhaseScope concatenates phase sections + records missing ones', () =
 });
 
 test('WHAT scope = endpoint + design rationale (omits Project Structure / impl detail)', () => {
-  assert.deepEqual(PHASE_SCOPE_SECTIONS.what, ['API Endpoint Specifications', 'Design Rationale & Research Traceability']);
+  // each section is an alias-list; WHAT needs no aliases (numbered headers
+  // resolve via normalizeH2), so each is a single-element list.
+  assert.deepEqual(PHASE_SCOPE_SECTIONS.what, [['API Endpoint Specifications'], ['Design Rationale & Research Traceability']]);
+});
+
+test('HOW scope aliases BOTH the short real-artifact headings AND the long pack/validator names', () => {
+  // committed PRDs use the short forms; synthesis.md + prd-validator mandate the
+  // long forms. The rail must resolve either shape.
+  assert.deepEqual(PHASE_SCOPE_SECTIONS.how, [
+    ['Problem Statement', 'Problem Statement and Scope'],
+    ['Goals/Non-Goals', 'Goals and Non-Goals'],
+    ['Functional Requirements', 'Functional Requirements with Traceability'],
+    ['Security Requirements', 'Security Requirements with Threat Tracing'],
+  ]);
+});
+
+test('renderPhaseScope HOW: short real-artifact headings resolve 4/4 (missing=[])', () => {
+  const md = [
+    '## Problem Statement', 'movie-api needs personalized recommendations',
+    '## Goals/Non-Goals', 'goal: ship recommendations; non-goal: new PII',
+    '## Functional Requirements', 'FR-01 GET /api/movies/recommendations',
+    '## Security Requirements', 'SR-01 rate limit the endpoint',
+    '## References', 'x',
+  ].join('\n');
+  const scope = renderPhaseScope('how', md);
+  assert.equal(scope.source, 'artifact-sections');
+  assert.deepEqual(scope.missingSections, []);
+  assert.match(scope.scope, /personalized recommendations/);
+  assert.match(scope.scope, /rate limit the endpoint/);
+});
+
+test('renderPhaseScope HOW: long canonical pack/validator headings ALSO resolve (missing=[])', () => {
+  const md = [
+    '## Problem Statement and Scope', 'movie-api needs personalized recommendations',
+    '## Goals and Non-Goals', 'goal: ship recommendations; non-goal: new PII',
+    '## Functional Requirements with Traceability', 'FR-01 GET /api/movies/recommendations (Traces to: R1)',
+    '## Security Requirements with Threat Tracing', 'SR-01 rate limit (THR-1)',
+    '## References', 'x',
+  ].join('\n');
+  const scope = renderPhaseScope('how', md);
+  assert.equal(scope.source, 'artifact-sections');
+  assert.deepEqual(scope.missingSections, []);
+  assert.match(scope.scope, /personalized recommendations/);
+  assert.match(scope.scope, /rate limit/);
+});
+
+test('renderPhaseScope HOW: a missing section is recorded under its CANONICAL (short) name', () => {
+  // long Problem Statement present, Security Requirements absent → missing names
+  // the first alias (short canonical), not the long variant.
+  const md = '## Problem Statement and Scope\np\n## Goals/Non-Goals\ng\n## Functional Requirements\nf\n';
+  const scope = renderPhaseScope('how', md);
+  assert.deepEqual(scope.missingSections, ['Security Requirements']);
 });
 
 test('normalizeH2: strips numeric prefix + normalizes slash spacing', () => {
@@ -217,7 +268,9 @@ test('cosine: rejects mismatched non-zero dimensions (no silent truncation)', ()
 
 // ── runPocketWatch orchestration (report assembly, injected embed) ──────
 test('runPocketWatch assembles a pinned, replay-able report', async () => {
-  const artifactMd = '## Executive Summary\nmovie-api personalized recommendations reusing ratings, no new pii\n## Recommendations\nimplement GET /api/movies/recommendations\n';
+  // FULL WHY scope (all 3 sections) so this stays a clean pass-path assembly
+  // test — partial scope is covered separately below.
+  const artifactMd = '## Executive Summary\nmovie-api personalized recommendations reusing ratings, no new pii\n## Formal Conclusions\ncollaborative filtering is feasible on existing data\n## Recommendations\nimplement GET /api/movies/recommendations\n';
   // embed() receives [scope, ownIntent, decoyIntent]; return vectors that put
   // the artifact near its own OKR and far from the celeb decoy.
   const embed = async (texts: string[]) => {
@@ -242,9 +295,31 @@ test('runPocketWatch assembles a pinned, replay-able report', async () => {
   assert.match(report.decoy_basket[0].intent_sha256, /^[0-9a-f]{64}$/);
   assert.match(report.inputs.own_intent_sha256, /^[0-9a-f]{64}$/);
   assert.match(report.inputs.artifact_scope_sha256, /^[0-9a-f]{64}$/);
-  // WHY expects 3 sections; only 2 present → Formal Conclusions recorded missing
-  assert.deepEqual(report.missing_sections, ['Formal Conclusions']);
+  // full scope → nothing missing, clean pass
+  assert.deepEqual(report.missing_sections, []);
   assert.equal(report.scope_source, 'artifact-sections');
+});
+
+test('runPocketWatch HONESTY CAP: a partial scope can never report pass (→ needs_review)', async () => {
+  // WHY artifact missing Formal Conclusions. The vectors would otherwise yield a
+  // clean #1 pass, but the incomplete scope must downgrade it and name the gap.
+  const artifactMd = '## Executive Summary\nmovie-api personalized recommendations, no new pii\n## Recommendations\nimplement GET /api/movies/recommendations\n';
+  const embed = async (texts: string[]) => {
+    assert.equal(texts.length, 3);
+    return [[1, 0, 0], [0.96, 0.2, 0], [0, 0, 1]];  // own #1, healthy margin
+  };
+  const report = await runPocketWatch({
+    phase: 'why', okrId: 'OKR-2026Q2-IMDB-002-movie-api', runId: 'WHY-PARTIAL',
+    ownCard: MOVIE_OKR, artifactMarkdown: artifactMd,
+    decoys: [{ okr_id: 'OKR-2026Q2-IMDB-001-celeb-api', card: { objective: { description: 'Add celebrity profile API' } } }],
+    config: { marginBand: 0.05 },
+  }, embed);
+
+  assert.equal(report.rank, 1, 'still ranks #1 — the score is informative');
+  assert.ok(report.margin >= 0.05, 'margin would have been a clean pass');
+  assert.equal(report.status, 'needs_review', 'but partial scope caps the verdict');
+  assert.match(report.reason, /incomplete-scope \(missing Formal Conclusions\)/);
+  assert.deepEqual(report.missing_sections, ['Formal Conclusions']);
 });
 
 test('runPocketWatch throws on embedding count mismatch (infra-skip path)', async () => {
