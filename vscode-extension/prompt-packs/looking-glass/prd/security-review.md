@@ -73,8 +73,8 @@ CHANGES: [<one concrete change for next iteration: which SR/Risk Matrix entry to
   missing for it.
 - `0.65-0.84 MAJOR` — Multiple in-scope IDs uncovered, OR an `SR-NN` cites a
   threat ID not in scope, OR a deferral has no rationale.
-- `< 0.65 BLOCKING` — PRD lacks any `Security Requirements with Threat Tracing`
-  section, OR cites OWASP categories that do not exist (`A11`, etc.), OR
+- `< 0.65 BLOCKING` — PRD lacks any `Security Requirements` section (with its
+  required THR/A0X/NIST threat tracing), OR cites OWASP categories that do not exist (`A11`, etc.), OR
   contradicts a known threat (e.g., addresses spoofing as if it were tampering).
 
 ### Delta-check on iteration ≥ 2

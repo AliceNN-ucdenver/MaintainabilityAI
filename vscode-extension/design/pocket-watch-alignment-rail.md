@@ -126,7 +126,7 @@ dilute alignment.
 | Phase | Scope sections |
 |---|---|
 | WHY | `Executive Summary`, `Formal Conclusions`, `Recommendations` |
-| HOW | `Problem Statement and Scope`, `Goals and Non-Goals`, `Functional Requirements with Traceability`, `Security Requirements with Threat Tracing` |
+| HOW | `Problem Statement`, `Goals/Non-Goals`, `Functional Requirements`, `Security Requirements` (the canonical SHORT PRD headings; the renderer also aliases the legacy long forms transitionally) |
 | WHAT | `API Endpoint Specifications`, `Design Rationale & Research Traceability` |
 
 For WHAT, deliberately **exclude `Project Structure` and the per-repo change

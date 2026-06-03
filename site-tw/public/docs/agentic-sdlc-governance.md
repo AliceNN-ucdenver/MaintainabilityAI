@@ -1348,7 +1348,7 @@ Earlier we said most agentic systems break the chain of trust. Here is how we do
 | Phase | Mission-bearing slice Pocket Watch checks | What the receipt proves |
 |---|---|---|
 | **WHY** | Executive summary, formal conclusions, recommendations, and support claims when present | The research stayed on the approved objective instead of drifting toward an adjacent market or another OKR |
-| **HOW** | `Problem Statement and Scope`, `Goals and Non-Goals`, `Functional Requirements with Traceability`, and `Security Requirements with Threat Tracing` | The PRD is specifying the same problem the OKR authorized, not a plausible but different product |
+| **HOW** | `Problem Statement`, `Goals/Non-Goals`, `Functional Requirements`, and `Security Requirements` | The PRD is specifying the same problem the OKR authorized, not a plausible but different product |
 | **WHAT** | `API Endpoint Specifications` plus `Design Rationale & Research Traceability` | The code design is still for the approved work while separate deterministic checks handle repo paths, inventories, and coordination YAML |
 
 That makes it a better receipt than cosine similarity alone. A reviewer does not have to accept "0.65 means aligned." They can see the exact slice checked, the closest competing objective, and whether the artifact won its own comparison by a real margin. While the contrastive signal is still certifying, it records advisorily; once certified, drift returns to the blocking gate.

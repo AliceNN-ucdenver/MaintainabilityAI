@@ -64,17 +64,18 @@ Numbered combined list:
 Each entry: 1-line summary. This is the authoritative numbering downstream
 sections cite.
 
-### `## Problem Statement and Scope`
+### `## Problem Statement`
 
-3-5 sentences. Cite `S[N]`, `C[N]`, `R[N]`, or `E[N]` inline.
+3-5 sentences covering the problem AND its scope. Cite `S[N]`, `C[N]`, `R[N]`, or `E[N]` inline.
 
-### `## Goals and Non-Goals`
+### `## Goals/Non-Goals`
 
 Two bulleted lists. Each goal cites the input premise that motivated it.
 
-### `## Functional Requirements with Traceability`
+### `## Functional Requirements`
 
-Numbered `FR-01`, `FR-02`, … Each entry:
+Numbered `FR-01`, `FR-02`, … Traceability is REQUIRED (enforced per-entry by the
+audit parser, not by the heading). Each entry:
 - Statement of the requirement
 - `Traces to: S[N], C[N], R[N], E[N], ...` (at least one upstream citation REQUIRED)
 - `CALM node: <node-id>` if the requirement touches an endpoint in `{calm_endpoints}`
@@ -90,9 +91,10 @@ Use the literal marker `**NFR-01**:` or `### NFR-01:` for every entry.
 Do not write unnumbered NFR bullets; the audit parser treats those as prose,
 not governed non-functional requirements.
 
-### `## Security Requirements with Threat Tracing`
+### `## Security Requirements`
 
-Numbered `SR-01`, `SR-02`, … Each entry MUST cite at least one of:
+Numbered `SR-01`, `SR-02`, … Threat tracing is REQUIRED (enforced per-entry by the
+security-review node, not by the heading). Each entry MUST cite at least one of:
 - `THR-NNN` (STRIDE entry from `{stride_entries}`)
 - `A0X` (OWASP category from `{owasp_in_scope}`)
 - `NIST-XX-NN` (control from `{nist_controls}`)
