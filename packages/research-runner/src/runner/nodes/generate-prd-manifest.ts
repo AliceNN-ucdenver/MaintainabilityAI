@@ -184,7 +184,7 @@ function derivePrdTopic(brief: PrdBrief, body: string): string {
  * Looks for HTTP-method + path within each FR's body lines.
  */
 function extractEndpoints(body: string): PrdManifest['endpoints'] {
-  const fnSection = sliceSection(body, 'Functional Requirements with Traceability');
+  const fnSection = sliceSection(body, 'Functional Requirements');
   if (!fnSection) { return []; }
 
   const out: PrdManifest['endpoints'] = [];

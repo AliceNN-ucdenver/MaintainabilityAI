@@ -70,19 +70,18 @@ export function renderOkrIntent(card: OkrIntentInput): string {
  *  equivalents that must also resolve. A section matches if ANY alias is
  *  normalizeH2-equal to an artifact H2.
  *
- *  Why aliases (HOW especially): the committed PRD artifacts use the SHORT
- *  headings (`## Problem Statement`, `## Goals/Non-Goals`, …) — verified across
- *  celeb-api + movie-api prd.md — while the PRD synthesis pack and prd-validator
- *  (`CANONICAL_PRD_SECTIONS`) mandate the LONG names (`Problem Statement and
- *  Scope`, `Goals and Non-Goals`, `Functional Requirements with Traceability`,
- *  `Security Requirements with Threat Tracing`). That contract skew is real and
- *  unenforced today (validatePrd runs against the LLM draft, not the committed
- *  file), so the rail accepts BOTH shapes rather than silently going empty the
- *  day an artifact follows the pack. WHY/WHAT match their real artifacts 1:1
- *  (no alias needed); WHAT's NUMBERED headers (`## 10. …`) resolve via
- *  normalizeH2. WHAT keeps only §2 (the endpoint, the deliverable anchor) + §10
- *  (Design Rationale & Research Traceability); §1 Project Structure and §3–9 are
- *  implementation inventory that dilute the alignment signal. */
+ *  HOW aliases (transitional): the canonical PRD contract is now the SHORT
+ *  headings (`## Problem Statement`, `## Goals/Non-Goals`, `## Functional
+ *  Requirements`, `## Security Requirements`) — the pack, prd-validator
+ *  (`CANONICAL_PRD_SECTIONS`), and the committed artifacts all agree. The LONG
+ *  forms (`Problem Statement and Scope`, … `with Threat Tracing`) were the old
+ *  pack/validator drift; they're retained here only as a tolerance for any
+ *  pre-existing long-form artifact, and can be dropped once none remain. WHY/WHAT
+ *  match their real artifacts 1:1 (no alias needed); WHAT's NUMBERED headers
+ *  (`## 10. …`) resolve via normalizeH2. WHAT keeps only §2 (the endpoint, the
+ *  deliverable anchor) + §10 (Design Rationale & Research Traceability); §1
+ *  Project Structure and §3–9 are implementation inventory that dilute the
+ *  alignment signal. */
 export const PHASE_SCOPE_SECTIONS: Record<string, string[][]> = {
   why: [['Executive Summary'], ['Formal Conclusions'], ['Recommendations']],
   how: [

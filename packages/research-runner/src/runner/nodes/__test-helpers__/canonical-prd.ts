@@ -15,15 +15,15 @@ export const CANONICAL_PRD_BODY = `## Input Premises
 - **E1** ADR-0001 commits to Postgres for celebrity data (mesh.bar.adrs).
 - **E2** STRIDE entry THR-001 calls out token spoofing on follow operations (mesh.bar.threats).
 
-## Problem Statement and Scope
+## Problem Statement
 
 Build celebrity following on the existing celeb-api, grounded by R1 and R2.
 
-## Goals and Non-Goals
+## Goals/Non-Goals
 
 Goals: follow / unfollow endpoints (R2). Non-goals: feed personalisation (E1).
 
-## Functional Requirements with Traceability
+## Functional Requirements
 
 - **FR-01** Add POST /follow endpoint. CALM node: celeb-api. Traces to: R1, R2, E1.
 - **FR-02** Add DELETE /follow/:id endpoint. CALM node: celeb-api. Traces to: R2.
@@ -33,7 +33,7 @@ Goals: follow / unfollow endpoints (R2). Non-goals: feed personalisation (E1).
 
 - **NFR-01** p95 latency on follow endpoints < 200ms. Traces to: R2.
 
-## Security Requirements with Threat Tracing
+## Security Requirements
 
 - **SR-01** Require JWT auth on POST /follow. Traces to: THR-001, A07.
 - **SR-02** Rate-limit follow operations per user. Traces to: THR-001, NIST-AC-7.

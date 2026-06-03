@@ -82,7 +82,7 @@ test('validatePrd: catches missing canonical section', () => {
 });
 
 test('extractCitationSignals: handles section without entries gracefully', () => {
-  const sparseBody = `## Input Premises\n\n(none)\n\n## Functional Requirements with Traceability\n\n(none)\n`;
+  const sparseBody = `## Input Premises\n\n(none)\n\n## Functional Requirements\n\n(none)\n`;
   const signals = extractCitationSignals(sparseBody);
   assert.deepEqual(signals.premise_ids, []);
   assert.deepEqual(signals.fr_entries, []);

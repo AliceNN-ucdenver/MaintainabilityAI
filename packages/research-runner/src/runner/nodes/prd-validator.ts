@@ -6,15 +6,23 @@
  * `.caterpillar/prompts/prd/synthesis.md`:
  *
  *   1. Input Premises          (R[N] / E[N] numbered list)
- *   2. Problem Statement and Scope
- *   3. Goals and Non-Goals
- *   4. Functional Requirements with Traceability   (FR-NN; cites ≥1 R/E)
+ *   2. Problem Statement
+ *   3. Goals/Non-Goals
+ *   4. Functional Requirements   (FR-NN; cites ≥1 R/E — traceability enforced by
+ *                                 the per-entry "Traces to:" citation rule below)
  *   5. Non-Functional Requirements                  (NFR-NN; cites ≥1 R/E)
- *   6. Security Requirements with Threat Tracing   (SR-NN; cites ≥1 THR/A0X/NIST)
+ *   6. Security Requirements     (SR-NN; cites ≥1 THR/A0X/NIST — threat-tracing
+ *                                 enforced by the per-entry citation rule below)
  *   7. Coverage Analysis                            (table; every premise tagged YES/PARTIAL/NO)
  *   8. Risk Matrix
  *   9. Success Metrics
  *  10. References
+ *
+ * Headings are the SHORT, model-stable forms the agent reliably emits (verified
+ * across the committed mesh artifacts). The "traceability" / "threat-tracing"
+ * intent the old long headings advertised is enforced by the CONTENT checks
+ * (FR `Traces to:` R/E, SR `THR/A0X/NIST`), not by heading text — so shortening
+ * the headings loses no enforcement while ending the pack↔artifact drift.
  *
  * Returns ValidationReport + extra per-FR / per-SR / per-coverage signals
  * verify_grounding consumes.
@@ -23,11 +31,11 @@ import type { ValidationReport } from './synthesis-validator';
 
 export const CANONICAL_PRD_SECTIONS = [
   'Input Premises',
-  'Problem Statement and Scope',
-  'Goals and Non-Goals',
-  'Functional Requirements with Traceability',
+  'Problem Statement',
+  'Goals/Non-Goals',
+  'Functional Requirements',
   'Non-Functional Requirements',
-  'Security Requirements with Threat Tracing',
+  'Security Requirements',
   'Coverage Analysis',
   'Risk Matrix',
   'Success Metrics',
@@ -160,8 +168,8 @@ function extractSection(body: string, sectionName: string): string {
 
 export function extractCitationSignals(body: string): PrdCitationSignals {
   const premiseIds = extractPremiseIds(extractSection(body, 'Input Premises'));
-  const frEntries = extractRequirementEntries(extractSection(body, 'Functional Requirements with Traceability'), FR_REQUIREMENT_RE, R_OR_E_CITATION_RE);
-  const srEntries = extractRequirementEntries(extractSection(body, 'Security Requirements with Threat Tracing'), SR_REQUIREMENT_RE, THR_OR_OWASP_OR_NIST_RE);
+  const frEntries = extractRequirementEntries(extractSection(body, 'Functional Requirements'), FR_REQUIREMENT_RE, R_OR_E_CITATION_RE);
+  const srEntries = extractRequirementEntries(extractSection(body, 'Security Requirements'), SR_REQUIREMENT_RE, THR_OR_OWASP_OR_NIST_RE);
   const coverageRows = extractCoverageRows(extractSection(body, 'Coverage Analysis'));
   return {
     premise_ids: premiseIds,
@@ -237,7 +245,7 @@ function extractCoverageRows(block: string): Array<{ premise: string; status: Co
 }
 
 function countUntracedClaims(body: string): number {
-  const narrative = ['Problem Statement and Scope', 'Goals and Non-Goals'];
+  const narrative = ['Problem Statement', 'Goals/Non-Goals'];
   let count = 0;
   for (const sec of narrative) {
     const block = extractSection(body, sec);

@@ -169,7 +169,7 @@ Surveyed industry approaches to claims fraud detection circa 2025.
 
 const PRIOR_PRD = `# Prior PRD — claims fraud detection MVP
 
-## Problem Statement and Scope
+## Problem Statement
 
 MVP scope for fraud detection in claims, derived from prior research.
 `;
