@@ -27,7 +27,7 @@
  * Returns ValidationReport + extra per-FR / per-SR / per-coverage signals
  * verify_grounding consumes.
  */
-import type { ValidationReport } from './synthesis-validator';
+import type { ValidationReport } from './validation-types';
 
 export const CANONICAL_PRD_SECTIONS = [
   'Input Premises',
