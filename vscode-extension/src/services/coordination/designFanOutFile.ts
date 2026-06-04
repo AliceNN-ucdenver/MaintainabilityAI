@@ -202,17 +202,16 @@ export function appendChainLadderImplRow(meshPath: string, okrId: string, row: C
   // writer for non-impl rows, and a parse failure here just means our
   // append loses pre-existing context, NOT that we corrupt the file).
   let chain: Array<Record<string, unknown>> = [];
-  if (fs.existsSync(filePath)) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const YAML = require('yaml') as { parse(text: string): unknown };
-      const parsed = YAML.parse(fs.readFileSync(filePath, 'utf8')) as { chain?: unknown };
-      if (parsed && typeof parsed === 'object' && Array.isArray(parsed.chain)) {
-        chain = parsed.chain as Array<Record<string, unknown>>;
-      }
-    } catch {
-      // Best-effort -- keep chain empty.
+  try {
+    // try-read + catch (incl. ENOENT) instead of existsSync→read (CodeQL js/file-system-race).
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const YAML = require('yaml') as { parse(text: string): unknown };
+    const parsed = YAML.parse(fs.readFileSync(filePath, 'utf8')) as { chain?: unknown };
+    if (parsed && typeof parsed === 'object' && Array.isArray(parsed.chain)) {
+      chain = parsed.chain as Array<Record<string, unknown>>;
     }
+  } catch {
+    // Best-effort (incl. file-absent) -- keep chain empty.
   }
 
   // Upsert by implementation_run_id (idempotent).

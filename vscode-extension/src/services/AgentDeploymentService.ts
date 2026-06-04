@@ -127,7 +127,10 @@ export class AgentDeploymentService {
       const destDir = path.dirname(destPath);
       fs.mkdirSync(destDir, { recursive: true });
 
-      const existing = fs.existsSync(destPath) ? fs.readFileSync(destPath, 'utf8') : null;
+      // try-read + catch ENOENT instead of existsSync→read→write (CodeQL js/file-system-race).
+      let existing: string | null;
+      try { existing = fs.readFileSync(destPath, 'utf8'); }
+      catch (e) { if ((e as NodeJS.ErrnoException).code === 'ENOENT') { existing = null; } else { throw e; } }
       if (existing === body) {
         result.unchanged += 1;
         result.perSkill.push({ name: skill.name, family: skill.family, status: 'unchanged' });
@@ -199,7 +202,10 @@ export class AgentDeploymentService {
       const destPath = path.join(meshPath, agent.relativePath);
       const destDir = path.dirname(destPath);
       fs.mkdirSync(destDir, { recursive: true });
-      const existing = fs.existsSync(destPath) ? fs.readFileSync(destPath, 'utf8') : null;
+      // try-read + catch ENOENT instead of existsSync→read→write (CodeQL js/file-system-race).
+      let existing: string | null;
+      try { existing = fs.readFileSync(destPath, 'utf8'); }
+      catch (e) { if ((e as NodeJS.ErrnoException).code === 'ENOENT') { existing = null; } else { throw e; } }
       if (existing === body) {
         result.unchanged += 1;
         result.perAgent.push({ name: agent.name, status: 'unchanged' });

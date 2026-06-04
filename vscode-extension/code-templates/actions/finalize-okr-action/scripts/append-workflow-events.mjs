@@ -53,12 +53,19 @@ function readJsonlEvents(jsonlPath) {
 }
 
 function computeArtifactPayload(artifactPath, mergeSha, prNumber) {
-  if (!fs.existsSync(artifactPath)) {
-    throw new Error(`phase artifact missing at ${artifactPath} — finalize cannot persist artifact_written. Run is not finalize-able.`);
+  // Read ONCE and derive bytes + hash from the same buffer, instead of
+  // existsSync→statSync→readFileSync (CodeQL js/file-system-race).
+  let buf;
+  try {
+    buf = fs.readFileSync(artifactPath);
+  } catch (e) {
+    if (e && e.code === 'ENOENT') {
+      throw new Error(`phase artifact missing at ${artifactPath} — finalize cannot persist artifact_written. Run is not finalize-able.`);
+    }
+    throw e;
   }
-  const bytes = fs.statSync(artifactPath).size;
-  const sha256 = createHash('sha256').update(fs.readFileSync(artifactPath)).digest('hex');
-  return { path: artifactPath, sha256, bytes, merge_commit_sha: mergeSha, pr_number: prNumber, emitted_by: 'workflow' };
+  const sha256 = createHash('sha256').update(buf).digest('hex');
+  return { path: artifactPath, sha256, bytes: buf.length, merge_commit_sha: mergeSha, pr_number: prNumber, emitted_by: 'workflow' };
 }
 
 /**

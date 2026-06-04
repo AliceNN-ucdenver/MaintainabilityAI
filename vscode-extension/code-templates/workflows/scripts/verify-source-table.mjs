@@ -101,12 +101,14 @@ export function normalizeTitle(raw) {
   if (!raw || typeof raw !== 'string') { return ''; }
   return raw
     .trim()
-    .replace(/&amp;/gi, '&')
     .replace(/&quot;/gi, '"')
     .replace(/&#0*34;/gi, '"')
     .replace(/&apos;/gi, "'")
     .replace(/&#0*39;/gi, "'")
     .replace(/&nbsp;/gi, ' ')
+    // &amp; MUST be unescaped LAST: doing it first turns `&amp;quot;` into
+    // `&quot;`, which an earlier pass would double-unescape (CodeQL js/double-escaping).
+    .replace(/&amp;/gi, '&')
     .replace(/[\u2018\u2019\u201B\u2032]/g, "'")
     .replace(/[\u201C\u201D\u201F\u2033]/g, '"')
     .replace(/^[“”"']+|[“”"']+$/g, '')

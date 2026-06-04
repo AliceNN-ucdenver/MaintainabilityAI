@@ -1132,10 +1132,14 @@ export function registerTools(server: McpServer, reader: MeshReader, redQueen?: 
       const timestamp = new Date().toISOString();
       const snapshotYaml = `\n- timestamp: "${timestamp}"\n  composite: ${current.composite}\n  architecture: ${current.architecture}\n  security: ${current.security}\n  information_risk: ${current.informationRisk}\n  operations: ${current.operations}\n`;
 
-      if (fs.existsSync(historyPath)) {
-        fs.appendFileSync(historyPath, snapshotYaml, 'utf8');
-      } else {
-        fs.writeFileSync(historyPath, `# Score History for ${bar.name}\n${snapshotYaml}`, 'utf8');
+      // Exclusive-create with the header; on EEXIST just append. No existsSync→write
+      // TOCTOU (CodeQL js/file-system-race).
+      try {
+        fs.writeFileSync(historyPath, `# Score History for ${bar.name}\n${snapshotYaml}`, { encoding: 'utf8', flag: 'wx' });
+      } catch (e) {
+        if ((e as NodeJS.ErrnoException).code === 'EEXIST') {
+          fs.appendFileSync(historyPath, snapshotYaml, 'utf8');
+        } else { throw e; }
       }
 
       // Write audit log

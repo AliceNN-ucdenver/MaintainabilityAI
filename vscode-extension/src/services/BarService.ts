@@ -1193,11 +1193,15 @@ function scanDocDir<T extends ResearchDocSummary>(
     let publishedAt = new Date(0).toISOString();
     let topic = id.replace(/[-_]/g, ' ');
     try {
-      const stat = fs.statSync(filePath);
-      publishedAt = stat.mtime.toISOString();
-      const content = fs.readFileSync(filePath, 'utf8');
-      const headingMatch = content.match(/^#\s+(.+)$/m);
-      if (headingMatch) { topic = headingMatch[1].trim(); }
+      // Open once + fstat/read the SAME fd so the stat and the read can't race
+      // a path swap between them (CodeQL js/file-system-race).
+      const fd = fs.openSync(filePath, 'r');
+      try {
+        publishedAt = fs.fstatSync(fd).mtime.toISOString();
+        const content = fs.readFileSync(fd, 'utf8');
+        const headingMatch = content.match(/^#\s+(.+)$/m);
+        if (headingMatch) { topic = headingMatch[1].trim(); }
+      } finally { fs.closeSync(fd); }
     } catch { /* fall back to filename topic + epoch */ }
 
     const base: ResearchDocSummary = {

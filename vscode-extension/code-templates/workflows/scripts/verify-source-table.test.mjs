@@ -393,3 +393,11 @@ test('verifySourceTable: source registry is preferred over previews and hash-che
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('normalizeTitle: &amp; is unescaped LAST — no double-unescape (CodeQL js/double-escaping)', () => {
+  // a plain &amp; still becomes &
+  assert.equal(normalizeTitle('Tom &amp; Jerry'), 'tom & jerry');
+  // `&amp;quot;` is an ESCAPED literal `&quot;`; unescaping &amp; first would
+  // collapse it to a real `"` (double-unescape). It must stay `&quot;`.
+  assert.equal(normalizeTitle('say &amp;quot;hi&amp;quot;'), 'say &quot;hi&quot;');
+});

@@ -1919,6 +1919,16 @@ function renderFanOutPrepAffordance(
   `;
 }
 
+/** True only when `u` is a real github.com URL — a substring check like
+ *  `u.includes('github.com')` is bypassable by `github.com.evil.com` or
+ *  `evil.com/github.com` (CodeQL js/incomplete-url-substring-sanitization). */
+function isGithubRepoUrl(u: string): boolean {
+  try {
+    const host = new URL(u).hostname.toLowerCase();
+    return host === 'github.com' || host.endsWith('.github.com');
+  } catch { return false; }
+}
+
 function findFanOutRepoBar(
   entry: FanOutRepoEntryUi,
   okr: OkrCard,
@@ -1936,7 +1946,7 @@ function findFanOutRepoBar(
     if (linkedRepo) {
       return {
         barPath: bar.path,
-        repoUrl: targetRepoUrl.includes('github.com') ? targetRepoUrl : linkedRepo || targetRepoUrl,
+        repoUrl: isGithubRepoUrl(targetRepoUrl) ? targetRepoUrl : linkedRepo || targetRepoUrl,
       };
     }
   }

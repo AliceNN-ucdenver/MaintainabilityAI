@@ -8760,7 +8760,10 @@ Policy file: ${filename}
         return;
       }
       const platformYaml = path.join(platformDir, 'platform.yaml');
-      let content = fs.existsSync(platformYaml) ? fs.readFileSync(platformYaml, 'utf8') : '';
+      // try-read + catch ENOENT instead of existsSync→read (CodeQL js/file-system-race).
+      let content = '';
+      try { content = fs.readFileSync(platformYaml, 'utf8'); }
+      catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') { throw e; } }
 
       // Build governance block
       const govLines = [
