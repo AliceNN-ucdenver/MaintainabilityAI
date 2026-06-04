@@ -2917,7 +2917,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     repo: string,
     okrId: string,
     phase: 'why' | 'how' | 'what',
-    action: { runId: string; agent: string; status?: string; createdAt?: string; hatterChainRoot?: string | null },
+    action: { runId: string; agent: string; status?: string; createdAt?: string; hatterChainRoot?: string | null; issueNumber?: number },
   ): Promise<Record<string, unknown>> {
     const result: Record<string, unknown> = {};
     if (action.hatterChainRoot) { result.chainRoot = action.hatterChainRoot; }
@@ -2939,7 +2939,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     const passLabel = phaseSpec(phase).passLabel;
     let pr: Awaited<ReturnType<typeof this.findArtifactPr>> = null;
     try {
-      pr = await this.findArtifactPr(owner, repo, artifactPathForPr, action.createdAt ?? null);
+      pr = await this.findArtifactPr(owner, repo, artifactPathForPr, action.createdAt ?? null, action.issueNumber ?? null);
     } catch { /* best-effort */ }
     // Choose ref: PR head when PR is open (and not yet merged); default
     // branch otherwise (post-merge / no PR).
@@ -3341,10 +3341,22 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
      *  while the new agent is still building. Pass null to disable
      *  the filter (returns whatever PR touched the path most recently). */
     actionCreatedAt: string | null = null,
+    /** When set, the PR is resolved FIRST by the structural issue→PR link
+     *  (the issue this run was dispatched from). Text-independent, so it
+     *  survives Copilot omitting/truncating the OKR id in the PR. The search
+     *  below is the fallback for legacy actions dispatched before we persisted
+     *  the issue number. Applies to why/how/what alike. */
+    issueNumber: number | null = null,
   ): Promise<{ number: number; url: string; state: 'open' | 'closed'; merged: boolean; draft: boolean; reviewRequested: boolean; headRef: string; headSha: string; labels: string[] } | null> {
     try {
+      // PRIMARY: resolve via the dispatch issue (closedByPullRequestsReferences).
+      if (issueNumber && issueNumber > 0) {
+        const viaIssue = await this.findPrByIssue(owner, repo, issueNumber);
+        if (viaIssue) { return viaIssue; }
+      }
       const client = await this.githubService.getClient();
-      // GitHub's issues search matches against PR title + body text,
+      // FALLBACK (legacy actions w/o a persisted issue): GitHub's issues search
+      // matches against PR title + body text,
       // NOT changed-file paths. Agents typically don't paste the full
       // artifact path into the PR body — they mention the OKR id and
       // a human-readable summary. Searching for the path-string
@@ -3358,11 +3370,31 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       // `pulls.listFiles` per candidate but always finds the right PR.
       const okrIdMatch = artifactPath.match(/^okrs\/([^/]+)\//);
       const searchTerm = okrIdMatch ? okrIdMatch[1] : artifactPath;
+      type Candidate = { number: number; html_url: string; state: string; created_at: string; pull_request?: { merged_at: string | null }; labels: Array<{ name: string }> };
       const search = await client.rest.search.issuesAndPullRequests({
         q: `repo:${owner}/${repo} is:pr "${searchTerm}" sort:created-desc`,
         per_page: 15,
       });
-      const allItems = (search.data.items ?? []) as Array<{ number: number; html_url: string; state: string; created_at: string; pull_request?: { merged_at: string | null }; labels: Array<{ name: string }> }>;
+      const searchItems = (search.data.items ?? []) as Candidate[];
+      // Discovery is a UNION: the issues-search (catches PRs that echo the OKR
+      // id in their title/body) PLUS a live open-PR list. The search alone is
+      // brittle — Copilot sometimes TRUNCATES the id in the PR body (e.g. wrote
+      // "OKR-2026Q2-IMDB-002" instead of the full "OKR-2026Q2-IMDB-002-movie-api"
+      // on PR #212), so the quoted-phrase search misses the real PR and the card
+      // stays stuck on "PR pending". pulls.list does not depend on body text;
+      // the confirm-by-files step below is the AUTHORITATIVE selector, so a
+      // broader candidate pool is safe.
+      let openItems: Candidate[] = [];
+      try {
+        const pl = await client.rest.pulls.list({ owner, repo, state: 'open', sort: 'created', direction: 'desc', per_page: 30 });
+        openItems = (pl.data as Array<{ number: number; html_url: string; state: string; created_at: string; labels?: Array<{ name: string }> }>).map(p => ({
+          number: p.number, html_url: p.html_url, state: p.state, created_at: p.created_at,
+          pull_request: { merged_at: null }, labels: p.labels ?? [],
+        }));
+      } catch { /* fall back to search-only if the list call fails */ }
+      const byNumber = new Map<number, Candidate>();
+      for (const it of [...searchItems, ...openItems]) { if (!byNumber.has(it.number)) { byNumber.set(it.number, it); } }
+      const allItems = [...byNumber.values()];
       if (allItems.length === 0) { return null; }
       // Filter to PRs created at-or-after the action's createdAt (when
       // we have it). PRs from prior runs are excluded.
@@ -3370,15 +3402,17 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         ? allItems.filter(i => i.created_at >= actionCreatedAt)
         : allItems;
       if (eligible.length === 0) { return null; }
-      // Confirm-match: list files for each candidate (cap at 5 to keep
-      // the API budget tight), return the first whose files include
-      // the artifact path. Iterate open-first then most-recent-first.
+      // Confirm-match: list files for each candidate (cap at 6 to keep the API
+      // budget tight), return the first whose files include the artifact path.
+      // Open-first, then NEWEST-first within each group so the current run's
+      // fresh draft is confirmed before any stale candidate.
+      const byNewest = (a: Candidate, b: Candidate) => b.created_at.localeCompare(a.created_at);
       const sorted = [
-        ...eligible.filter(i => i.state === 'open'),
-        ...eligible.filter(i => i.state !== 'open'),
+        ...eligible.filter(i => i.state === 'open').sort(byNewest),
+        ...eligible.filter(i => i.state !== 'open').sort(byNewest),
       ];
-      const items: typeof allItems = [];
-      for (const candidate of sorted.slice(0, 5)) {
+      const items: Candidate[] = [];
+      for (const candidate of sorted.slice(0, 6)) {
         try {
           const files = await client.rest.pulls.listFiles({ owner, repo, pull_number: candidate.number, per_page: 50 });
           if ((files.data as Array<{ filename: string }>).some(f => f.filename === artifactPath)) {
@@ -3388,32 +3422,103 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         } catch { /* skip on listFiles failure */ }
       }
       if (items.length === 0) { return null; }
-      const chosen = items[0];
-      // For accurate merged + draft + review-request state we need a
-      // follow-up PR.get (the search response doesn't include them
-      // reliably). Cheap.
-      const prFull = await client.rest.pulls.get({ owner, repo, pull_number: chosen.number });
-      // `requested_reviewers` is the array of users still awaiting
-      // review; `requested_teams` mirrors for team requests. Either
-      // being non-empty means the agent has flagged "ready for human"
-      // even if the PR's still in draft (we saw this on PR #91).
+      // Confirm-by-files already selected the right PR; build the full state
+      // from a single pulls.get (shared with the issue-link path).
+      return await this.buildPrResult(owner, repo, items[0].number);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Build the canonical PR-signal shape from one `pulls.get`. Shared by the
+   * issue-link resolver and the search/confirm-by-files path so both return
+   * identical draft / reviewRequested / merged / headRef / labels data.
+   */
+  private async buildPrResult(
+    owner: string,
+    repo: string,
+    prNumber: number,
+  ): Promise<{ number: number; url: string; state: 'open' | 'closed'; merged: boolean; draft: boolean; reviewRequested: boolean; headRef: string; headSha: string; labels: string[] } | null> {
+    try {
+      const client = await this.githubService.getClient();
+      const { data: pr } = await client.rest.pulls.get({ owner, repo, pull_number: prNumber });
+      // requested_reviewers / requested_teams non-empty ⇒ the agent flagged
+      // "ready for human" even if the PR is still draft (PR #91).
       const reviewRequested =
-        (Array.isArray(prFull.data.requested_reviewers) && prFull.data.requested_reviewers.length > 0) ||
-        (Array.isArray(prFull.data.requested_teams) && prFull.data.requested_teams.length > 0);
+        (Array.isArray(pr.requested_reviewers) && pr.requested_reviewers.length > 0) ||
+        (Array.isArray(pr.requested_teams) && pr.requested_teams.length > 0);
       return {
-        number: chosen.number,
-        url: chosen.html_url,
-        state: chosen.state as 'open' | 'closed',
-        merged: prFull.data.merged === true,
-        draft: prFull.data.draft === true,
+        number: pr.number,
+        url: pr.html_url,
+        state: pr.state === 'open' ? 'open' : 'closed',
+        merged: pr.merged === true,
+        draft: pr.draft === true,
         reviewRequested,
-        // Head ref + sha — needed so downstream fetches read from the
-        // PR's branch (where the agent committed its artifact) rather
-        // than from main (where the artifact doesn't exist until merge).
-        headRef: prFull.data.head.ref,
-        headSha: prFull.data.head.sha,
-        labels: (chosen.labels ?? []).map(l => l.name),
+        headRef: pr.head.ref,
+        headSha: pr.head.sha,
+        labels: (pr.labels ?? []).map(l => (typeof l === 'string' ? l : (l.name ?? ''))).filter(Boolean),
       };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Resolve the agent's PR by the STRUCTURAL issue→PR link. Each phase
+   * (why/how/what) is dispatched from a landing issue whose number we persist
+   * on the action; Copilot's PR is connected to that issue (ConnectedEvent /
+   * closes-reference) regardless of the PR's title/body text. This found
+   * PR #212 ↔ issue #211 where the OKR id appeared nowhere in the PR.
+   * Prefers an OPEN (then MERGED, then CLOSED) link, newest first.
+   */
+  private async findPrByIssue(
+    owner: string,
+    repo: string,
+    issueNumber: number,
+  ): Promise<{ number: number; url: string; state: 'open' | 'closed'; merged: boolean; draft: boolean; reviewRequested: boolean; headRef: string; headSha: string; labels: string[] } | null> {
+    try {
+      const client = await this.githubService.getClient();
+      const gql = await client.graphql(
+        `query($owner:String!,$repo:String!,$num:Int!){
+          repository(owner:$owner,name:$repo){
+            issue(number:$num){
+              closedByPullRequestsReferences(first:10, includeClosedPrs:true){ nodes{ number state } }
+              timelineItems(first:30, itemTypes:[CONNECTED_EVENT,CROSS_REFERENCED_EVENT]){
+                nodes{
+                  ... on ConnectedEvent{ subject{ __typename ... on PullRequest{ number state } } }
+                  ... on CrossReferencedEvent{ source{ __typename ... on PullRequest{ number state } } }
+                }
+              }
+            }
+          }
+        }`,
+        { owner, repo, num: issueNumber },
+      ) as unknown as {
+        repository?: { issue?: {
+          closedByPullRequestsReferences?: { nodes?: Array<{ number: number; state: string } | null> };
+          timelineItems?: { nodes?: Array<{ subject?: { __typename?: string; number?: number; state?: string }; source?: { __typename?: string; number?: number; state?: string } } | null> };
+        } | null } | null;
+      };
+      const issue = gql?.repository?.issue;
+      if (!issue) { return null; }
+      const candidates: Array<{ number: number; state: string }> = [];
+      for (const n of issue.closedByPullRequestsReferences?.nodes ?? []) {
+        if (n && typeof n.number === 'number') { candidates.push({ number: n.number, state: n.state }); }
+      }
+      for (const t of issue.timelineItems?.nodes ?? []) {
+        const pr = t?.subject ?? t?.source;
+        if (pr && pr.__typename === 'PullRequest' && typeof pr.number === 'number') {
+          candidates.push({ number: pr.number, state: pr.state ?? '' });
+        }
+      }
+      if (candidates.length === 0) { return null; }
+      // Prefer OPEN > MERGED > CLOSED, then newest PR number.
+      const rank = (s: string) => (s === 'OPEN' ? 0 : s === 'MERGED' ? 1 : 2);
+      const seen = new Set<number>();
+      const unique = candidates.filter(c => (seen.has(c.number) ? false : (seen.add(c.number), true)));
+      unique.sort((a, b) => rank(a.state) - rank(b.state) || b.number - a.number);
+      return await this.buildPrResult(owner, repo, unique[0].number);
     } catch {
       return null;
     }
@@ -4464,6 +4569,10 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         rounds: 0,
         governanceTier: tier,
         status: 'in_progress',
+        // Persist the dispatch issue so the card later resolves the agent's PR
+        // by the structural issue→PR link (why/how/what alike).
+        issueNumber,
+        issueUrl,
         createdAt: new Date().toISOString(),
       });
 

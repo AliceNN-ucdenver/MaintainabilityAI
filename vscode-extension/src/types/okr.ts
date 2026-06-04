@@ -144,6 +144,13 @@ export const OkrActionSchema = z.object({
   runId: z.string().min(1),                       // e.g. "RES-2026-05-19-abc123"
   artifact: z.string().optional(),                // path relative to okr root
   pr: z.string().url().optional(),
+  // The landing/anchor issue this run was dispatched from (Start Why/How/What
+  // create an issue + assign Copilot to it). Persisted so a later card refresh
+  // resolves the agent's PR by the STRUCTURAL issue→PR link
+  // (closedByPullRequestsReferences) instead of guessing from the PR's text —
+  // Copilot often truncates/omits the OKR id in the PR title/body.
+  issueNumber: z.number().int().positive().optional(),
+  issueUrl: z.string().url().optional(),
   hatterChainRoot: z.string().optional(),         // sha256 of the chain head
   intentThreadUuid: z.string().uuid(),            // canonical thread id
   parentIntentThread: z.string().uuid().nullable().optional(),  // null on first phase
