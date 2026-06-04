@@ -35,6 +35,7 @@ import { OrgScannerService } from '../services/OrgScannerService';
 import { ThreatModelService, exportThreatModelCsv } from '../services/ThreatModelService';
 import { GitSyncService, gitSyncService } from '../services/GitSyncService';
 import { checkMeshBranchGuard, recoverMeshBranch, formatMeshBranchGuardMessage } from '../services/MeshBranchGuard';
+import { requireTool } from '../services/PrerequisiteChecker';
 import { CapabilityModelService } from '../services/CapabilityModelService';
 import { generateMermaidDiagrams } from '../services/CalmTransformer';
 import { readCalmArchitectureData, readLayoutFile, writeLayoutFile } from '../services/LayoutPersistenceService';
@@ -673,6 +674,98 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     } catch { return null; }
   }
 
+  private async githubCliLogin(): Promise<string | null> {
+    try {
+      const { stdout } = await execFileAsync('gh', ['api', 'user', '--jq', '.login'], { timeout: 15_000 });
+      return stdout.trim() || null;
+    } catch {
+      return null;
+    }
+  }
+
+  private async vscodeGitHubLogin(): Promise<string | null> {
+    try {
+      const { login } = await this.githubService.getAuthenticatedUser();
+      return login || null;
+    } catch {
+      return null;
+    }
+  }
+
+  private async warnIfGitIdentityMissing(): Promise<void> {
+    const readConfig = async (key: string): Promise<string> => {
+      try {
+        const { stdout } = await execFileAsync('git', ['config', '--global', key], { timeout: 5_000 });
+        return stdout.trim();
+      } catch {
+        return '';
+      }
+    };
+
+    const [name, email] = await Promise.all([readConfig('user.name'), readConfig('user.email')]);
+    if (name && email) { return; }
+    vscode.window.showWarningMessage(
+      'GitHub CLI can clone this mesh, but global git user.name/user.email is not fully configured. Cloning will continue; commits may need git identity setup later.'
+    );
+  }
+
+  private async openGhLoginTerminal(): Promise<void> {
+    const terminal = vscode.window.createTerminal('MaintainabilityAI GitHub Login');
+    terminal.show();
+    terminal.sendText('gh auth login');
+  }
+
+  /**
+   * GitHub API discovery uses VS Code auth, but clone/push uses the command
+   * line. Keep that contract explicit: GitHub repos clone through `gh`, and we
+   * warn if VS Code and GitHub CLI are pointed at different accounts.
+   */
+  private async prepareGitHubCliClone(owner: string, repo: string): Promise<boolean> {
+    if (!(await requireTool('gh'))) { return false; }
+
+    const ghLogin = await this.githubCliLogin();
+    if (!ghLogin) {
+      const choice = await vscode.window.showErrorMessage(
+        'GitHub CLI is not authenticated. Private mesh repositories clone through `gh`, not the VS Code GitHub session.',
+        'Run gh auth login',
+        'Cancel',
+      );
+      if (choice === 'Run gh auth login') { await this.openGhLoginTerminal(); }
+      return false;
+    }
+
+    const vscodeLogin = await this.vscodeGitHubLogin();
+    if (vscodeLogin && vscodeLogin.toLowerCase() !== ghLogin.toLowerCase()) {
+      const choice = await vscode.window.showWarningMessage(
+        `VS Code is signed in to GitHub as ${vscodeLogin}, but GitHub CLI is signed in as ${ghLogin}. Cloning will use GitHub CLI credentials.`,
+        `Continue as ${ghLogin}`,
+        'Run gh auth login',
+        'Cancel',
+      );
+      if (choice === 'Run gh auth login') {
+        await this.openGhLoginTerminal();
+        return false;
+      }
+      if (choice !== `Continue as ${ghLogin}`) { return false; }
+    }
+
+    try {
+      await execFileAsync('gh', ['repo', 'view', `${owner}/${repo}`, '--json', 'nameWithOwner', '--jq', '.nameWithOwner'], { timeout: 20_000 });
+    } catch (err) {
+      const choice = await vscode.window.showErrorMessage(
+        `GitHub CLI is signed in as ${ghLogin}, but it cannot access ${owner}/${repo}. Run gh auth login with the account that owns or can read this private repo, then retry.`,
+        'Run gh auth login',
+        'Cancel',
+      );
+      if (choice === 'Run gh auth login') { await this.openGhLoginTerminal(); }
+      logger.warn(`gh repo view failed for ${owner}/${repo}: ${toErrorMessage(err)}`);
+      return false;
+    }
+
+    await this.warnIfGitIdentityMissing();
+    return true;
+  }
+
   /** Persist + load the chosen mesh (the success path both flows converge on). */
   private async activateMesh(meshPath: string, note: string): Promise<void> {
     await MeshService.setMeshPath(meshPath);
@@ -698,6 +791,11 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     const local = this.findLocalRepo(repoName, url);
     if (local && this.isMeshFolder(local)) {
       await this.activateMesh(local, `Connected to existing mesh at ${local}`);
+      return;
+    }
+
+    const parsed = parseGitHubUrl(url);
+    if (parsed && !(await this.prepareGitHubCliClone(parsed.owner, parsed.repo))) {
       return;
     }
 
@@ -732,7 +830,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     // res.action === 'clone'
     try {
       this.postMessage({ type: 'loading', active: true, message: `Cloning ${repoName}...` });
-      await this.cloneRepo(url, parentDir);
+      await this.cloneRepo(url, parentDir, { skipGithubPreflight: Boolean(parsed) });
       if (!this.isMeshFolder(target)) {
         const choice = await vscode.window.showWarningMessage(
           `"${repoName}" was cloned but has no mesh.yaml — it is not a governance mesh. Delete the clone?`,
@@ -7510,7 +7608,18 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
     return null;
   }
 
-  private async cloneRepo(repoUrl: string, parentDir: string): Promise<void> {
+  private async cloneRepo(repoUrl: string, parentDir: string, opts: { skipGithubPreflight?: boolean } = {}): Promise<void> {
+    const normalized = normalizeRepoUrl(repoUrl);
+    const parsed = normalized ? parseGitHubUrl(normalized) : parseGitHubUrl(repoUrl);
+    if (parsed) {
+      if (!opts.skipGithubPreflight && !(await this.prepareGitHubCliClone(parsed.owner, parsed.repo))) {
+        throw new Error('GitHub CLI clone preflight was cancelled or failed.');
+      }
+      const targetName = repoNameFromUrl(normalized ?? repoUrl);
+      await execFileAsync('gh', ['repo', 'clone', `${parsed.owner}/${parsed.repo}`, path.join(parentDir, targetName)], { timeout: 120000 });
+      return;
+    }
+
     await execFileAsync('git', ['clone', repoUrl], { cwd: parentDir, timeout: 120000 });
   }
 
