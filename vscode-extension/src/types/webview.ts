@@ -322,6 +322,8 @@ export type LookingGlassWebviewMessage =
   | { type: 'ready' }
   | { type: 'refresh' }
   | { type: 'initMesh'; name: string; org: string; owner: string; folderPath: string; createRepo: boolean; repoName: string; repoVisibility: 'private' | 'public'; architectureDsl: ArchitectureDsl; capabilityModel: CapabilityModelType }
+  | { type: 'connectMesh'; repoUrl: string }
+  | { type: 'connectLocalMesh' }
   | { type: 'samplePlatform' }
   | { type: 'addPlatform'; name: string; abbreviation: string; owner: string }
   | { type: 'scaffoldBar'; name: string; platformId: string; criticality: Criticality; template: 'minimal' | 'standard' | 'full' }

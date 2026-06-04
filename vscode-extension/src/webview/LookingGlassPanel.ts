@@ -24,6 +24,7 @@ import type {
 import { SECRETS, RESEARCH_SECRET_IDS, detectGovernanceRepo } from '../services/SecretsService';
 import { testResearchKey } from '../services/ResearchKeyTester';
 import { MeshService } from '../services/MeshService';
+import { normalizeRepoUrl, repoNameFromUrl, resolveMeshConnect, meshConnectErrorMessage } from '../services/meshConnect';
 import type { ChainLadderImplRow } from '../services/coordination/designFanOutFile';
 import { isFanOutImplPr } from '../services/coordination/fanOutArtifacts';
 import { BarService } from '../services/BarService';
@@ -459,6 +460,8 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     'refresh':                     () => this.loadPortfolio(),
     'pickFolder':                  () => this.onPickFolder(),
     'initMesh':                    (m) => this.onInitMesh(m.name, m.org, m.owner, m.folderPath, m.createRepo, m.repoName, m.repoVisibility, m.architectureDsl, m.capabilityModel),
+    'connectMesh':                 (m) => this.onConnectMesh(m.repoUrl),
+    'connectLocalMesh':            () => this.onConnectLocalMesh(),
     'samplePlatform':              () => this.onSamplePlatform(),
     'addPlatform':                 (m) => this.onAddPlatform(m.name, m.abbreviation, m.owner),
     'scaffoldBar':                 (m) => this.onScaffoldBar(m.name, m.platformId, m.criticality, m.template),
@@ -647,6 +650,126 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     if (picked && picked.length > 0) {
       this.postMessage({ type: 'folderPicked', path: picked[0].fsPath });
     }
+  }
+
+  // ── Connect to existing mesh ────────────────────────────────────────────
+  // Counterpart to onInitMesh: instead of scaffolding a NEW mesh, point the
+  // panel at an EXISTING governance mesh. Two paths converge on activateMesh:
+  //   • onConnectMesh(repoUrl)  — clone if absent, open if already cloned.
+  //   • onConnectLocalMesh()    — pick an existing mesh folder on disk.
+  // A governance mesh is any dir with mesh.yaml (MeshReader.readPortfolioConfig).
+
+  /** True when `dir` is a governance mesh (has a readable mesh.yaml at root). */
+  private isMeshFolder(dir: string): boolean {
+    try { return !!new MeshReader(dir).readPortfolioConfig(); } catch { return false; }
+  }
+
+  /** `git -C dir remote get-url origin`, or null when it isn't a git repo. */
+  private async meshGitRemote(dir: string): Promise<string | null> {
+    try {
+      const { stdout } = await execFileAsync('git', ['-C', dir, 'remote', 'get-url', 'origin'], { timeout: 10_000 });
+      return stdout.trim() || null;
+    } catch { return null; }
+  }
+
+  /** Persist + load the chosen mesh (the success path both flows converge on). */
+  private async activateMesh(meshPath: string, note: string): Promise<void> {
+    await MeshService.setMeshPath(meshPath);
+    await this.loadPortfolio();
+    vscode.window.showInformationMessage(note);
+  }
+
+  /**
+   * `connectMesh` - connect to an existing governance mesh by repo URL/slug.
+   * Clones into a user-chosen parent folder when absent; opens in place when
+   * the clone already exists. Validates mesh.yaml before activating; every
+   * failure is a named, actionable message (never a silent overwrite).
+   */
+  private async onConnectMesh(rawUrl: string): Promise<void> {
+    const url = normalizeRepoUrl(rawUrl);
+    if (!url) {
+      this.postMessage({ type: 'error', message: meshConnectErrorMessage('invalid-repo-url', '', rawUrl) });
+      return;
+    }
+    const repoName = repoNameFromUrl(url);
+
+    // Fast path: already cloned somewhere local AND a valid mesh → just open.
+    const local = this.findLocalRepo(repoName, url);
+    if (local && this.isMeshFolder(local)) {
+      await this.activateMesh(local, `Connected to existing mesh at ${local}`);
+      return;
+    }
+
+    // Prompt for the parent folder to clone into.
+    const defaultDir = this.getDefaultCloneDir();
+    const folders = await vscode.window.showOpenDialog({
+      canSelectFolders: true, canSelectFiles: false, canSelectMany: false,
+      openLabel: 'Clone mesh here (select parent folder)',
+      title: `MaintainabilityAI — Connect mesh: ${repoName}`,
+      ...(defaultDir ? { defaultUri: vscode.Uri.file(defaultDir) } : {}),
+    });
+    if (!folders?.[0]) { return; }
+    const parentDir = folders[0].fsPath;
+    const target = path.join(parentDir, repoName);
+
+    // Gather facts → pure clone/open/error decision.
+    const targetExists = fs.existsSync(target);
+    const targetIsGitRepo = fs.existsSync(path.join(target, '.git'));
+    const remote = targetIsGitRepo ? await this.meshGitRemote(target) : null;
+    const remoteMatches = remote == null ? null : (normalizeRepoUrl(remote) === url);
+    const res = resolveMeshConnect({ targetExists, targetIsMesh: this.isMeshFolder(target), targetIsGitRepo, remoteMatches });
+
+    if (res.action === 'error') {
+      this.postMessage({ type: 'error', message: meshConnectErrorMessage(res.reason, target, url) });
+      return;
+    }
+    if (res.action === 'open') {
+      await this.activateMesh(target, `Connected to existing mesh at ${target}`);
+      return;
+    }
+
+    // res.action === 'clone'
+    try {
+      this.postMessage({ type: 'loading', active: true, message: `Cloning ${repoName}...` });
+      await this.cloneRepo(url, parentDir);
+      if (!this.isMeshFolder(target)) {
+        const choice = await vscode.window.showWarningMessage(
+          `"${repoName}" was cloned but has no mesh.yaml — it is not a governance mesh. Delete the clone?`,
+          'Delete clone', 'Keep',
+        );
+        if (choice === 'Delete clone') {
+          try { fs.rmSync(target, { recursive: true, force: true }); } catch { /* best-effort cleanup */ }
+        }
+        this.postMessage({ type: 'error', message: meshConnectErrorMessage('cloned-not-a-mesh', target, url) });
+        return;
+      }
+      await this.activateMesh(target, `Cloned and connected mesh at ${target}`);
+    } catch (err) {
+      this.postMessage({ type: 'error', message: `Clone failed: ${toErrorMessage(err)}` });
+    } finally {
+      this.postMessage({ type: 'loading', active: false });
+    }
+  }
+
+  /**
+   * `connectLocalMesh` - connect to a governance mesh already on disk: pick the
+   * folder, validate mesh.yaml, activate. No git, no clone.
+   */
+  private async onConnectLocalMesh(): Promise<void> {
+    const defaultDir = this.getDefaultCloneDir();
+    const folders = await vscode.window.showOpenDialog({
+      canSelectFolders: true, canSelectFiles: false, canSelectMany: false,
+      openLabel: 'Open governance mesh folder',
+      title: 'MaintainabilityAI — Open local mesh',
+      ...(defaultDir ? { defaultUri: vscode.Uri.file(defaultDir) } : {}),
+    });
+    if (!folders?.[0]) { return; }
+    const dir = folders[0].fsPath;
+    if (!this.isMeshFolder(dir)) {
+      this.postMessage({ type: 'error', message: `Not a governance mesh (no mesh.yaml at root): ${dir}` });
+      return;
+    }
+    await this.activateMesh(dir, `Connected to mesh at ${dir}`);
   }
 
   /**

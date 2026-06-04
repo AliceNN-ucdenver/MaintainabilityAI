@@ -197,7 +197,7 @@ const state = {
   openWorkspaceFolders: [] as string[],
   // Repo picker modal state
   repoPickerModal: null as {
-    mode: 'scan' | 'add-to-bar';
+    mode: 'scan' | 'add-to-bar' | 'connect-mesh';
     barPath?: string;
     barName?: string;
     org: string;
@@ -1611,6 +1611,8 @@ function renderNoMesh(): string {
       <p>Initialize a governance mesh to start tracking your portfolio of applications across platforms with the four governance pillars: Architecture, Security, Information Risk, and Operations.</p>
       ${state.errorMessage ? `<div class="error-msg">${escapeHtml(state.errorMessage)}</div>` : ''}
       <button id="btn-init-mesh" class="btn-primary" style="padding: 10px 24px; font-size: 14px;">Initialize Governance Mesh</button>
+      <button id="btn-connect-mesh" class="btn-secondary" style="padding: 10px 24px; font-size: 14px; margin-top: 8px;">Connect to Existing Mesh</button>
+      <button id="btn-open-local-mesh" class="btn-secondary" style="padding: 10px 24px; font-size: 14px; margin-top: 8px;">Open Local Mesh Folder</button>
       <button id="btn-scan-org" class="btn-secondary" style="padding: 10px 24px; font-size: 14px; margin-top: 8px;">Scan GitHub Organization</button>
     </div>
   `;
@@ -1667,6 +1669,8 @@ function renderRepoPickerModal(): string {
 
   const title = m.mode === 'scan'
     ? 'Select Repositories to Analyze'
+    : m.mode === 'connect-mesh'
+    ? 'Connect to Existing Governance Mesh'
     : `Add Repositories to ${escapeHtml(m.barName || 'BAR')}`;
 
   // Count pasted URLs
@@ -1775,6 +1779,8 @@ function renderRepoPickerModal(): string {
   const ctaDisabled = totalSelected === 0 ? 'disabled' : '';
   const ctaText = m.mode === 'scan'
     ? `Analyze Selected (${totalSelected})`
+    : m.mode === 'connect-mesh'
+    ? 'Connect'
     : `Add to BAR (${totalSelected})`;
 
   return `
@@ -3623,6 +3629,35 @@ function attachEventHandlers() {
     render();
   });
 
+  // ---- Connect to existing mesh handlers ----
+
+  // Connect to an existing mesh by GitHub repo — opens the repo picker in
+  // single-select 'connect-mesh' mode. Browse needs an org; when none is known
+  // (first run) default to the Add-URLs tab (paste owner/repo or a clone URL).
+  document.getElementById('btn-connect-mesh')?.addEventListener('click', () => {
+    const org = state.portfolio?.portfolio?.org || state.detectedOrg || '';
+    state.repoPickerModal = {
+      mode: 'connect-mesh',
+      org,
+      repos: [],
+      selectedRepoNames: new Set(),
+      searchQuery: '',
+      activeTab: org ? 'browse' : 'urls',
+      pastedUrls: '',
+      createNewRepoUrl: '',
+      loading: !!org,
+      error: '',
+    };
+    state.errorMessage = '';
+    render();
+    if (org) { vscode.postMessage({ type: 'loadOrgRepos', org }); }
+  });
+
+  // Open a governance mesh already on disk (no clone) — native folder picker.
+  document.getElementById('btn-open-local-mesh')?.addEventListener('click', () => {
+    vscode.postMessage({ type: 'connectLocalMesh' });
+  });
+
   // ---- Org Scanner handlers ----
 
   // Navigate to org scanner
@@ -4215,6 +4250,10 @@ function attachEventHandlers() {
       const repoName = (cb as HTMLInputElement).dataset.repoCheckbox!;
       if (state.repoPickerModal) {
         if ((e.target as HTMLInputElement).checked) {
+          // connect-mesh is single-select: a mesh is one repo. Replace any prior pick.
+          if (state.repoPickerModal.mode === 'connect-mesh') {
+            state.repoPickerModal.selectedRepoNames.clear();
+          }
           state.repoPickerModal.selectedRepoNames.add(repoName);
         } else {
           state.repoPickerModal.selectedRepoNames.delete(repoName);
@@ -4273,6 +4312,15 @@ function attachEventHandlers() {
       state.repoPickerModal = null;
       render();
       vscode.postMessage({ type: 'addReposToBar', barPath, repoUrls: selectedUrls });
+    } else if (m.mode === 'connect-mesh') {
+      // Single mesh repo: take the one selected/pasted URL; panel clones-or-opens.
+      // The panel drives its own loading indicator (it may pop a native folder
+      // dialog that the user can cancel) and re-renders via loadPortfolio on
+      // success, so don't pin a spinner here that a cancel would strand.
+      const repoUrl = selectedUrls[0];
+      state.repoPickerModal = null;
+      render();
+      vscode.postMessage({ type: 'connectMesh', repoUrl });
     }
   });
 
