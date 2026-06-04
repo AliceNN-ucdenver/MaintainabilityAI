@@ -125,12 +125,17 @@ function scanDocDir(barPath: string, subdir: 'research' | 'prds'): DocSummary[] 
     let publishedAt = new Date(0).toISOString();
     let topic = id.replace(/[-_]/g, ' ');
     try {
-      const stat = fs.statSync(filePath);
-      mtimeMs = stat.mtimeMs;
-      publishedAt = stat.mtime.toISOString();
-      const content = fs.readFileSync(filePath, 'utf8');
-      const headingMatch = content.match(/^#\s+(.+)$/m);
-      if (headingMatch) { topic = headingMatch[1].trim(); }
+      // Open once + fstat/read the SAME fd so the stat and the read can't race
+      // a path swap between them (CodeQL js/file-system-race).
+      const fd = fs.openSync(filePath, 'r');
+      try {
+        const stat = fs.fstatSync(fd);
+        mtimeMs = stat.mtimeMs;
+        publishedAt = stat.mtime.toISOString();
+        const content = fs.readFileSync(fd, 'utf8');
+        const headingMatch = content.match(/^#\s+(.+)$/m);
+        if (headingMatch) { topic = headingMatch[1].trim(); }
+      } finally { fs.closeSync(fd); }
     } catch { /* fall through with defaults */ }
 
     summaries.push({ research_id: id, topic, published_at: publishedAt, _mtime_ms: mtimeMs });

@@ -93,12 +93,17 @@ export class AuditEmitter {
   constructor(auditDir: string, private readonly runId: string) {
     fs.mkdirSync(auditDir, { recursive: true });
     this.filePath = path.join(auditDir, `${runId}.jsonl`);
-    // Refuse to clobber an existing run's audit file — log immutability is load-bearing.
-    if (fs.existsSync(this.filePath)) {
-      throw new Error(`Audit log already exists at ${this.filePath}; refusing to overwrite.`);
+    // Refuse to clobber an existing run's audit file — log immutability is
+    // load-bearing. 'wx' creates exclusively (atomic), so the existence check
+    // IS the write — no existsSync→write TOCTOU (CodeQL js/file-system-race).
+    try {
+      fs.writeFileSync(this.filePath, '', { flag: 'wx' });
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'EEXIST') {
+        throw new Error(`Audit log already exists at ${this.filePath}; refusing to overwrite.`);
+      }
+      throw err;
     }
-    // Touch the file so concurrent readers see it.
-    fs.writeFileSync(this.filePath, '', { flag: 'wx' });
   }
 
   /**

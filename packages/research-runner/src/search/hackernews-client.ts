@@ -101,11 +101,13 @@ function stripBasicHtml(s: string): string {
   return s
     .replace(/<\/?(?:p|br|i|b|em|strong|code|pre|a|ul|ol|li)[^>]*>/gi, ' ')
     .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&#x27;/g, "'")
+    // &amp; MUST be unescaped LAST: doing it first turns `&amp;lt;` into `&lt;`,
+    // which the &lt; pass would then double-unescape to `<` (CodeQL js/double-escaping).
+    .replace(/&amp;/g, '&')
     .replace(/\s+/g, ' ')
     .trim();
 }

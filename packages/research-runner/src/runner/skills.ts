@@ -1144,7 +1144,9 @@ function ensureClone(runId: string, repoUrl: string, ref: string, owner: string,
   }
   // Clean out a stale cache before re-cloning to avoid mixing two refs.
   try { fs.rmSync(cacheDir, { recursive: true, force: true }); } catch { /* ignore */ }
-  fs.mkdirSync(path.dirname(cacheDir), { recursive: true });
+  // Owner-only (0700) cache root so no other local user can plant a symlink at
+  // a predictable path under os.tmpdir() (CodeQL js/insecure-temporary-file).
+  fs.mkdirSync(path.dirname(cacheDir), { recursive: true, mode: 0o700 });
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { execFileSync } = require('node:child_process') as typeof import('node:child_process');
   const cloneArgs = ['clone', '--depth=1', '--filter=blob:limit=10m'];
@@ -1161,8 +1163,11 @@ function ensureClone(runId: string, repoUrl: string, ref: string, owner: string,
     sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: cacheDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
   } catch { /* sha stays empty */ }
   try {
-    fs.writeFileSync(metaPath, JSON.stringify({ owner, name, ref, sha, clonedAt: new Date().toISOString() }), 'utf8');
-  } catch { /* meta write failure is non-fatal — next call will just re-clone */ }
+    // Exclusive create ('wx'): the cache dir was just freshly cloned so the meta
+    // file can't pre-exist; 'wx' refuses to follow/clobber a planted symlink AND
+    // closes the existsSync→write TOCTOU (CodeQL js/insecure-temporary-file + js/file-system-race).
+    fs.writeFileSync(metaPath, JSON.stringify({ owner, name, ref, sha, clonedAt: new Date().toISOString() }), { encoding: 'utf8', flag: 'wx' });
+  } catch { /* meta write failure (incl. a pre-existing path) is non-fatal — next call will just re-clone */ }
   return { ok: true, path: cacheDir, sha, reused: false };
 }
 
@@ -1444,11 +1449,19 @@ const handleKnowledgeCode: SkillHandler = async (input) => {
   // brownfield grounding contract requires the inventory to exist;
   // a skill_call that succeeded without writing it is a coverage lie.
   try {
-    fs.writeFileSync(
+    // openSync with O_NOFOLLOW refuses to follow a planted symlink at the final
+    // path while still allowing a normal overwrite-on-reuse (the inventory is
+    // rewritten on every run, so O_EXCL/'wx' is not applicable here). The cache
+    // root is also mode 0700. (CodeQL js/insecure-temporary-file.)
+    const C = fs.constants;
+    const invFd = fs.openSync(
       path.join(cloneTarget, '.knowledge-code-inventory.json'),
-      JSON.stringify({ inventory_paths: inventoryPaths, sha, cachedAt: new Date().toISOString() }),
-      'utf8',
+      C.O_WRONLY | C.O_CREAT | C.O_TRUNC | (C.O_NOFOLLOW ?? 0),
+      0o600,
     );
+    try {
+      fs.writeFileSync(invFd, JSON.stringify({ inventory_paths: inventoryPaths, sha, cachedAt: new Date().toISOString() }));
+    } finally { fs.closeSync(invFd); }
   } catch (err) {
     return {
       ok: false,
@@ -1611,17 +1624,23 @@ const handleKnowledgeCodeRead: SkillHandler = async (input) => {
   if (!realPath.startsWith(realClone + path.sep) && realPath !== realClone) {
     return { ok: false, reason: `path-escape: resolved path falls outside the cloned repo (${filePath} -> ${realPath})` } as SkillResult;
   }
-  let stat: fs.Stats;
-  try { stat = fs.statSync(realPath); }
+  // Open once, then fstat (directory check) + read the SAME fd so they can't
+  // race a path swap between the check and the read (CodeQL js/file-system-race).
+  let fd: number;
+  try { fd = fs.openSync(realPath, 'r'); }
   catch { return { ok: false, reason: `file-not-found: ${filePath}` } as SkillResult; }
-  if (stat.isDirectory()) {
-    return { ok: false, reason: `path-is-directory: ${filePath} is a directory; knowledge-code-read returns file contents only` } as SkillResult;
-  }
-
-  // Read + truncate + reject binary.
   let buf: Buffer;
-  try { buf = fs.readFileSync(realPath); }
-  catch (err) { return { ok: false, reason: `read-failed: ${err instanceof Error ? err.message : String(err)}` } as SkillResult; }
+  try {
+    if (fs.fstatSync(fd).isDirectory()) {
+      return { ok: false, reason: `path-is-directory: ${filePath} is a directory; knowledge-code-read returns file contents only` } as SkillResult;
+    }
+    // Read + truncate + reject binary.
+    buf = fs.readFileSync(fd);
+  } catch (err) {
+    return { ok: false, reason: `read-failed: ${err instanceof Error ? err.message : String(err)}` } as SkillResult;
+  } finally {
+    try { fs.closeSync(fd); } catch { /* ignore */ }
+  }
   // Heuristic: a NUL byte in the first 8 KB is a strong binary signal.
   // Strings of bytes that legitimately contain NUL bytes (gzip, images,
   // wasm) are not source code; refuse them.
@@ -2574,9 +2593,12 @@ async function emitAuditEvent(input: unknown, opts: { internal: boolean } = { in
         publicKeyPem = keypair.pubKey.export({ type: 'spki', format: 'pem' }) as string;
         // First event of each epoch embeds the pub key inline so a
         // single-line audit excerpt names its signer.
-        if (fs.existsSync(filePath)) {
-          const existing = fs.readFileSync(filePath, 'utf8').split('\n').filter(l => l.trim().length > 0);
-          isFirstEventOfEpoch = !existing.some(line => {
+        // try-read + catch ENOENT instead of existsSync→read (CodeQL js/file-system-race).
+        let existingLines: string[] | null = null;
+        try { existingLines = fs.readFileSync(filePath, 'utf8').split('\n').filter(l => l.trim().length > 0); }
+        catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') { throw e; } }
+        if (existingLines) {
+          isFirstEventOfEpoch = !existingLines.some(line => {
             try {
               const e = JSON.parse(line) as { signer_epoch?: number };
               const eEpoch = typeof e.signer_epoch === 'number' ? e.signer_epoch : 1;
