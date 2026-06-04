@@ -13,6 +13,19 @@ export interface FanOutArtifactRef {
   title: string;
 }
 
+type RepoListItem = {
+  name: string;
+  full_name: string;
+  description: string | null;
+  language: string | null;
+  html_url: string;
+  default_branch: string;
+  updated_at: string | null;
+  topics?: string[];
+  archived?: boolean;
+  fork?: boolean;
+};
+
 /**
  * Octokit's default request layer prints a `[@octokit/request] "GET ..." is
  * deprecated` warning to console.warn on EVERY contents-API call where the
@@ -51,6 +64,22 @@ export class GitHubService {
   }
 
   private octokit: Octokit | null = null;
+
+  private toOrgRepo(repo: RepoListItem): OrgRepo {
+    return {
+      name: repo.name,
+      fullName: repo.full_name,
+      description: repo.description || '',
+      language: repo.language,
+      url: repo.html_url,
+      defaultBranch: repo.default_branch,
+      updatedAt: repo.updated_at || '',
+      topics: repo.topics || [],
+      readme: '',
+      isArchived: Boolean(repo.archived),
+      isFork: Boolean(repo.fork),
+    };
+  }
 
   async getToken(): Promise<string> {
     const session = await vscode.authentication.getSession('github', ['repo'], {
@@ -1522,6 +1551,67 @@ export class GitHubService {
     }
 
     return repos;
+  }
+
+  /**
+   * List repositories visible to the authenticated VS Code GitHub identity.
+   *
+   * Unlike `listOrgRepos(org)`, this uses `/user/repos`, so first-run mesh
+   * discovery can see private personal repos, org repos, and collaborator repos
+   * the signed-in user can access without already knowing which owner holds the
+   * mesh. Results are sorted by recent activity and capped by the caller to
+   * avoid secondary rate-limit surprises when probing for `mesh.yaml`.
+   */
+  async listAuthenticatedRepos(limit = 200): Promise<OrgRepo[]> {
+    const client = await this.getClient();
+    const repos: OrgRepo[] = [];
+    let page = 1;
+    let hasMore = true;
+
+    while (hasMore && repos.length < limit) {
+      const { data } = await client.rest.repos.listForAuthenticatedUser({
+        visibility: 'all',
+        affiliation: 'owner,collaborator,organization_member',
+        sort: 'updated',
+        per_page: Math.min(100, Math.max(1, limit - repos.length)),
+        page,
+      });
+      if (data.length === 0) { break; }
+      repos.push(...data
+        .filter(repo => !repo.archived && !repo.fork)
+        .map(repo => this.toOrgRepo(repo as RepoListItem)));
+      hasMore = data.length >= 100;
+      page++;
+    }
+
+    return repos.slice(0, limit);
+  }
+
+  /**
+   * Discover likely governance mesh repositories by verifying that `mesh.yaml`
+   * exists at the repo root on the default branch. The local connect path still
+   * performs full `MeshReader` validation after clone/open; this remote probe is
+   * only a discoverability filter for the first-run picker.
+   */
+  async discoverMeshRepos(limit = 200, concurrency = 8): Promise<OrgRepo[]> {
+    const repos = await this.listAuthenticatedRepos(limit);
+    const found: OrgRepo[] = [];
+    let next = 0;
+
+    const workers = Array.from({ length: Math.max(1, Math.min(concurrency, repos.length)) }, async () => {
+      while (next < repos.length) {
+        const repo = repos[next++];
+        const [owner, name] = repo.fullName.split('/');
+        if (!owner || !name) { continue; }
+        const status = await this.getRepoFileStatus(owner, name, 'mesh.yaml', repo.defaultBranch);
+        if (status.status === 'ok') {
+          found.push(repo);
+        }
+      }
+    });
+
+    await Promise.all(workers);
+    return found.sort((a, b) => Date.parse(b.updatedAt || '0') - Date.parse(a.updatedAt || '0'));
   }
 
   async getRepoReadme(owner: string, repo: string): Promise<string> {

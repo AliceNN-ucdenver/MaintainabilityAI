@@ -340,6 +340,7 @@ export type LookingGlassWebviewMessage =
   | { type: 'scanOrgWithRepos'; org: string; repoNames: string[]; modelFamily?: string }
   | { type: 'applyOrgScan'; platforms: RecommendedPlatform[]; template: 'minimal' | 'standard' | 'full'; updates?: ExistingBarUpdate[] }
   | { type: 'loadOrgRepos'; org: string }
+  | { type: 'discoverMeshRepos' }
   | { type: 'addReposToBar'; barPath: string; repoUrls: string[] }
   | { type: 'detectGitHubDefaults' }
   | { type: 'listModels' }
@@ -676,6 +677,7 @@ export type LookingGlassExtensionMessage =
   | { type: 'orgScanResults'; recommendation: OrgScanRecommendation }
   | { type: 'orgScanApplied'; platformCount: number; barCount: number }
   | { type: 'orgReposLoaded'; repos: OrgRepo[] }
+  | { type: 'meshReposLoaded'; repos: OrgRepo[]; error?: string }
   | { type: 'reposAddedToBar'; barPath: string; count: number }
   | { type: 'samplePlatformCreated'; platformCount: number; barCount: number }
   | { type: 'githubDefaults'; login: string; orgs: string[]; defaultPath: string }

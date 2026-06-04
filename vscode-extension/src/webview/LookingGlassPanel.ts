@@ -471,6 +471,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     'scanOrg':                     (m) => this.onScanOrg(m.org, m.modelFamily),
     'scanOrgWithRepos':            (m) => this.onScanOrgWithRepos(m.org, m.repoNames, m.modelFamily),
     'loadOrgRepos':                (m) => this.onLoadOrgRepos(m.org),
+    'discoverMeshRepos':           () => this.onDiscoverMeshRepos(),
     'addReposToBar':               (m) => this.onAddReposToBar(m.barPath, m.repoUrls),
     'applyOrgScan':                (m) => this.onApplyOrgScan(m.platforms, m.template, m.updates),
     'listModels':                  () => this.onListModels(),
@@ -7027,6 +7028,19 @@ If a pillar has no findings, use an empty array. Focus on actionable issues, not
       this.postMessage({
         type: 'error',
         message: `Failed to load repos: ${toErrorMessage(err)}`,
+      });
+    }
+  }
+
+  private async onDiscoverMeshRepos() {
+    try {
+      const repos = await this.githubService.discoverMeshRepos();
+      this.postMessage({ type: 'meshReposLoaded', repos });
+    } catch (err) {
+      this.postMessage({
+        type: 'meshReposLoaded',
+        repos: [],
+        error: `Failed to discover mesh repos: ${toErrorMessage(err)}`,
       });
     }
   }

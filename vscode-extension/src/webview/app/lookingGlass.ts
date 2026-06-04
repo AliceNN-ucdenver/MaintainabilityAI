@@ -1663,6 +1663,55 @@ function renderPortfolio(): string {
 
 // formatTimeAgo — delegated to views/portfolio.ts
 
+type RepoPickerMode = NonNullable<typeof state.repoPickerModal>['mode'];
+type RepoPickerModalState = NonNullable<typeof state.repoPickerModal>;
+
+function repoPickerPastedCount(mode: RepoPickerMode, pastedLines: string[]): number {
+  return mode === 'connect-mesh'
+    ? Math.min(1, pastedLines.length)
+    : pastedLines.filter(u => u.startsWith('http')).length;
+}
+
+function repoPickerSelectionKey(mode: RepoPickerMode, repo: OrgRepo): string {
+  return mode === 'connect-mesh' ? repo.fullName : repo.name;
+}
+
+function repoPickerRepoLabel(mode: RepoPickerMode, repo: OrgRepo): string {
+  return mode === 'connect-mesh' ? repo.fullName : repo.name;
+}
+
+function repoPickerBrowseTabLabel(mode: RepoPickerMode): string {
+  return mode === 'connect-mesh' ? 'Found Meshes' : 'Browse Org';
+}
+
+function repoPickerLoadingText(m: RepoPickerModalState): string {
+  return m.mode === 'connect-mesh'
+    ? 'Searching your GitHub account for repos with mesh.yaml...'
+    : `Loading repos from ${escapeHtml(m.org)}...`;
+}
+
+function repoPickerSearchPlaceholder(mode: RepoPickerMode): string {
+  return mode === 'connect-mesh' ? 'Search discovered meshes...' : 'Search repos by name or description...';
+}
+
+function repoPickerEmptyText(mode: RepoPickerMode): string {
+  return mode === 'connect-mesh'
+    ? 'No governance mesh repos found in your accessible GitHub repos. Try the "Add URLs" tab or open a local mesh folder.'
+    : 'No repositories found for this org. Try the "Add URLs" tab.';
+}
+
+function repoPickerUrlsPlaceholder(mode: RepoPickerMode): string {
+  return mode === 'connect-mesh'
+    ? 'Paste a mesh repository reference:&#10;owner/repo&#10;https://github.com/org/repo&#10;git@github.com:org/repo.git'
+    : 'Paste repository URLs, one per line:&#10;https://github.com/org/repo1&#10;https://github.com/org/repo2';
+}
+
+function repoPickerUrlsHint(mode: RepoPickerMode): string {
+  return mode === 'connect-mesh'
+    ? 'Enter one GitHub repository reference. The extension will clone or open it, then verify mesh.yaml before activating it.'
+    : 'Enter full GitHub repository URLs, one per line. These will be added alongside any repos selected in the Browse tab.';
+}
+
 function renderRepoPickerModal(): string {
   const m = state.repoPickerModal;
   if (!m) { return ''; }
@@ -1673,10 +1722,12 @@ function renderRepoPickerModal(): string {
     ? 'Connect to Existing Governance Mesh'
     : `Add Repositories to ${escapeHtml(m.barName || 'BAR')}`;
 
-  // Count pasted URLs
-  const pastedUrlCount = m.pastedUrls.trim()
-    ? m.pastedUrls.trim().split('\n').filter(u => u.trim().startsWith('http')).length
-    : 0;
+  const pastedLines = m.pastedUrls.trim()
+    ? m.pastedUrls.trim().split('\n').map(u => u.trim()).filter(Boolean)
+    : [];
+  // Count pasted entries. Scan/add-to-bar still require full URLs; connect-mesh
+  // accepts the same repo refs the panel normalizes (owner/repo, https, ssh).
+  const pastedUrlCount = repoPickerPastedCount(m.mode, pastedLines);
   const totalSelected = m.selectedRepoNames.size + pastedUrlCount;
 
   const createNewTab = m.mode === 'add-to-bar'
@@ -1684,7 +1735,7 @@ function renderRepoPickerModal(): string {
     : '';
   const tabs = `
     <div class="repo-picker-tabs">
-      <button class="repo-picker-tab${m.activeTab === 'browse' ? ' active' : ''}" data-picker-tab="browse">Browse Org</button>
+      <button class="repo-picker-tab${m.activeTab === 'browse' ? ' active' : ''}" data-picker-tab="browse">${repoPickerBrowseTabLabel(m.mode)}</button>
       <button class="repo-picker-tab${m.activeTab === 'urls' ? ' active' : ''}" data-picker-tab="urls">Add URLs</button>
       ${createNewTab}
     </div>`;
@@ -1692,7 +1743,7 @@ function renderRepoPickerModal(): string {
   let body = '';
   if (m.activeTab === 'browse') {
     if (m.loading) {
-      body = `<div class="repo-picker-loading"><span>Loading repos from ${escapeHtml(m.org)}...</span></div>`;
+      body = `<div class="repo-picker-loading"><span>${repoPickerLoadingText(m)}</span></div>`;
     } else if (m.error) {
       body = `<div class="repo-picker-empty">${escapeHtml(m.error)}</div>`;
     } else {
@@ -1704,25 +1755,26 @@ function renderRepoPickerModal(): string {
 
       const search = `
         <div class="repo-picker-search">
-          <input type="text" id="repo-picker-search-input" placeholder="Search repos by name or description..." value="${escapeAttr(m.searchQuery)}" />
+          <input type="text" id="repo-picker-search-input" placeholder="${repoPickerSearchPlaceholder(m.mode)}" value="${escapeAttr(m.searchQuery)}" />
         </div>`;
 
       if (filtered.length === 0 && m.repos.length > 0) {
         body = search + `<div class="repo-picker-empty">No matching repositories found.</div>`;
       } else if (m.repos.length === 0) {
-        body = search + `<div class="repo-picker-empty">No repositories found for this org. Try the "Add URLs" tab.</div>`;
+        body = search + `<div class="repo-picker-empty">${repoPickerEmptyText(m.mode)}</div>`;
       } else {
         const items = filtered.map(r => {
-          const checked = m.selectedRepoNames.has(r.name) ? 'checked' : '';
+          const key = repoPickerSelectionKey(m.mode, r);
+          const checked = m.selectedRepoNames.has(key) ? 'checked' : '';
           const timeAgo = formatTimeAgo(r.updatedAt);
           const desc = r.description
             ? `<div class="repo-picker-item-desc" title="${escapeAttr(r.description)}">${escapeHtml(r.description.length > 80 ? r.description.slice(0, 80) + '...' : r.description)}</div>`
             : '';
           return `
             <label class="repo-picker-item">
-              <input type="checkbox" ${checked} data-repo-checkbox="${escapeAttr(r.name)}" />
+              <input type="checkbox" ${checked} data-repo-checkbox="${escapeAttr(key)}" />
               <div class="repo-picker-item-info">
-                <div class="repo-picker-item-name">${escapeHtml(r.name)}</div>
+                <div class="repo-picker-item-name">${escapeHtml(repoPickerRepoLabel(m.mode, r))}</div>
                 ${desc}
                 <div class="repo-picker-item-meta">
                   ${r.language ? `<span class="repo-picker-lang-badge">${escapeHtml(r.language)}</span>` : ''}
@@ -1771,8 +1823,8 @@ function renderRepoPickerModal(): string {
   } else {
     body = `
       <div class="repo-picker-urls-container">
-        <textarea id="repo-picker-urls-textarea" placeholder="Paste repository URLs, one per line:&#10;https://github.com/org/repo1&#10;https://github.com/org/repo2">${escapeHtml(m.pastedUrls)}</textarea>
-        <div class="repo-picker-urls-hint">Enter full GitHub repository URLs, one per line. These will be added alongside any repos selected in the Browse tab.</div>
+        <textarea id="repo-picker-urls-textarea" placeholder="${repoPickerUrlsPlaceholder(m.mode)}">${escapeHtml(m.pastedUrls)}</textarea>
+        <div class="repo-picker-urls-hint">${repoPickerUrlsHint(m.mode)}</div>
       </div>`;
   }
 
@@ -3632,25 +3684,25 @@ function attachEventHandlers() {
   // ---- Connect to existing mesh handlers ----
 
   // Connect to an existing mesh by GitHub repo — opens the repo picker in
-  // single-select 'connect-mesh' mode. Browse needs an org; when none is known
-  // (first run) default to the Add-URLs tab (paste owner/repo or a clone URL).
+  // single-select 'connect-mesh' mode and asks the extension to discover repos
+  // visible to the signed-in GitHub identity that have a root mesh.yaml.
   document.getElementById('btn-connect-mesh')?.addEventListener('click', () => {
     const org = state.portfolio?.portfolio?.org || state.detectedOrg || '';
     state.repoPickerModal = {
       mode: 'connect-mesh',
-      org,
+      org: org || 'your GitHub account',
       repos: [],
       selectedRepoNames: new Set(),
       searchQuery: '',
-      activeTab: org ? 'browse' : 'urls',
+      activeTab: 'browse',
       pastedUrls: '',
       createNewRepoUrl: '',
-      loading: !!org,
+      loading: true,
       error: '',
     };
     state.errorMessage = '';
     render();
-    if (org) { vscode.postMessage({ type: 'loadOrgRepos', org }); }
+    vscode.postMessage({ type: 'discoverMeshRepos' });
   });
 
   // Open a governance mesh already on disk (no clone) — native folder picker.
@@ -4275,13 +4327,17 @@ function attachEventHandlers() {
     // Collect all selected repo URLs
     const selectedUrls: string[] = [];
     for (const name of m.selectedRepoNames) {
-      const repo = m.repos.find(r => r.name === name);
+      const repo = m.repos.find(r => (m.mode === 'connect-mesh' ? r.fullName : r.name) === name);
       if (repo) { selectedUrls.push(repo.url); }
     }
     if (m.pastedUrls.trim()) {
       for (const line of m.pastedUrls.trim().split('\n')) {
         const url = line.trim();
-        if (url.startsWith('http')) { selectedUrls.push(url); }
+        if (m.mode === 'connect-mesh') {
+          if (url) { selectedUrls.push(url); }
+        } else if (url.startsWith('http')) {
+          selectedUrls.push(url);
+        }
       }
     }
     if (selectedUrls.length === 0) { return; }
@@ -4755,6 +4811,14 @@ const inboundHandlers: Record<string, InboundHandler> = {
         state.repoPickerModal.repos = message.repos as OrgRepo[];
         state.repoPickerModal.loading = false;
         state.repoPickerModal.error = '';
+        render();
+      }
+    },
+    'meshReposLoaded': (message: WebviewInboundMessage) => {
+      if (state.repoPickerModal?.mode === 'connect-mesh') {
+        state.repoPickerModal.repos = message.repos as OrgRepo[];
+        state.repoPickerModal.loading = false;
+        state.repoPickerModal.error = (message.error as string | undefined) || '';
         render();
       }
     },
