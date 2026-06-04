@@ -29,6 +29,42 @@ The single canonical reference is [`agentic-sdlc.md`](agentic-sdlc.md). Everythi
 
 ---
 
+## Close-out status — 2026-06-02 (what remains to finish 2.5, and the 3.0 picture)
+
+> Snapshot captured 2026-06-02 so the assessment isn't lost. Reconciles the 2026-05-25 table above with what shipped since (the full Oracle-rail wave, Pocket Watch v2, and the WHAT-phase wiring). Flip the done-done checkboxes as each closes.
+
+### Tier 2.5 — remaining to close
+
+- **(a) Signed enforcement chain — ✅ DONE** (cert-verified celeb-api PR #14). Nothing remaining.
+- **(b) `redqueen-action` standalone hard gate — ⬜ NOT STARTED; needs design first.** AST semantic diff (tree-sitter) + per-file import/layer-graph enforcement + contract diffs (oasdiff/buf/graphql-inspector) as a dedicated required status check. Biggest net-new build left in 2.5; sketched only.
+- **(c) Cross-chain inclusion proofs + SIEM/CloudEvents export — ⬜ NOT STARTED; needs design.** Tie the signed Red Queen chain to the planning-intent chain via inclusion proofs; emit unified Hatter↔Queen CloudEvents to a SIEM. Sequenced last.
+- **(d) Oracle & Privacy Rails — 🟡 NEARLY DONE.** Phase 1 envelope ✅, PII ✅ (cert-verified), injection ✅ (promoted to a required gate). **Groundedness (Phase 4)** ships advisory with the claim-decomposition `support-claims.json` sidecar (P4.1: advisory + fallback; the WHY agent emits it). **Remaining:** cert the sidecar quality on real WHY runs → promote `contradiction` to blocking (advisory→cert→promote, never blind); then extend the rail family from WHY to HOW/WHAT + code skills. (Parked: title-enriched NLI premise — only if a real excerpt-supported claim fails on a title-only signal.)
+
+### Pocket Watch (companion to 2.5) — engineering DONE, close-out is DATA-GATED
+
+Engineering is complete: advisory build (WHY + HOW + **WHAT wired 2026-06-02**), durable export, the pure contrastive scorer, and the 2026-06-02 honesty hardening (HOW heading aliases, partial-scope→`needs_review` cap, PRD-contract reconciliation to SHORT headings, the phase-contract parity test). What blocks "close out" is **evidence, not code** — and as of 2026-06-02 we have almost none. Detailed criteria + the empirical-corpus finding live in [`pocket-watch-alignment-rail.md`](pocket-watch-alignment-rail.md) (§ Close-out status). Headline:
+
+- **Persisted corpus = 2 rows, 1 OKR, 1 decoy, all clean passes** (`OKR-2026Q2-IMDB-003-movie-api`: WHY rank#1 +0.1484, HOW rank#1 +0.1418, vs the single sibling `celeb-api`). **Zero durable `audit/drift/*.pocket-watch.json` reports exist in the mesh.** No `fail`/`needs_review`/narrow-margin **separation point** to anchor a threshold.
+- **To promote (Phase 2 = required gate):** **(A)** confirm the finalize step actually persists `audit/drift/<runId>.pocket-watch.json` (none found 2026-06-02 — either Phase-3 reporting post-dates 003's merges or a staging gap; confirm which); **(B)** manufacture the separation distribution cheaply via an **offline contrastive calibration** (score committed artifacts against the WRONG OKR's objective with the existing `scoreContrastive` — deterministic, no need to wait for a real drift incident); **(C)** grow the OKR population + decoy basket (today rank#1 is a 2-way comparison vs one sibling); **(D)** derive the per-mesh margin band from the on-topic vs off-topic split → flip `rank>1`/critical-anchor-miss to blocking → make the whole-OKR rollup unable to PASS on a required fail.
+- **Companion still open:** Caterpillar's Challenge (cross-phase rail) is still calibration-pending; its contrastive migration to share the Pocket Watch helper is a later effort.
+
+### Tier 3.0 — auditor hardening (the picture; not yet started)
+
+Pure trust-posture; no enforcement work. Each item queued/sketched:
+
+- **T3-1 Knight's Seal v2** — cosign/sigstore-anchored signing for third-party verifiability. Triggers (regulatory ask, cross-org consumption, supply-chain incident) **not present today** — genuinely queued, seam reserved.
+- **T3-3 Redacted external bundle** — one-button regulator zip (rollup + artifacts + redacted chain + `verify.sh` + documented redaction policy).
+- **T3-4 Dual-signature override org-separation** — enforce org-separation on override with discriminated rejection reasons.
+- **T3-5 Prompt-pack signature verification** — mesh refuses unsigned packs; dispatch emits `pack_signature_verified`.
+- **T3-6 — ✅ closed** (folded into the injection rail).
+- **T3-7 — out of scope.**
+
+### The gate between 2.5 and 3.0
+
+Two things actually block a clean move to 3.0: **(i)** the net-new 2.5 designs (b) + (c), which need design before code; and **(ii)** the data-gated promotions (Pocket Watch Phase 2 + groundedness `contradiction`-blocking), which need accumulated cert/calibration data — and that needs the durable-report persistence (Pocket Watch step A) fixed first, since right now the corpus isn't even accumulating.
+
+---
+
 ## Index -- where each open item is tracked
 
 Single source of truth for what's open. When an item ships, flip it here AND in the threat model + roadmap + CLAUDE.md (nothing auto-syncs).

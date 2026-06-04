@@ -44,11 +44,13 @@ not as a globally calibrated absolute score.
 
 Pocket Watch is currently implemented inside the per-agent audit workflows:
 
+All three phases run the **v2 contrastive** rail (advisory) as of 2026-06-02:
+
 | Phase | Workflow | Current Pocket Watch primitive | Current UI/export path |
 |---|---|---|---|
-| WHY | `market-research-agent.yml` | OKR objective vs `research-doc.md ## Executive Summary` | audit PR comment row parsed by `LookingGlassPanel.parseDriftRow`; phase card chip |
-| HOW | `prd-agent.yml` | OKR objective vs `prd.md ## Problem Statement` | audit PR comment row parsed by `LookingGlassPanel.parseDriftRow`; phase card chip |
-| WHAT | `code-design-agent.yml` | report-only calibration placeholder today | audit comment row only, not a calibrated gate |
+| WHY | `market-research-agent.yml` | v2 contrastive: OKR objective vs `research-doc.md` mission scope, ranked against sibling-OKR decoys (advisory) | audit PR comment row parsed by `parseDriftRow`; phase card chip; durable finalize report |
+| HOW | `prd-agent.yml` | v2 contrastive: OKR objective vs `prd.md` mission scope (Problem Statement / Goals-Non-Goals / Functional / Security), ranked vs sibling decoys (advisory) | audit PR comment row + phase card chip; durable finalize report |
+| WHAT | `code-design-agent.yml` | v2 contrastive: OKR objective vs code-design §2 API Endpoint + §10 Design Rationale, ranked vs sibling decoys (advisory; **wired 2026-06-02**, replacing the old report-only placeholder) | audit comment row + durable finalize report |
 
 Caterpillar's Challenge is separate. It checks cross-phase continuity:
 
@@ -68,6 +70,28 @@ contract and phase artifact.
 > comment that contradicts the runtime gate. Confirm the actually-configured
 > value and fix the comment when v2 lands, so the "legacy threshold" we log for
 > continuity is the real one.
+
+## Close-out status — 2026-06-02
+
+**Engineering: DONE. Promotion: blocked on evidence, not code.** The advisory build (WHY + HOW + WHAT), durable export, the pure contrastive scorer, and the 2026-06-02 honesty hardening (HOW heading aliases, partial-scope→`needs_review` cap, PRD-contract reconciliation to SHORT headings, the phase-contract parity test) are all shipped. The only remaining build — **Phase 2 promotion to a required gate** — is data-gated, and the calibration corpus is almost empty.
+
+**Empirical corpus (verified against the mesh `main`, 2026-06-02):**
+
+- The ENTIRE persisted record is **2 rows in one rollup** (`okrs/OKR-2026Q2-IMDB-003-movie-api/audit/exports/…rollup.md`): WHY `pass` rank #1 margin **+0.1484**, HOW `pass` rank #1 margin **+0.1418**, both vs the single sibling decoy `OKR-2026Q2-IMDB-001-celeb-api`, anchors 2/2.
+- **Zero durable `okrs/<id>/audit/drift/*.pocket-watch.json` reports exist** — no `drift/` directories at all. The rollup table renders, but the per-run JSON (own / nearest / decoy_basket / hashes — the queryable calibration unit) is not landing.
+- No WHAT row yet (WHAT wiring shipped 2026-06-02; not yet deployed/run).
+- All data are clean passes; **no `fail` / `needs_review` / narrow-margin separation point exists** — there is nothing to anchor a threshold against.
+
+**Do we have enough to promote? No.** Two clean points on one OKR with one decoy is not a distribution, and with no off-topic sample you cannot justify a per-mesh margin band — picking a number below the only two observations is exactly the arbitrary choice the Phase 2 note forbids.
+
+**Steps to close out (Phase 2 = required gate):**
+
+- **A. Confirm durable reports persist.** Verify the finalize re-run + `finalize-okr-action` actually commit `audit/drift/<runId>.pocket-watch.json` on a real merge (none found 2026-06-02). Either Phase-3 reporting post-dates 003's WHY/HOW merges, or there is a staging gap — confirm which. Without this the corpus cannot accumulate even as runs happen.
+- **B. Manufacture the separation distribution (cheapest path).** Offline contrastive calibration: score committed artifacts against the WRONG OKR's objective with the existing pure `scoreContrastive`, to observe what drift margins look like vs the ~0.14 on-topic band. Deterministic, reuses the scorer, needs only a GitHub Models token for embeddings — no waiting for a real drift incident. Capture any real `needs_review` / `fail` as they occur.
+- **C. Grow population + decoy basket.** More OKRs in the mesh so the decoy basket is >1 (today rank #1 is a 2-way comparison vs one sibling) and WHY/HOW/WHAT runs accumulate.
+- **D. Derive the per-mesh band** from the observed on-topic vs off-topic split → flip `rank>1` / critical-anchor-miss to blocking (`goal-drift-detected`) → make the whole-OKR rollup unable to PASS on a required Pocket Watch fail.
+
+This complements (does not replace) the Phase 2 / Required-gate acceptance criteria later in this doc.
 
 ## Non-goals
 
