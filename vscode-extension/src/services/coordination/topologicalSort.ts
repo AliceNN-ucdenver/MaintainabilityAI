@@ -91,6 +91,24 @@ export function verifyCoordination(
   }
 
   // Rule 3 — Kahn's algorithm cycle detection.
+  const cycle = checkNoCycle(slugToRow);
+  if (cycle) { return cycle; }
+
+  // Rule 4 (wave-mismatch) + Rule 6 (wave-nonminimal).
+  const waves = checkWaves(slugToRow);
+  if (waves) { return waves; }
+
+  // Rule 5 — every consumes.from MUST be in depends_on.
+  const consumes = checkConsumesInDepends(slugToRow);
+  if (consumes) { return consumes; }
+
+  // Rule 7 — contract reciprocity.
+  return checkContractReciprocity(slugToRow) ?? { ok: true };
+}
+
+/** Rule 3 — Kahn's algorithm cycle detection. Returns a `coordination-cycle`
+ *  failure when the dependency graph isn't a DAG, else null. */
+function checkNoCycle(slugToRow: Map<string, CoordinationRow>): CoordinationVerifyResult | null {
   const inDegree = new Map<string, number>();
   const adj = new Map<string, string[]>();
   for (const slug of slugToRow.keys()) {
@@ -123,8 +141,11 @@ export function verifyCoordination(
     const chain = remaining.length > 0 ? [...remaining.slice(0, 3), remaining[0]] : [];
     return { ok: false, reason: `coordination-cycle:[${chain.join('→')}]` };
   }
+  return null;
+}
 
-  // Rule 4 (wave-mismatch) + Rule 6 (wave-nonminimal).
+/** Rule 4 (wave-mismatch) + Rule 6 (wave-nonminimal). */
+function checkWaves(slugToRow: Map<string, CoordinationRow>): CoordinationVerifyResult | null {
   for (const [slug, row] of slugToRow) {
     const wave = row.fanout_wave;
     const deps = row.depends_on;
@@ -149,8 +170,11 @@ export function verifyCoordination(
       return { ok: false, reason: `coordination-wave-nonminimal:${slug}@wave=${wave} expected=${expected}` };
     }
   }
+  return null;
+}
 
-  // Rule 5 — every consumes.from MUST be in depends_on.
+/** Rule 5 — every consumes.from MUST be in depends_on. */
+function checkConsumesInDepends(slugToRow: Map<string, CoordinationRow>): CoordinationVerifyResult | null {
   for (const [slug, row] of slugToRow) {
     const depsSet = new Set(row.depends_on);
     for (const c of row.consumes) {
@@ -160,8 +184,12 @@ export function verifyCoordination(
       }
     }
   }
+  return null;
+}
 
-  // Rule 7 — contract reciprocity.
+/** Rule 7 — contract reciprocity: each provides.consumed_by has a matching
+ *  consumes.from on the consumer side. */
+function checkContractReciprocity(slugToRow: Map<string, CoordinationRow>): CoordinationVerifyResult | null {
   for (const [provSlug, row] of slugToRow) {
     for (const p of row.provides) {
       const contract = p.contract.trim();
@@ -178,9 +206,7 @@ export function verifyCoordination(
       }
     }
   }
-
-  // All 7 checks passed.
-  return { ok: true };
+  return null;
 }
 
 /**

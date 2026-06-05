@@ -43,56 +43,22 @@ const ENTRY_POINTS = [
 // Ratchet budgets: current hotspots are explicit so new complexity cannot hide.
 const DEFAULT_COMPLEXITY_BUDGET = 40;
 const FILE_COMPLEXITY_BUDGETS: Record<string, number> = {
-  // Ratcheted upward when the Research Settings panel landed (5 new message
-  // cases with conditional bodies; 5 new dispatcher branches), then again
-  // when the "push secret to mesh + all linked code repos" affordance added
-  // a new button handler in the webview + a new push-to-all handler in the
-  // extension panel. Bumped once more when promptResearchSecret was added
-  // for the showInputBox round-trip (window.prompt is unreliable in some
-  // webview builds). And again when createResearchSecret landed for the
-  // GMT guided-create flow. Bumped in B-PR1e for the Coding Agent
-  // Environment Settings section: new dispatcher cases on the panel side
-  // (getCopilotEnvStatus / setCopilotEnvSecret / openCopilotFirewallSettings
-  // / openCopilotEnvSecretsPage) and click handlers on the webview side.
-  // Webview entry IIFE — was 232 (a 988-line switch of 80+ extension->
-  // webview message cases) until the dispatch-table refactor split it
-  // into 84 individually-measured arrow handlers + a 2-complexity router.
-  // The remaining ceiling is renderOrgScanner (29), a pre-existing form
-  // renderer that's a separate split target.
-  'webview/app/lookingGlass.ts': 29,
-  // LookingGlassPanel.handleMessage was 125 (a 100+ case switch) until
-  // the dispatch-table refactor moved per-type handlers into a class
-  // field literal where each arrow is its own function. Each handler's
-  // complexity is measured independently; the router itself is now
-  // trivially simple. The remaining ceiling is fetchPhaseSignal (73) —
-  // a per-phase audit/PR/structure aggregator that's a future split
-  // target. Bug W (Codex round-7) bumped from 72 → 73 by adding one
-  // `if (!isEventLegitimate(event)) continue` legitimacy gate inside
-  // the chain-walk loop (mirrors runner audit-verify-chain). The
-  // alternative — extracting the chain-walk into its own helper —
-  // would be a separate refactor. Bug W keeps the change minimal and
-  // re-ratchets the budget at 73; the underlying split-target lives
-  // in the backlog (extract `walkChainEvents` from fetchPhaseSignal).
+  // Remaining ratchets — each pending a "characterization tests FIRST, THEN
+  // reduce below 40" pass. These functions have NO unit tests yet, so they keep
+  // a documented budget until that net exists rather than refactoring untested
+  // code under a live flow:
+  //   LookingGlassPanel.ts — fetchPhaseSignal (72) + onPollFanOutPRs (63) +
+  //                          onFanOutInner (61) + onExportAuditReport (58) +
+  //                          onExportOkrRollup (45)
+  //   main.ts (56) / CalmWriteService.ts applyPatch (52) / oraculum.ts (48)
+  // Dropped once their worst function fell at/under the default 40 (no ratchet
+  // needed): topologicalSort.ts (verifyCoordination split into rule helpers —
+  // checkNoCycle / checkWaves / checkConsumesInDepends / checkContractReciprocity),
+  // lookingGlass.ts, okrDetail.ts.
   'webview/LookingGlassPanel.ts': 73,
-  // OKR detail view's renderPhaseSignals was 97 (per-phase × audit verdict
-  // × PR state × revise-pending × artifact-open branches). Split into
-  // renderPreflightSignal + renderWhyMetrics + renderHowMetrics +
-  // renderPrCascade helpers; the orchestrator is now under 10. The
-  // remaining ceiling is renderPrCascade (45) — the PR-cascade is
-  // legitimately state-branchy (each PR state surfaces a different
-  // action), and splitting further would just shuffle complexity
-  // into a router with no readability win.
-  'webview/app/views/okrDetail.ts': 45,
   'webview/app/main.ts': 56,
   'services/CalmWriteService.ts': 52,
   'webview/app/oraculum.ts': 48,
-  // Codex-r2 Bug 5 — verifyCoordination ratcheted to 42 (was 40) when
-  // the extra-row check (Rule 1.5) was added. The function is a
-  // straight-line "check each of the 9 named rules then return ok",
-  // so each new rule adds 1-2 complexity. Splitting would either
-  // shuffle complexity into a router OR fragment the rule order that
-  // matters for which `reason` string fires first. Re-ratchet wins.
-  'services/coordination/topologicalSort.ts': 42,
 };
 
 const INTENTIONAL_STANDALONE_MODULES = new Set<string>([
