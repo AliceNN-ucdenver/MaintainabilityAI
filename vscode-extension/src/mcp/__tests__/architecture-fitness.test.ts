@@ -50,14 +50,13 @@ const FILE_COMPLEXITY_BUDGETS: Record<string, number> = {
   //   LookingGlassPanel.ts — fetchPhaseSignal (72) + onPollFanOutPRs (63) +
   //                          onFanOutInner (61) + onExportAuditReport (58) +
   //                          onExportOkrRollup (45)
-  //   main.ts (56) / CalmWriteService.ts applyPatch (52) / oraculum.ts (48)
+  //   main.ts (56) / oraculum.ts (48)
   // Dropped once their worst function fell at/under the default 40 (no ratchet
-  // needed): topologicalSort.ts (verifyCoordination split into rule helpers —
-  // checkNoCycle / checkWaves / checkConsumesInDepends / checkContractReciprocity),
-  // lookingGlass.ts, okrDetail.ts.
+  // needed): CalmWriteService.applyPatch (52 → ~34 — extracted 4 verbatim per-op
+  // appliers, backed by 13 new characterization tests), topologicalSort.ts
+  // (verifyCoordination split into rule helpers), lookingGlass.ts, okrDetail.ts.
   'webview/LookingGlassPanel.ts': 73,
   'webview/app/main.ts': 56,
-  'services/CalmWriteService.ts': 52,
   'webview/app/oraculum.ts': 48,
 };
 

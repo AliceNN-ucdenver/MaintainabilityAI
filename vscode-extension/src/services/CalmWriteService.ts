@@ -74,53 +74,12 @@ export function applyPatch(filePath: string, patches: CalmPatch[]): string | nul
         break;
 
       case 'removeRelationship':
-        if (Array.isArray(relationships)) {
-          data.relationships = relationships.filter(
-            (r: Record<string, unknown>) => r['unique-id'] !== patch.target
-          );
-        }
-        // Also clean up flows transitions referencing this relationship
-        if (Array.isArray(data.flows)) {
-          data.flows = (data.flows as Record<string, unknown>[]).map(flow => {
-            if (Array.isArray(flow.transitions)) {
-              return {
-                ...flow,
-                transitions: (flow.transitions as Record<string, unknown>[]).filter(
-                  t => t['relationship-unique-id'] !== patch.target
-                ),
-              };
-            }
-            return flow;
-          });
-        }
+        applyRemoveRelationship(data, relationships, patch);
         break;
 
-      case 'updateField': {
-        // Find the target element by unique-id in nodes or relationships
-        const nodeIdx = (data.nodes as Record<string, unknown>[]).findIndex(
-          n => n['unique-id'] === patch.target
-        );
-        if (nodeIdx >= 0 && patch.field) {
-          setNestedField(
-            (data.nodes as Record<string, unknown>[])[nodeIdx],
-            patch.field,
-            patch.value
-          );
-          break;
-        }
-
-        const relIdx = (data.relationships as Record<string, unknown>[]).findIndex(
-          r => r['unique-id'] === patch.target
-        );
-        if (relIdx >= 0 && patch.field) {
-          setNestedField(
-            (data.relationships as Record<string, unknown>[])[relIdx],
-            patch.field,
-            patch.value
-          );
-        }
+      case 'updateField':
+        applyUpdateField(data, patch);
         break;
-      }
 
       case 'setControl': {
         if (!data.controls || typeof data.controls !== 'object') {
@@ -141,23 +100,9 @@ export function applyPatch(filePath: string, patches: CalmPatch[]): string | nul
         break;
       }
 
-      case 'setCapabilities': {
-        if (!Array.isArray(data.decorators)) {
-          data.decorators = [{ $ref: 'decorators/capability-model.json', mappings: {} }];
-        }
-        const decorator = (data.decorators as Record<string, unknown>[])[0];
-        if (!decorator.mappings || typeof decorator.mappings !== 'object') {
-          decorator.mappings = {};
-        }
-        const mappings = decorator.mappings as Record<string, unknown>;
-        const caps = patch.value as string[];
-        if (caps && caps.length > 0) {
-          mappings[patch.target] = { capabilities: caps };
-        } else {
-          delete mappings[patch.target];
-        }
+      case 'setCapabilities':
+        applySetCapabilities(data, patch);
         break;
-      }
 
       case 'setInterfaces': {
         const nodeForIface = (data.nodes as Record<string, unknown>[]).find(
@@ -174,38 +119,9 @@ export function applyPatch(filePath: string, patches: CalmPatch[]): string | nul
         break;
       }
 
-      case 'updateComposedOf': {
-        const containerId = patch.target;
-        const newNodeIds = patch.value as string[] | null;
-        const rels = data.relationships as Record<string, unknown>[];
-
-        // Find existing composed-of relationship for this container
-        const existingIdx = rels.findIndex(r => {
-          const rt = r['relationship-type'] as Record<string, unknown> | undefined;
-          const co = rt?.['composed-of'] as Record<string, unknown> | undefined;
-          return co?.container === containerId;
-        });
-
-        if (!newNodeIds || newNodeIds.length === 0) {
-          // Remove the composed-of relationship
-          if (existingIdx >= 0) {
-            rels.splice(existingIdx, 1);
-          }
-        } else if (existingIdx >= 0) {
-          // Update existing relationship's nodes array
-          const rt = rels[existingIdx]['relationship-type'] as Record<string, unknown>;
-          rt['composed-of'] = { container: containerId, nodes: newNodeIds };
-        } else {
-          // Create new composed-of relationship
-          rels.push({
-            'unique-id': `rel-composed-of-${Date.now()}`,
-            'relationship-type': {
-              'composed-of': { container: containerId, nodes: newNodeIds },
-            },
-          });
-        }
+      case 'updateComposedOf':
+        applyUpdateComposedOf(data, patch);
         break;
-      }
 
       case 'replaceFull': {
         // Replace the entire CALM architecture with the provided value
@@ -278,5 +194,104 @@ function setNestedField(obj: Record<string, unknown>, fieldPath: string, value: 
   const finalKey = parts[parts.length - 1];
   if (!isUnsafeKey(finalKey)) {
     current[finalKey] = value;
+  }
+}
+
+// Per-op patch appliers — extracted VERBATIM from applyPatch's switch to keep
+// each function under the complexity budget. They mutate `data` (and the passed
+// array refs) in place exactly as the inline case bodies did.
+
+/** removeRelationship — drop the relationship + strip flow transitions that
+ *  referenced it. */
+function applyRemoveRelationship(
+  data: Record<string, unknown>,
+  relationships: Record<string, unknown>[],
+  patch: CalmPatch,
+): void {
+  if (Array.isArray(relationships)) {
+    data.relationships = relationships.filter(
+      (r: Record<string, unknown>) => r['unique-id'] !== patch.target
+    );
+  }
+  // Also clean up flows transitions referencing this relationship
+  if (Array.isArray(data.flows)) {
+    data.flows = (data.flows as Record<string, unknown>[]).map(flow => {
+      if (Array.isArray(flow.transitions)) {
+        return {
+          ...flow,
+          transitions: (flow.transitions as Record<string, unknown>[]).filter(
+            t => t['relationship-unique-id'] !== patch.target
+          ),
+        };
+      }
+      return flow;
+    });
+  }
+}
+
+/** updateField — set a nested field on the matching node OR relationship by
+ *  unique-id (first match wins; node before relationship). */
+function applyUpdateField(data: Record<string, unknown>, patch: CalmPatch): void {
+  const nodeIdx = (data.nodes as Record<string, unknown>[]).findIndex(
+    n => n['unique-id'] === patch.target
+  );
+  if (nodeIdx >= 0 && patch.field) {
+    setNestedField((data.nodes as Record<string, unknown>[])[nodeIdx], patch.field, patch.value);
+    return;
+  }
+  const relIdx = (data.relationships as Record<string, unknown>[]).findIndex(
+    r => r['unique-id'] === patch.target
+  );
+  if (relIdx >= 0 && patch.field) {
+    setNestedField((data.relationships as Record<string, unknown>[])[relIdx], patch.field, patch.value);
+  }
+}
+
+/** setCapabilities — write into the capability-model decorator mappings
+ *  (creating the decorator + mappings if absent; empty array deletes). */
+function applySetCapabilities(data: Record<string, unknown>, patch: CalmPatch): void {
+  if (!Array.isArray(data.decorators)) {
+    data.decorators = [{ $ref: 'decorators/capability-model.json', mappings: {} }];
+  }
+  const decorator = (data.decorators as Record<string, unknown>[])[0];
+  if (!decorator.mappings || typeof decorator.mappings !== 'object') {
+    decorator.mappings = {};
+  }
+  const mappings = decorator.mappings as Record<string, unknown>;
+  const caps = patch.value as string[];
+  if (caps && caps.length > 0) {
+    mappings[patch.target] = { capabilities: caps };
+  } else {
+    delete mappings[patch.target];
+  }
+}
+
+/** updateComposedOf — create / update / remove the composed-of relationship for
+ *  the container node. */
+function applyUpdateComposedOf(data: Record<string, unknown>, patch: CalmPatch): void {
+  const containerId = patch.target;
+  const newNodeIds = patch.value as string[] | null;
+  const rels = data.relationships as Record<string, unknown>[];
+
+  const existingIdx = rels.findIndex(r => {
+    const rt = r['relationship-type'] as Record<string, unknown> | undefined;
+    const co = rt?.['composed-of'] as Record<string, unknown> | undefined;
+    return co?.container === containerId;
+  });
+
+  if (!newNodeIds || newNodeIds.length === 0) {
+    if (existingIdx >= 0) {
+      rels.splice(existingIdx, 1);
+    }
+  } else if (existingIdx >= 0) {
+    const rt = rels[existingIdx]['relationship-type'] as Record<string, unknown>;
+    rt['composed-of'] = { container: containerId, nodes: newNodeIds };
+  } else {
+    rels.push({
+      'unique-id': `rel-composed-of-${Date.now()}`,
+      'relationship-type': {
+        'composed-of': { container: containerId, nodes: newNodeIds },
+      },
+    });
   }
 }
