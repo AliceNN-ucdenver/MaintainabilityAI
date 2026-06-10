@@ -364,14 +364,6 @@ export function generateProcessCodeqlResults(extensionPath: string): string {
 }
 
 // ============================================================================
-// Oraculum Templates
-// ============================================================================
-
-export function generateOraculumWorkflow(extensionPath: string): string {
-  return readScaffoldFile(extensionPath, 'workflows', 'oraculum-review.yml');
-}
-
-// ============================================================================
 // Mesh Workflows — Research + PRD Agent Pipeline (Caterpillar / Looking Glass)
 // ============================================================================
 //
@@ -577,9 +569,6 @@ export interface MeshWorkflowSpec {
 }
 
 export const MESH_WORKFLOWS: MeshWorkflowSpec[] = [
-  // ── BAR-page domain (separate from agentic-SDLC) ─────────────────────
-  { relativePath: '.github/workflows/oraculum-review.yml',   generate: generateOraculumWorkflow },
-
   // ── Phase B20 per-agent workflows ────────────────────────────────────
   // market-research-agent owns the complete WHY phase (Phase 1 — shipped).
   // prd-agent owns the complete HOW phase, including self-critique
@@ -656,6 +645,11 @@ export const MESH_WORKFLOWS: MeshWorkflowSpec[] = [
  * Never remove an entry once added (idempotent prune semantics).
  */
 export const DEPRECATED_MESH_FILES: string[] = [
+  // ── Governance-review alignment (2026-06-10) ─────────────────────────
+  // Reviews dispatch the architecture-review-agent persona, which writes
+  // the report + reviews.yaml itself — the @claude-comment workflow that
+  // used to produce those artifacts is unreachable from the UI and retired.
+  '.github/workflows/oraculum-review.yml',
   // ── Legacy CI pipeline (pre-agentic-SDLC) ────────────────────────────
   '.github/workflows/oraculum-research.yml',
   '.github/workflows/archeologist.yml',

@@ -238,15 +238,9 @@ export class OracularPanel extends BasePanel<OracularWebviewMessage, OracularExt
       const packs = promptPackService.getAllPacks('looking-glass');
       this.postMessage({ type: 'promptPacksLoaded', packs });
 
-      // Check if the Oraculum workflow exists on the mesh repo
-      if (this.meshRepoInfo) {
-        const workflowExists = await this.githubService.checkWorkflowExists(
-          this.meshRepoInfo.owner,
-          this.meshRepoInfo.repo,
-          '.github/workflows/oraculum-review.yml'
-        );
-        this.postMessage({ type: 'workflowStatus', exists: workflowExists });
-      }
+      // (No workflow-existence check: reviews are performed by the
+      // architecture-review-agent persona — no mesh workflow involved.
+      // oraculum-review.yml is retired + pruned via DEPRECATED_MESH_FILES.)
 
       // If opened with a specific BAR, enter create mode
       if (this.initialBarPath) {
@@ -311,13 +305,6 @@ export class OracularPanel extends BasePanel<OracularWebviewMessage, OracularExt
         page,
       });
 
-      // Re-check workflow status on every refresh
-      const workflowExists = await this.githubService.checkWorkflowExists(
-        this.meshRepoInfo.owner,
-        this.meshRepoInfo.repo,
-        '.github/workflows/oraculum-review.yml'
-      );
-      this.postMessage({ type: 'workflowStatus', exists: workflowExists });
     } catch (err) {
       this.postMessage({
         type: 'error',
@@ -510,14 +497,12 @@ export class OracularPanel extends BasePanel<OracularWebviewMessage, OracularExt
 
     // Route on issue kind. The archeologist runner applies
     // `oraculum-research` after data collection; everything else is a
-    // standard architecture review. Each kind fires a different workflow
-    // (oraculum-research.yml vs oraculum-review.yml) and therefore needs
-    // a different trigger label + @claude prompt body.
+    // standard architecture review. Only research still rides an
+    // @claude-comment workflow — reviews are persona-dispatched
+    // (oraculum-review.yml is retired + pruned).
     const isResearch = this.currentIssueLabels.includes('oraculum-research');
     const triggerLabel = isResearch ? 'oraculum-research' : 'oraculum-review';
-    const workflowPath = isResearch
-      ? '.github/workflows/oraculum-research.yml'
-      : '.github/workflows/oraculum-review.yml';
+    const workflowPath = '.github/workflows/oraculum-research.yml';
 
     // For research issues, the agent needs the CURRENT run id (not a
     // placeholder) so the synthesis lands at the right path. Earlier
@@ -541,9 +526,7 @@ export class OracularPanel extends BasePanel<OracularWebviewMessage, OracularExt
     }
     const runIdSlug = researchRunId || '<run-id>';
 
-    const claudeCommentBody = isResearch
-      ? `@claude Please synthesize a research report from the data collected above. Follow \`.caterpillar/prompts/research/synthesis.md\` exactly — 10 canonical H2 sections in the specified order, every claim cites an \`S[N]\`, every Conclusion \`C[N]\` cites ≥2 sources (≥1 if confidence LOW), every Recommendation references at least one Conclusion.\n\n**Write the output to a NEW file at \`research/${runIdSlug}/synthesis.md\`.** Do NOT modify any existing synthesis files for other run ids${researchRunId ? '' : ' (substitute the run id from the data-collection comment above — look for `**Run id:**`)'}.`
-      : `@claude Please analyze the repositories listed in this review request against the BAR configuration and prompt pack guidelines above. Report findings organized by pillar (architecture, security, risk, operations).`;
+    const claudeCommentBody = `@claude Please synthesize a research report from the data collected above. Follow \`.caterpillar/prompts/research/synthesis.md\` exactly — 10 canonical H2 sections in the specified order, every claim cites an \`S[N]\`, every Conclusion \`C[N]\` cites ≥2 sources (≥1 if confidence LOW), every Recommendation references at least one Conclusion.\n\n**Write the output to a NEW file at \`research/${runIdSlug}/synthesis.md\`.** Do NOT modify any existing synthesis files for other run ids${researchRunId ? '' : ' (substitute the run id from the data-collection comment above — look for `**Run id:**`)'}.`;
 
     if (agent === 'skip') {
       // Just add the trigger label, no comment
@@ -567,7 +550,14 @@ export class OracularPanel extends BasePanel<OracularWebviewMessage, OracularExt
     }
 
     if (agent === 'claude') {
-      // Check that the kind-appropriate workflow file exists
+      if (!isResearch) {
+        // Unreachable from the UI (the review assign screen has no Claude
+        // card) — hard guard: the @claude review workflow is retired.
+        this.postMessage({ type: 'error', message: 'The Claude review path is retired — use Start Review (architecture-review agent).' });
+        this.postMessage({ type: 'loading', active: false });
+        return;
+      }
+      // Check that the research-synthesis workflow file exists
       const workflowExists = await this.githubService.checkWorkflowExists(
         this.meshRepoInfo.owner,
         this.meshRepoInfo.repo,

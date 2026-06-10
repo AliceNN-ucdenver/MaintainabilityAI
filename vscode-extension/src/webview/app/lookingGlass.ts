@@ -2245,7 +2245,7 @@ function renderSettingsMeshProvisioning(): string {
       </div>
       <ul class="text-muted settings-subsection-list">
         <li><strong>One workflow per agent</strong> — each owns its phase's dispatch, audit + drift checks, and finalize step. Workflows verify the audit chain, the Knight's Seal signatures, and the drift gates (Pocket Watch + Caterpillar's Challenge) before a phase's PR can merge.</li>
-        <li><strong>BAR Review</strong> — reviews dispatch the <strong>architecture-review agent</strong> on individual Business Architecture Roots, separate from the SDLC pipeline. (The legacy claude-comment review workflow remains deployed until the review flow fully retires it.)</li>
+        <li><strong>BAR Review</strong> — reviews dispatch the <strong>architecture-review agent</strong> on individual Business Architecture Roots, separate from the SDLC pipeline. The agent writes the report + review record itself — no mesh workflow involved (the legacy claude-comment review workflow is retired and pruned on Deploy).</li>
         <li><strong>Composite actions</strong> — small reusable pieces (OKR-context extraction, skill-call counting, tier resolution) shared across all per-agent workflows.</li>
       </ul>
 
@@ -2504,7 +2504,7 @@ function renderSettingsMeshSecrets(): string {
       <h3>Governance Mesh Secrets ${settingsRepoHint()}</h3>
       <p class="text-muted">
         Configure API keys (ANTHROPIC_API_KEY, OPENAI_API_KEY) as GitHub repository secrets on the governance mesh repository.
-        Required for the legacy claude-comment review workflow and AI-powered governance analysis. (Reviews dispatched to the architecture-review agent run on Copilot and don't need these.)
+        Used by legacy @claude research-synthesis runs and AI-powered governance analysis. (Reviews run on the Copilot architecture-review agent and don't need these.)
       </p>
       <div class="settings-row" style="justify-content: flex-start;">
         <button id="btn-configure-mesh-secrets" class="btn-primary">Configure Secrets</button>
