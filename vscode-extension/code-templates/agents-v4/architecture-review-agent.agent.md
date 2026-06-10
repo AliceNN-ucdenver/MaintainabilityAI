@@ -180,9 +180,13 @@ severity counts). APPEND — never rewrite or reorder existing records.
 1. Commit ONLY files under `<bar_path>/` on your working branch with message
    `Oraculum Review: <app name> #<ISSUE>`. Open your pull request as usual,
    linking it to close issue `#<ISSUE>`.
-2. Comment a short summary on the issue: drift score, per-pillar counts, links
-   to the report file and your PR.
-3. Add the `review-complete` label to the issue.
+2. Put the review summary in your **PR description** (NOT an issue comment):
+   drift score, per-pillar counts, the report path, and any degraded-input
+   notes. Your sandbox token cannot write to issues (comments/labels return
+   403 — verified live on review #216), so do NOT attempt to comment on the
+   issue or add labels; the `review-complete` labeling is owned by the
+   extension/workflow at merge time. The issue closes automatically when your
+   PR merges via the closing reference.
 
 ## 6. Honesty rules
 

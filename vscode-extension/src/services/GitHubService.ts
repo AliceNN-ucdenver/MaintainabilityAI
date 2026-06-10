@@ -1665,7 +1665,7 @@ export class GitHubService {
   async getWaitingWorkflowRuns(
     owner: string,
     repo: string
-  ): Promise<{ name: string; url: string; runId: number }[]> {
+  ): Promise<{ name: string; url: string; runId: number; headBranch: string; createdAt: string }[]> {
     const client = await this.getClient();
     try {
       // Check for both 'waiting' (environment protection) and 'action_required' (first-time approval)
@@ -1694,6 +1694,11 @@ export class GitHubService {
         name: run.name || 'Unknown',
         url: run.html_url,
         runId: run.id,
+        // Branch + timestamp let callers scope "awaiting approval" to a
+        // SPECIFIC agent run — a repo-wide signal let stale action_required
+        // runs from unrelated branches hijack every status banner.
+        headBranch: run.head_branch ?? '',
+        createdAt: run.created_at,
       }));
     } catch {
       return [];

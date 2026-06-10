@@ -43,7 +43,10 @@ const PHASE_CONFIG: Record<AgentStatusPhase, PhaseConfig> = {
     color: '#eab308',
     bgColor: 'rgba(234, 179, 8, 0.08)',
     icon: '&#9203;',  // hourglass
-    label: (agent, s) => `<strong>${agent}</strong> is waiting for workflow approval${s.workflowRun ? ` (${esc(s.workflowRun.name)})` : ''}`,
+    // Keep the PR visible even while approval is pending — this phase
+    // outranks 'pr-review' in resolvePhase, and dropping the PR number made
+    // it look like the PR had vanished from the banner.
+    label: (agent, s) => `<strong>${agent}</strong> is waiting for workflow approval${s.pr ? ` on PR <strong>#${s.pr.number}</strong>` : ''}${s.workflowRun ? ` (${esc(s.workflowRun.name)})` : ''}`,
     actionLabel: 'Approve Workflow',
     actionUrl: s => s.workflowRun?.url,
     pulse: true,

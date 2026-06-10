@@ -85,6 +85,24 @@ export class OracularPanel extends BasePanel<OracularWebviewMessage, OracularExt
 
     this.monitorService.onDidChangePrStatus(pr => {
       this.postMessage({ type: 'prStatusUpdated', pr });
+      // Merge-time labeling — the EXTENSION owns `review-complete`, not the
+      // agent: the Copilot sandbox token cannot write to issues (403 on
+      // comments/labels, verified live on review #216). Best-effort +
+      // idempotent (addIssueLabels is additive); review-kind issues only —
+      // research issues get their completion label from their own workflow.
+      if (
+        pr.state === 'merged' &&
+        this.currentIssueNumber &&
+        this.meshRepoInfo &&
+        !this.currentIssueLabels.includes('oraculum-research')
+      ) {
+        this.githubService.addIssueLabels(
+          this.meshRepoInfo.owner,
+          this.meshRepoInfo.repo,
+          this.currentIssueNumber,
+          ['review-complete']
+        ).catch(() => { /* best-effort — the durable owner is the review workflow (design phase 1) */ });
+      }
     });
 
     this.monitorService.onDidUpdateLabels(labels => {

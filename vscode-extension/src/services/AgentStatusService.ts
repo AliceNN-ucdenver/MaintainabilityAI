@@ -85,8 +85,18 @@ export class AgentStatusService {
     const prs = await this.safeGetLinkedPRs(owner, repo, issue.number);
     const linkedPr = prs.length > 0 ? prs[0] : undefined;
 
-    // Only check workflow approval status when we have an active agent issue
-    const waitingRuns = await this.safeGetWaitingRuns(owner, repo);
+    // Only check workflow approval status when we have an active agent issue —
+    // and scope it to THIS issue's agent run. The old repo-wide signal let
+    // stale action_required runs from unrelated branches (21 of them from old
+    // May experiments, observed 2026-06-10) flip EVERY banner to
+    // 'awaiting-approval', which hid the PR number behind priority-1 phase
+    // resolution. Relevant = a run on the linked PR's head branch, or — before
+    // a PR exists — a run created after this issue was opened (the agent's own
+    // runs can never predate its dispatch issue).
+    const allWaitingRuns = await this.safeGetWaitingRuns(owner, repo);
+    const waitingRuns = allWaitingRuns.filter(run =>
+      linkedPr ? run.headBranch === linkedPr.branch : run.createdAt >= issue.createdAt
+    );
 
     // Check if Claude has posted a plan and is waiting for approval
     const hasPlanComment = await this.safeCheckForPlanComment(owner, repo, issue);
