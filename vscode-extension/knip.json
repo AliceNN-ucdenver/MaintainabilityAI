@@ -4,8 +4,7 @@
     "src/mcp/server.ts",
     "src/webview/app/main.ts",
     "src/webview/app/scorecard.ts",
-    "src/webview/app/lookingGlass.ts",
-    "src/webview/app/oraculum.ts"
+    "src/webview/app/lookingGlass.ts"
   ],
   "project": [
     "src/**/*.ts",

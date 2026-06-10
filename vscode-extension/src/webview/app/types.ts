@@ -154,35 +154,6 @@ export interface AgentStatusInfo {
 }
 
 // ============================================================================
-// Oraculum Types
-// ============================================================================
-
-export type ReviewPillar = 'architecture' | 'security' | 'risk' | 'operations';
-export type AgentAssignment = 'claude' | 'copilot' | 'skip';
-
-/** Slim BAR summary used by Oraculum (subset of full BarSummary). */
-export interface BarSummarySlim {
-  id: string;
-  name: string;
-  platformId: string;
-  platformName: string;
-  criticality: string;
-  lifecycle: string;
-  compositeScore: number;
-  repos: string[];
-  path: string;
-}
-
-export interface PromptPackOption {
-  id: string;
-  name: string;
-  description: string;
-  domain?: string;
-  required?: boolean;
-  available: boolean;
-}
-
-// ============================================================================
 // Governance / Looking Glass Types
 // ============================================================================
 

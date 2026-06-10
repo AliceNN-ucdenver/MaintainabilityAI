@@ -71,7 +71,6 @@ const configs = [
   webviewEntry('src/webview/app/main.ts', 'main.js'),
   webviewEntry('src/webview/app/scorecard.ts', 'scorecard.js'),
   webviewEntry('src/webview/app/lookingGlass.ts', 'lookingGlass.js', { jsx: 'automatic', plugins: [inlineCssPlugin] }),
-  webviewEntry('src/webview/app/oraculum.ts', 'oraculum.js'),
 ];
 
 async function main() {

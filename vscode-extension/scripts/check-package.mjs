@@ -13,7 +13,6 @@ const requiredFiles = [
   'dist/webview/main.js',
   'dist/webview/scorecard.js',
   'dist/webview/lookingGlass.js',
-  'dist/webview/oraculum.js',
   'assets/icon.png',
   'assets/cheshire-activity-dark.svg',
   'prompt-packs/rabbit-hole/default.md',

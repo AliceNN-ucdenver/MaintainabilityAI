@@ -139,46 +139,11 @@ export interface ReviewScope {
   additionalContext?: string;
 }
 
-export type OracularWebviewMessage =
-  | { type: 'ready' }
-  | { type: 'submitReview'; barPath: string; scope: ReviewScope; title: string }
-  | { type: 'startMonitoring' }
-  | { type: 'stopMonitoring' }
-  | { type: 'openUrl'; url: string }
-  | { type: 'provisionWorkflow' }
-  | { type: 'assignAgent'; agent: AgentAssignment }
-  | { type: 'approveAgent'; agent?: 'claude' | 'copilot' }
-  | { type: 'replanAgent'; feedback: string; agent?: 'claude' | 'copilot' }
-  | { type: 'loadIssues'; page: number }
-  | { type: 'selectIssue'; issueNumber: number; issueUrl: string }
-  | { type: 'openBar'; barPath: string }
-  | { type: 'backToHub' }
-  | { type: 'refreshPromptPacks' }
-  | { type: 'pullMesh' }
-  | { type: 'navigateToBar'; agent?: 'claude' | 'copilot' }
-  | { type: 'promoteToResearchRequest' };
-
-export type OracularExtensionMessage =
-  | { type: 'meshRepoDetected'; owner: string; repo: string }
-  | { type: 'promptPacksLoaded'; packs: PromptPackInfo[] }
-  | { type: 'reviewCreated'; url: string; number: number }
-  | { type: 'agentAssigned'; agent: AgentAssignment; commentUrl?: string }
-  | { type: 'workflowNotFound' }
-  | { type: 'commentsUpdated'; comments: IssueComment[] }
-  | { type: 'prDetected'; pr: LinkedPullRequest }
-  | { type: 'prStatusUpdated'; pr: LinkedPullRequest }
-  | { type: 'labelsUpdated'; labels: string[] }
-  | { type: 'issueState'; hasReviewLabel: boolean; hasComments: boolean; labels: string[]; issueKind: 'research' | 'review' }
-  | { type: 'phaseUpdate'; phase: string; status: string; message?: string }
-  | { type: 'workflowStatus'; exists: boolean }
-  | { type: 'workflowProvisioned' }
-  | { type: 'meshSyncStatus'; behind: number; ahead: number }
-  | { type: 'pullComplete'; message: string }
-  | { type: 'pullError'; message: string }
-  | { type: 'loading'; active: boolean; message?: string }
-  | { type: 'error'; message: string }
-  | { type: 'issuesLoaded'; issues: GitHubIssueListItem[]; hasMore: boolean; page: number }
-  | { type: 'startCreateFlow'; barPath: string; bar: BarSummary; repos: string[] };
+// (OracularWebviewMessage / OracularExtensionMessage removed — the Oraculum
+// panel is retired; the inline governed-review sheet on BAR detail replaced
+// its configure+assign flow. ReviewScope/ReviewPillar remain in use by
+// PromptPackService.buildOraculumIssue, whose issue-body contract the
+// architecture-review-agent persona parses.)
 
 // ============================================================================
 // Absolem — Multi-Turn CALM Refinement Agent
@@ -376,7 +341,9 @@ export type LookingGlassWebviewMessage =
   | { type: 'loadPlatformArchitecture'; platformId: string }
   | { type: 'platformCalmMutation'; platformId: string; patch: { op: string; target: string; field?: string; value?: unknown }[] }
   // Oraculum integration
-  | { type: 'openOraculum'; barPath: string }
+  // Inline governed-review sheet (replaces the retired Oraculum panel).
+  | { type: 'loadReviewPackOptions' }
+  | { type: 'submitGovernanceReview'; barPath: string; pillars: string[]; promptPacks: string[]; additionalContext: string }
   | { type: 'summarizeTopFindings'; barPath: string }
   // Settings
   | { type: 'checkWorkflowStatus' }
@@ -677,6 +644,9 @@ export type LookingGlassExtensionMessage =
   | { type: 'loading'; active: boolean; message?: string }
   | { type: 'error'; message: string }
   | { type: 'info'; message: string }
+  // Inline governed-review sheet
+  | { type: 'reviewPackOptions'; packs: { id: string; name: string; description: string }[] }
+  | { type: 'reviewDispatched'; barPath: string; issueNumber: number; issueUrl: string }
   | { type: 'noMeshConfigured' }
   | { type: 'orgScanProgress'; step: string; progress: number }
   | { type: 'orgScanResults'; recommendation: OrgScanRecommendation }

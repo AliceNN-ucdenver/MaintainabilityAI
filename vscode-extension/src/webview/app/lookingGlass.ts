@@ -73,6 +73,11 @@ const state = {
   portfolio: null as PortfolioSummary | null,
   currentPlatformId: null as string | null,
   currentBar: null as BarSummary | null,
+  // Inline governed-review sheet (replaces the retired Oraculum panel's
+  // configure page). pendingReviewSheetBarPath auto-opens the sheet after a
+  // Review-button drill-in resolves to bar-detail.
+  reviewSheet: null as null | { barPath: string; packOptions: { id: string; name: string; description: string }[]; selectedPacks: string[]; pillars: string[]; context: string; submitting: boolean },
+  pendingReviewSheetBarPath: '',
   currentDecisions: [] as GovernanceDecision[],
   currentRepoTree: [] as string[],
   isLoading: false,
@@ -4452,6 +4457,21 @@ function postAgentLifecycleAction(action: string, data: DOMStringMap): void {
   }
 }
 
+/** Open the inline governed-review sheet for a BAR (defaults: all pillars,
+ *  the default pack). Pack options stream in via 'reviewPackOptions'. */
+function openReviewSheet(barPath: string): void {
+  state.reviewSheet = {
+    barPath,
+    packOptions: [],
+    selectedPacks: ['default'],
+    pillars: ['architecture', 'security', 'risk', 'operations'],
+    context: '',
+    submitting: false,
+  };
+  vscode.postMessage({ type: 'loadReviewPackOptions' });
+  render();
+}
+
 const inboundHandlers: Record<string, InboundHandler> = {
     'portfolioData': (message: WebviewInboundMessage) => {
       state.portfolio = message.data as PortfolioSummary;
@@ -4475,6 +4495,11 @@ const inboundHandlers: Record<string, InboundHandler> = {
     'barDetail': (message: WebviewInboundMessage) => {
       const isSameBar = state.currentBar?.path === (message.bar as BarSummary).path;
       state.currentBar = message.bar as BarSummary;
+      // Review-button drill-in: auto-open the inline review sheet for this BAR.
+      if (state.pendingReviewSheetBarPath && state.pendingReviewSheetBarPath === state.currentBar.path) {
+        state.pendingReviewSheetBarPath = '';
+        openReviewSheet(state.currentBar.path);
+      }
       state.currentDecisions = message.decisions as GovernanceDecision[];
       state.currentRepoTree = message.repoTree as string[];
       state.calmData = ((message as Record<string, unknown>).calmData as CalmDataPayload) || null;
@@ -4530,6 +4555,19 @@ const inboundHandlers: Record<string, InboundHandler> = {
       if (state.currentBar?.path === reviewBarPath) {
         state.activeReview = review;
       }
+    },
+    'reviewPackOptions': (message: WebviewInboundMessage) => {
+      if (state.reviewSheet) {
+        state.reviewSheet.packOptions = ((message as Record<string, unknown>).packs ?? []) as { id: string; name: string; description: string }[];
+        render();
+      }
+    },
+    'reviewDispatched': (message: WebviewInboundMessage) => {
+      // Issue created + persona assigned — close the sheet; the agent-status
+      // banner lights up via the agentStatusUpdate that follows.
+      void message;
+      state.reviewSheet = null;
+      render();
     },
     'agentStatusUpdate': (message: WebviewInboundMessage) => {
       const statusBarPath = (message as Record<string, unknown>).barPath as string;

@@ -82,6 +82,8 @@ export interface BarDetailRenderState {
   barPlatformOverrides: string[];
   // Score decay info (Phase 7)
   decayInfo: { rawComposite: number; decayedComposite: number; decayFactor: number; daysSinceAssessment: number; inGraceWindow: boolean } | null;
+  /** Inline governed-review sheet (replaces the retired Oraculum configure page). */
+  reviewSheet: null | { barPath: string; packOptions: { id: string; name: string; description: string }[]; selectedPacks: string[]; pillars: string[]; context: string; submitting: boolean };
 }
 
 // ============================================================================
@@ -846,6 +848,47 @@ export function renderComponentPicker(
 // Render — Main BAR Detail View
 // ============================================================================
 
+const REVIEW_PILLARS: { id: string; label: string }[] = [
+  { id: 'architecture', label: 'Architecture' },
+  { id: 'security', label: 'Security' },
+  { id: 'risk', label: 'Information Risk' },
+  { id: 'operations', label: 'Operations' },
+];
+
+/** Inline governed-review sheet — the retired Oraculum configure page, on the
+ *  BAR page. Renders only while open for THIS bar. One primary action:
+ *  Dispatch Review (the architecture-review agent). */
+function renderReviewSheet(s: BarDetailRenderState): string {
+  const sheet = s.reviewSheet;
+  if (!sheet || !s.currentBar || sheet.barPath !== s.currentBar.path) { return ''; }
+  const pillarBoxes = REVIEW_PILLARS.map(p => `
+    <label style="display:block; margin: 2px 0;"><input type="checkbox" class="review-sheet-pillar" value="${p.id}" ${sheet.pillars.includes(p.id) ? 'checked' : ''}/> ${p.label}</label>`).join('');
+  const packBoxes = sheet.packOptions.length === 0
+    ? '<span class="text-muted">Loading packs…</span>'
+    : sheet.packOptions.map(p => `
+    <label style="display:block; margin: 2px 0;" title="${escapeAttr(p.description)}"><input type="checkbox" class="review-sheet-pack" value="${escapeAttr(p.id)}" ${sheet.selectedPacks.includes(p.id) ? 'checked' : ''}/> ${escapeHtml(p.name)}</label>`).join('');
+  return `
+    <div class="section" id="review-sheet" style="margin-bottom: 12px; padding: 14px; border: 1px solid var(--border, #333); border-radius: 8px;">
+      <h3 style="margin-top: 0;">&#128302; Run Governed Review</h3>
+      <p class="text-muted" style="margin-top: 0;">
+        Dispatches the <strong>architecture-review agent</strong> with the pillars and prompt packs
+        below. It grounds in this BAR's mesh artifacts + linked repositories and opens a PR with the
+        review report and the drift-scored review record.
+      </p>
+      <div style="display: flex; gap: 32px; flex-wrap: wrap;">
+        <div><strong>Pillars</strong>${pillarBoxes}</div>
+        <div><strong>Prompt packs</strong>${packBoxes}</div>
+      </div>
+      <div style="margin-top: 10px;"><strong>Additional context</strong> <span class="text-muted">(optional)</span><br/>
+        <textarea id="review-sheet-context" rows="3" style="width: 100%; margin-top: 4px;">${escapeHtml(sheet.context)}</textarea>
+      </div>
+      <div style="display: flex; gap: 8px; margin-top: 10px;">
+        <button id="btn-review-sheet-submit" class="btn-primary" ${sheet.submitting || sheet.pillars.length === 0 ? 'disabled' : ''}>${sheet.submitting ? 'Dispatching…' : 'Dispatch Review'}</button>
+        <button id="btn-review-sheet-cancel" class="btn-secondary" ${sheet.submitting ? 'disabled' : ''}>Cancel</button>
+      </div>
+    </div>`;
+}
+
 export function renderBarDetail(s: BarDetailRenderState): string {
   const bar = s.currentBar;
   if (!bar) {
@@ -859,6 +902,7 @@ export function renderBarDetail(s: BarDetailRenderState): string {
     ${s.errorMessage ? `<div class="error-msg">${escapeHtml(s.errorMessage)}</div>` : ''}
     ${renderGitSyncBanner(s.gitStatus)}
     <div id="active-review-area">${renderAgentStatus(s.agentStatus, { lifecycleActions: true })}</div>
+    ${renderReviewSheet(s)}
     <div class="breadcrumb">
       <a id="breadcrumb-portfolio">${escapeHtml(orgName)}</a>
       <span class="sep">&rsaquo;</span>
@@ -1507,6 +1551,51 @@ export function attachBarDetailEvents(
       }
     },
   );
+
+  // Inline review sheet — pillar/pack toggles mutate state without a
+  // re-render (checkbox DOM is already correct; re-rendering would drop
+  // focus); submit/cancel re-render through setState + render.
+  document.querySelectorAll('.review-sheet-pillar').forEach(el => {
+    el.addEventListener('change', () => {
+      const sheet = getState().reviewSheet;
+      if (!sheet) { return; }
+      const v = (el as HTMLInputElement).value;
+      sheet.pillars = (el as HTMLInputElement).checked
+        ? [...sheet.pillars.filter(p => p !== v), v]
+        : sheet.pillars.filter(p => p !== v);
+    });
+  });
+  document.querySelectorAll('.review-sheet-pack').forEach(el => {
+    el.addEventListener('change', () => {
+      const sheet = getState().reviewSheet;
+      if (!sheet) { return; }
+      const v = (el as HTMLInputElement).value;
+      sheet.selectedPacks = (el as HTMLInputElement).checked
+        ? [...sheet.selectedPacks.filter(p => p !== v), v]
+        : sheet.selectedPacks.filter(p => p !== v);
+    });
+  });
+  document.getElementById('review-sheet-context')?.addEventListener('input', (e) => {
+    const sheet = getState().reviewSheet;
+    if (sheet) { sheet.context = (e.target as HTMLTextAreaElement).value; }
+  });
+  document.getElementById('btn-review-sheet-cancel')?.addEventListener('click', () => {
+    setState({ reviewSheet: null });
+    render();
+  });
+  document.getElementById('btn-review-sheet-submit')?.addEventListener('click', () => {
+    const sheet = getState().reviewSheet;
+    if (!sheet || sheet.submitting || sheet.pillars.length === 0) { return; }
+    vscode.postMessage({
+      type: 'submitGovernanceReview',
+      barPath: sheet.barPath,
+      pillars: sheet.pillars,
+      promptPacks: sheet.selectedPacks.length > 0 ? sheet.selectedPacks : ['default'],
+      additionalContext: sheet.context,
+    });
+    sheet.submitting = true;
+    render();
+  });
 
   // Research dispatch — opens NewResearchPanel pre-filled with scope=bar
   document.getElementById('btn-bar-run-research')?.addEventListener('click', (e) => {

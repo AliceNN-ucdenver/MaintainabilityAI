@@ -8,7 +8,6 @@ import { browsePromptPacksCommand } from './commands/browsePromptPacks';
 import { configureSecretsCommand, SecretsTarget } from './commands/configureSecrets';
 import { openScorecardCommand } from './commands/openScorecard';
 import { lookingGlassCommand } from './commands/lookingGlass';
-import { oraculumCommand } from './commands/oraculum';
 import { bugReportCommand } from './commands/bugReport';
 import { createResearchRequestCommand, type CreateResearchRequestPrefill } from './commands/createResearchRequest';
 import { NewResearchPanel, type PrefillInputs } from './webview/NewResearchPanel';
@@ -94,10 +93,6 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.commands.registerCommand(
         'maintainabilityai.lookingGlass',
         (barPath?: string, activeReview?: import('./types').ActiveReviewInfo) => lookingGlassCommand(context, barPath, activeReview)
-      ),
-      vscode.commands.registerCommand(
-        'maintainabilityai.oraculum',
-        (barPath?: string) => oraculumCommand(context, barPath)
       ),
       vscode.commands.registerCommand(
         'maintainabilityai.bugReport',

@@ -505,7 +505,8 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     'applyArchetype':              (m) => this.onApplyArchetype(m.barPath, m.archetypeId, m.appName),
     'saveLayout':                  (m) => this.onSaveLayout(m.barPath, m.diagramType, m.layout as object),
     'exportPng':                   (m) => this.onExportPng(m.barPath, m.diagramType, m.pngDataUrl),
-    'openOraculum':                (m) => { vscode.commands.executeCommand('maintainabilityai.oraculum', m.barPath); },
+    'loadReviewPackOptions':       () => this.onLoadReviewPackOptions(),
+    'submitGovernanceReview':      (m) => this.onSubmitGovernanceReview(m.barPath, m.pillars, m.promptPacks, m.additionalContext),
     'summarizeTopFindings':        (m) => { this.onSummarizeTopFindings(m.barPath).catch(() => {}); },
     'checkWorkflowStatus':         () => this.onCheckWorkflowStatus(),
     // Bug DD cleanup — provisionWorkflow + provisionAgentic message
@@ -6618,6 +6619,89 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         type: 'error',
         message: `Failed to load BAR: ${toErrorMessage(err)}`,
       });
+    } finally {
+      this.postMessage({ type: 'loading', active: false });
+    }
+  }
+
+  /** Pack options for the inline governed-review sheet. */
+  private onLoadReviewPackOptions(): void {
+    const packs = promptPackService.getAllPacks('looking-glass').map(p => ({
+      id: p.id,
+      name: p.name,
+      description: p.description ?? '',
+    }));
+    this.postMessage({ type: 'reviewPackOptions', packs });
+  }
+
+  /**
+   * Inline governed-review dispatch — the retired Oraculum panel's
+   * create+assign flow as ONE action: build the review issue (same
+   * buildOraculumIssue contract the persona parses), create it with the
+   * oraculum-review label, dispatch the architecture-review agent (with the
+   * OKR-style generic fallback), then light the BAR's agent-status banner.
+   */
+  private async onSubmitGovernanceReview(barPath: string, pillars: string[], promptPacks: string[], additionalContext: string) {
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) {
+      this.postMessage({ type: 'error', message: 'No mesh configured.' });
+      return;
+    }
+    const meshRepo = await detectGovernanceRepo();
+    if (!meshRepo) {
+      this.postMessage({ type: 'error', message: 'Mesh repo has no GitHub remote — push the mesh to GitHub first.' });
+      return;
+    }
+    this.meshRepoInfo = meshRepo;
+    this.postMessage({ type: 'loading', active: true, message: 'Dispatching governed review…' });
+    try {
+      const relativePath = barPath.replace(meshPath + '/', '').replace(meshPath + '\\', '');
+      const summary = this.meshService.buildPortfolioSummary(meshPath);
+      const bar = summary?.allBars.find(b => b.path === barPath);
+      const appName = bar?.name || 'Unknown Application';
+
+      const body = promptPackService.buildOraculumIssue({
+        appName,
+        barPath: relativePath,
+        scope: {
+          pillars: pillars as import('../types').ReviewPillar[],
+          promptPacks: promptPacks.length > 0 ? promptPacks : ['default'],
+          includeRepos: bar?.repos ?? [],
+          additionalContext,
+        },
+      });
+      const result = await this.githubService.createIssueRaw(
+        meshRepo.owner, meshRepo.repo,
+        `Oraculum Review: ${appName}`,
+        body,
+        ['maintainabilityai', 'oraculum-review'],
+      );
+      // Resolve ISSUE_NUMBER placeholders now that the number exists.
+      const resolvedBody = body.replace(/ISSUE_NUMBER/g, String(result.number));
+      if (resolvedBody !== body) {
+        this.githubService.updateIssueBody(meshRepo.owner, meshRepo.repo, result.number, resolvedBody)
+          .catch(() => { /* best effort — issue still works with placeholders */ });
+      }
+      // Persona dispatch with the OKR-style fallback chain.
+      try {
+        await this.githubService.assignCustomCopilotAgent(
+          meshRepo.owner, meshRepo.repo, result.number,
+          'architecture-review-agent',
+          { baseBranch: 'main' },
+        );
+      } catch (personaErr) {
+        console.warn('[LookingGlass] custom-agent dispatch failed; falling back to generic Copilot:', toErrorMessage(personaErr));
+        await this.githubService.assignIssue(meshRepo.owner, meshRepo.repo, result.number, ['copilot-swe-agent[bot]']);
+        await this.githubService.createIssueComment(
+          meshRepo.owner, meshRepo.repo, result.number,
+          `@copilot use agent architecture-review-agent\n\nPlease review the repositories listed in this review request against the BAR configuration and prompt pack guidelines above, following \`.github/agents/architecture-review-agent.agent.md\`.`,
+        );
+      }
+      this.postMessage({ type: 'reviewDispatched', barPath, issueNumber: result.number, issueUrl: result.url });
+      this.postMessage({ type: 'info', message: `Governed review dispatched — issue #${result.number} (${appName}).` });
+      await this.onLoadActiveReview(barPath, appName).catch(() => { /* best effort */ });
+    } catch (err) {
+      this.postMessage({ type: 'error', message: `Failed to dispatch review: ${toErrorMessage(err)}` });
     } finally {
       this.postMessage({ type: 'loading', active: false });
     }

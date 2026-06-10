@@ -81,11 +81,6 @@
         }
       },
       {
-        "command": "maintainabilityai.oraculum",
-        "title": "Oraculum — Architecture Review",
-        "category": "MaintainabilityAI"
-      },
-      {
         "command": "maintainabilityai.bugReport",
         "title": "Report a Bug",
         "category": "MaintainabilityAI",
@@ -165,9 +160,6 @@
         },
         {
           "command": "maintainabilityai.lookingGlass"
-        },
-        {
-          "command": "maintainabilityai.oraculum"
         },
         {
           "command": "maintainabilityai.bugReport"

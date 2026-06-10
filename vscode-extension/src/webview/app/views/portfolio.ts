@@ -532,11 +532,13 @@ export function attachDriftListeners(
   setState: (updates: Record<string, unknown>) => void,
   render: () => void,
 ): void {
-  // Oraculum review button
+  // Run Review — drills into the BAR and auto-opens the inline review sheet
+  // (governance-review alignment: the separate Oraculum panel is retired).
   document.getElementById('btn-oraculum-review')?.addEventListener('click', () => {
     const barPath = document.getElementById('btn-oraculum-review')?.getAttribute('data-bar-path');
     if (barPath) {
-      vscode.postMessage({ type: 'openOraculum', barPath });
+      setState({ pendingReviewSheetBarPath: barPath });
+      vscode.postMessage({ type: 'drillIntoBar', barPath });
     }
   });
 

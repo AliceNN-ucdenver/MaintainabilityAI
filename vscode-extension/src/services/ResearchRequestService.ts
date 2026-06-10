@@ -4,11 +4,11 @@
  * repo. The existing archeologist.yml workflow fires on that label, so
  * dispatch is implicit — we just create or relabel the issue.
  *
- * Two entry points:
- *   - promoteToResearchRequest(): take an existing mesh issue and add
- *     the label + a confirmation comment.
+ * One entry point:
  *   - createResearchRequest(): create a fresh mesh issue from scratch
  *     with the label already applied.
+ * (promoteToResearchRequest was the retired Oraculum panel's promotion
+ * path and was removed with it.)
  *
  * The pure body-builder is exported separately so it's unit-testable
  * without GitHub API access.
@@ -36,37 +36,8 @@ export interface CreateRequestResult {
 }
 
 const REQUEST_LABEL = 'research-request';
-const DERIVED_LABEL = 'oraculum-derived';
-
-/**
- * Add the `research-request` label to an existing mesh issue (the
- * Oraculum-finding promotion path) and post a confirmation comment.
- * The workflow fires on the label-add event automatically.
- */
-export async function promoteToResearchRequest(opts: {
-  issueNumber: number;
-  /** Override mesh slug for tests; defaults to detectGovernanceRepo(). */
-  meshSlug?: { owner: string; repo: string };
-}): Promise<{ issueUrl: string; meshSlug: { owner: string; repo: string } }> {
-  const slug = opts.meshSlug ?? await detectGovernanceRepo();
-  if (!slug) {
-    throw new Error('Cannot promote — mesh repo has no GitHub remote.');
-  }
-  await githubService.addIssueLabels(slug.owner, slug.repo, opts.issueNumber, [REQUEST_LABEL, DERIVED_LABEL]);
-  const client = await githubService.getClient();
-  await client.rest.issues.createComment({
-    owner: slug.owner,
-    repo: slug.repo,
-    issue_number: opts.issueNumber,
-    body: '🔍 Promoted to **research-request**. The Archeologist workflow will dispatch shortly. Track progress in VS Code: `Active Research / PRD Runs`.',
-  });
-  const { data: issue } = await client.rest.issues.get({
-    owner: slug.owner,
-    repo: slug.repo,
-    issue_number: opts.issueNumber,
-  });
-  return { issueUrl: issue.html_url, meshSlug: slug };
-}
+// ('oraculum-derived' label retired with promoteToResearchRequest — only the
+// Oraculum panel's promotion path ever applied it.)
 
 /**
  * Create a fresh `research-request` issue in the mesh repo. The workflow
