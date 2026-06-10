@@ -1704,6 +1704,26 @@ export class GitHubService {
       return [];
     }
   }
+
+  /**
+   * Approve a workflow run that's gated on first-time-contributor / bot
+   * approval (`action_required`). Powers the in-app "Approve & run" button on
+   * the agent status banner — saves the trip to the Actions tab. Returns
+   * false on failure (caller surfaces it); approving an already-running run
+   * 4xx's, which also lands here.
+   */
+  async approveWorkflowRun(owner: string, repo: string, runId: number): Promise<boolean> {
+    const client = await this.getClient();
+    try {
+      await client.request('POST /repos/{owner}/{repo}/actions/runs/{run_id}/approve', {
+        owner, repo, run_id: runId,
+        headers: { 'X-GitHub-Api-Version': '2022-11-28' },
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
 }
 
 /** Singleton GitHub service — shares a single Octokit auth session. */

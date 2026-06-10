@@ -391,6 +391,11 @@ export type LookingGlassWebviewMessage =
   // SEPARATE webview (OracularPanel) with its own handler. Don't
   // confuse them.
   | { type: 'savePreferredModel'; family: string }
+  // Agent-status lifecycle one-clicks (BAR detail banner) — approve the
+  // gated workflow run / flip the agent PR out of draft / merge it.
+  | { type: 'approveAgentRun'; barPath: string; barName: string; runId: number }
+  | { type: 'markAgentPrReady'; barPath: string; barName: string; prNumber: number }
+  | { type: 'mergeAgentPr'; barPath: string; barName: string; prNumber: number; issueNumber: number }
   | { type: 'reinitializeMesh' }
   | { type: 'loadDriftWeights' }
   | { type: 'saveDriftWeights'; weights: DriftWeights }

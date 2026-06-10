@@ -522,6 +522,9 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     'openCopilotEnvSecretsPage':   () => this.onOpenCopilotEnvSecretsPage(),
     'savePreferredModel':          (m) => this.onSavePreferredModel(m.family),
     'reinitializeMesh':            () => this.onReinitializeMesh(),
+    'approveAgentRun':             (m) => this.onApproveAgentRun(m.barPath, m.barName, m.runId),
+    'markAgentPrReady':            (m) => this.onMarkAgentPrReady(m.barPath, m.barName, m.prNumber),
+    'mergeAgentPr':                (m) => this.onMergeAgentPr(m.barPath, m.barName, m.prNumber, m.issueNumber),
     'loadDriftWeights':            () => this.onLoadDriftWeights(),
     'saveDriftWeights':            (m) => this.onSaveDriftWeights(m.weights),
     'configureMeshSecrets':        () => { vscode.commands.executeCommand('maintainabilityai.configureSecrets', 'governance'); },
@@ -6618,6 +6621,62 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     } finally {
       this.postMessage({ type: 'loading', active: false });
     }
+  }
+
+  /**
+   * Agent-status lifecycle one-clicks (the BAR-detail banner buttons).
+   * Each acts via the GitHub API, then re-runs onLoadActiveReview so the
+   * banner reflects the new state without a manual refresh — no trips to
+   * the Actions tab / PR page for approve → ready → merge.
+   */
+  private async onApproveAgentRun(barPath: string, barName: string, runId: number) {
+    if (!this.meshRepoInfo) { return; }
+    this.postMessage({ type: 'loading', active: true, message: 'Approving workflow run…' });
+    const ok = await this.githubService.approveWorkflowRun(this.meshRepoInfo.owner, this.meshRepoInfo.repo, runId);
+    this.postMessage({ type: 'loading', active: false });
+    if (!ok) {
+      this.postMessage({ type: 'error', message: `Could not approve workflow run ${runId} — it may already be running, or your token lacks Actions write.` });
+    }
+    await this.onLoadActiveReview(barPath, barName).catch(() => { /* best effort */ });
+  }
+
+  private async onMarkAgentPrReady(barPath: string, barName: string, prNumber: number) {
+    if (!this.meshRepoInfo) { return; }
+    this.postMessage({ type: 'loading', active: true, message: `Marking PR #${prNumber} ready…` });
+    const ok = await this.githubService.markPullRequestReadyForReview(this.meshRepoInfo.owner, this.meshRepoInfo.repo, prNumber);
+    this.postMessage({ type: 'loading', active: false });
+    if (!ok) {
+      this.postMessage({ type: 'error', message: `Could not mark PR #${prNumber} ready for review.` });
+    }
+    await this.onLoadActiveReview(barPath, barName).catch(() => { /* best effort */ });
+  }
+
+  private async onMergeAgentPr(barPath: string, barName: string, prNumber: number, issueNumber: number) {
+    if (!this.meshRepoInfo) { return; }
+    this.postMessage({ type: 'loading', active: true, message: `Merging PR #${prNumber}…` });
+    const result = await this.githubService.mergePullRequest(this.meshRepoInfo.owner, this.meshRepoInfo.repo, prNumber);
+    if (!result.ok) {
+      this.postMessage({ type: 'loading', active: false });
+      this.postMessage({ type: 'error', message: `Merge failed for PR #${prNumber}: ${result.reason}` });
+      await this.onLoadActiveReview(barPath, barName).catch(() => { /* best effort */ });
+      return;
+    }
+    // Review-kind issues get the review-complete label at merge time (the
+    // agent's sandbox can't label — 403, verified on review #216). Additive +
+    // best-effort; research issues are labeled by their own workflow.
+    if (issueNumber > 0) {
+      try {
+        const labels = await this.githubService.getIssueLabels(this.meshRepoInfo.owner, this.meshRepoInfo.repo, issueNumber);
+        if (labels.includes('oraculum-review')) {
+          await this.githubService.addIssueLabels(this.meshRepoInfo.owner, this.meshRepoInfo.repo, issueNumber, ['review-complete']);
+        }
+      } catch { /* best-effort */ }
+    }
+    this.postMessage({ type: 'loading', active: false });
+    await this.onLoadActiveReview(barPath, barName).catch(() => { /* best effort */ });
+    // The merged review changes reviews.yaml on the mesh — nudge the user's
+    // local mesh to pull so the BAR page's drift/score reflects it.
+    this.postMessage({ type: 'info', message: `PR #${prNumber} merged. Pull the mesh to refresh drift + score history.` });
   }
 
   private async onLoadActiveReview(barPath: string, barName?: string) {

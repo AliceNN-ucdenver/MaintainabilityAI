@@ -203,7 +203,14 @@ export function getAgentStatusStyles(): string {
 // Renderer
 // ==========================================================================
 
-export function renderAgentStatus(status: AgentStatusInfo | null): string {
+export function renderAgentStatus(
+  status: AgentStatusInfo | null,
+  /** lifecycleActions: render IN-APP one-click run-lifecycle buttons
+   *  (approve-the-workflow / mark-PR-ready / merge) instead of only the
+   *  open-in-browser action. Hosts must pass an onAction handler to
+   *  attachAgentStatusListeners. Scorecard keeps the URL-only default. */
+  opts?: { lifecycleActions?: boolean },
+): string {
   if (!status) { return ''; }
 
   const config = PHASE_CONFIG[status.phase];
@@ -236,9 +243,24 @@ export function renderAgentStatus(status: AgentStatusInfo | null): string {
     prHtml = `<span style="margin-left: 6px;">PR <a class="agent-status-link" data-url="${escAttr(status.pr.url)}">#${esc(String(status.pr.number))}</a>${badgesHtml}</span>`;
   }
 
-  // Action button
+  // Action button(s) — in-app lifecycle actions when the host opts in,
+  // else the phase's open-in-browser button.
   let actionHtml = '';
-  if (config.actionLabel && config.actionUrl) {
+  const lifecycleBtns: string[] = [];
+  if (opts?.lifecycleActions) {
+    if (status.phase === 'awaiting-approval' && status.workflowRun?.runId) {
+      lifecycleBtns.push(`<button class="agent-status-action-btn" data-agent-action="approve-run" data-run-id="${escAttr(String(status.workflowRun.runId))}">&#10003; Approve &amp; run</button>`);
+    }
+    if (status.pr && status.pr.state === 'open' && status.pr.draft) {
+      lifecycleBtns.push(`<button class="agent-status-action-btn" data-agent-action="mark-pr-ready" data-pr-number="${escAttr(String(status.pr.number))}">Mark PR ready</button>`);
+    }
+    if (status.pr && status.pr.state === 'open' && !status.pr.draft) {
+      lifecycleBtns.push(`<button class="agent-status-action-btn" data-agent-action="merge-pr" data-pr-number="${escAttr(String(status.pr.number))}" data-issue-number="${escAttr(String(status.issue.number))}">Merge</button>`);
+    }
+  }
+  if (lifecycleBtns.length > 0) {
+    actionHtml = `<span class="agent-status-action">${lifecycleBtns.join(' ')}</span>`;
+  } else if (config.actionLabel && config.actionUrl) {
     const url = config.actionUrl(status);
     if (url) {
       actionHtml = `
@@ -275,7 +297,11 @@ export function renderAgentStatus(status: AgentStatusInfo | null): string {
  * Call this after rendering / re-rendering the agent status card.
  */
 export function attachAgentStatusListeners(
-  postMessage: (msg: { type: string; url: string }) => void
+  postMessage: (msg: { type: string; url: string }) => void,
+  /** Receives lifecycle-button clicks (approve-run / mark-pr-ready /
+   *  merge-pr) with the element's dataset (runId / prNumber / issueNumber).
+   *  Only needed by hosts that render with `lifecycleActions: true`. */
+  onAction?: (action: string, data: DOMStringMap) => void,
 ): void {
   document.querySelectorAll('.agent-status-link').forEach(el => {
     el.addEventListener('click', (e) => {
@@ -283,6 +309,15 @@ export function attachAgentStatusListeners(
       const url = (el as HTMLElement).dataset.url;
       if (url) {
         postMessage({ type: 'openUrl', url });
+      }
+    });
+  });
+  document.querySelectorAll('[data-agent-action]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.preventDefault();
+      const action = (el as HTMLElement).dataset.agentAction;
+      if (action && onAction) {
+        onAction(action, (el as HTMLElement).dataset);
       }
     });
   });

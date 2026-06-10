@@ -149,7 +149,8 @@ export interface AgentStatusInfo {
     mergeable: boolean; state: 'open' | 'closed' | 'merged';
     reviewRequested: boolean;
   };
-  workflowRun?: { name: string; url: string };
+  /** runId enables the in-app "Approve & run" lifecycle action. */
+  workflowRun?: { name: string; url: string; runId?: number };
 }
 
 // ============================================================================

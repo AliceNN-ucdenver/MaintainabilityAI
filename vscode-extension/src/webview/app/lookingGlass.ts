@@ -4438,6 +4438,20 @@ function attachEventHandlers() {
 // =====================================================================
 type WebviewInboundMessage = { type: string } & Record<string, unknown>;
 type InboundHandler = (message: WebviewInboundMessage) => void;
+/** Post an agent-status lifecycle action (approve-run / mark-pr-ready /
+ *  merge-pr) with the current BAR context so the panel can act + refresh. */
+function postAgentLifecycleAction(action: string, data: DOMStringMap): void {
+  const bar = state.currentBar;
+  if (!bar) { return; }
+  if (action === 'approve-run' && data.runId) {
+    vscode.postMessage({ type: 'approveAgentRun', barPath: bar.path, barName: bar.name, runId: Number(data.runId) });
+  } else if (action === 'mark-pr-ready' && data.prNumber) {
+    vscode.postMessage({ type: 'markAgentPrReady', barPath: bar.path, barName: bar.name, prNumber: Number(data.prNumber) });
+  } else if (action === 'merge-pr' && data.prNumber) {
+    vscode.postMessage({ type: 'mergeAgentPr', barPath: bar.path, barName: bar.name, prNumber: Number(data.prNumber), issueNumber: Number(data.issueNumber ?? 0) });
+  }
+}
+
 const inboundHandlers: Record<string, InboundHandler> = {
     'portfolioData': (message: WebviewInboundMessage) => {
       state.portfolio = message.data as PortfolioSummary;
@@ -4525,8 +4539,11 @@ const inboundHandlers: Record<string, InboundHandler> = {
         // Targeted DOM update for agent status area
         const reviewArea = document.getElementById('active-review-area');
         if (reviewArea) {
-          reviewArea.innerHTML = renderAgentStatus(state.agentStatus);
-          attachAgentStatusListeners((msg) => vscode.postMessage(msg));
+          reviewArea.innerHTML = renderAgentStatus(state.agentStatus, { lifecycleActions: true });
+          attachAgentStatusListeners(
+            (msg) => vscode.postMessage(msg),
+            (action, data) => postAgentLifecycleAction(action, data),
+          );
         }
       }
     },

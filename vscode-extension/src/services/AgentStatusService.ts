@@ -130,6 +130,7 @@ export class AgentStatusService {
       result.workflowRun = {
         name: waitingRuns[0].name,
         url: waitingRuns[0].url,
+        runId: waitingRuns[0].runId,
       };
     }
 

@@ -858,7 +858,7 @@ export function renderBarDetail(s: BarDetailRenderState): string {
   return `
     ${s.errorMessage ? `<div class="error-msg">${escapeHtml(s.errorMessage)}</div>` : ''}
     ${renderGitSyncBanner(s.gitStatus)}
-    <div id="active-review-area">${renderAgentStatus(s.agentStatus)}</div>
+    <div id="active-review-area">${renderAgentStatus(s.agentStatus, { lifecycleActions: true })}</div>
     <div class="breadcrumb">
       <a id="breadcrumb-portfolio">${escapeHtml(orgName)}</a>
       <span class="sep">&rsaquo;</span>
@@ -1491,7 +1491,22 @@ export function attachBarDetailEvents(
     setState,
     render,
   );
-  attachAgentStatusListeners((msg) => vscode.postMessage(msg));
+  attachAgentStatusListeners(
+    (msg) => vscode.postMessage(msg),
+    // Lifecycle buttons (approve-run / mark-pr-ready / merge-pr) — post the
+    // action with the current BAR context so the panel can act + refresh.
+    (action, data) => {
+      const bar = getState().currentBar;
+      if (!bar) { return; }
+      if (action === 'approve-run' && data.runId) {
+        vscode.postMessage({ type: 'approveAgentRun', barPath: bar.path, barName: bar.name, runId: Number(data.runId) });
+      } else if (action === 'mark-pr-ready' && data.prNumber) {
+        vscode.postMessage({ type: 'markAgentPrReady', barPath: bar.path, barName: bar.name, prNumber: Number(data.prNumber) });
+      } else if (action === 'merge-pr' && data.prNumber) {
+        vscode.postMessage({ type: 'mergeAgentPr', barPath: bar.path, barName: bar.name, prNumber: Number(data.prNumber), issueNumber: Number(data.issueNumber ?? 0) });
+      }
+    },
+  );
 
   // Research dispatch — opens NewResearchPanel pre-filled with scope=bar
   document.getElementById('btn-bar-run-research')?.addEventListener('click', (e) => {
