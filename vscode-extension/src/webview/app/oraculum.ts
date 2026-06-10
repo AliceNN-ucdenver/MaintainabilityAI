@@ -348,43 +348,71 @@ function renderAssignPhase(): string {
     : `Issue <strong>#${state.issueNumber}</strong>`;
 
   const isResearch = state.issueKind === 'research';
-  const headline = isResearch ? 'Assign agent to synthesize research' : 'Assign an AI Agent';
-  const subtitle = isResearch
-    ? 'Data collection is complete. Pick an agent to draft the synthesis report from the structured comment above.'
-    : 'Choose who should perform this architecture review:';
 
-  const claudeCopy = isResearch
-    ? `<h4>Claude / Alice</h4>
+  // Research synthesis still offers the engine choice (its custom-agent
+  // alignment is phase 3 of design/governance-review-alignment.md).
+  // REVIEWS have ONE engine: the architecture-review agent persona — no
+  // claude/copilot picker (the panel dispatches it via the custom-agent API).
+  if (!isResearch) {
+    return `
+      <h2>Start the review</h2>
+      <p style="color: var(--text-secondary); margin-bottom: 4px;">
+        ${issueLink} is ready for review.
+      </p>
+      <p style="color: var(--text-secondary); font-size: 12px; margin-bottom: 16px;">
+        The review is performed by the <strong>Architecture Review Agent</strong> — the
+        governed GitHub Copilot custom agent. It follows the prompt packs and pillars you
+        selected, grounds in the BAR's mesh artifacts + linked repositories, and opens a
+        PR with the review report and the <code>reviews.yaml</code> record that updates
+        this application's drift score.
+      </p>
+
+      <div class="agent-cards">
+        <div class="agent-card" id="assign-copilot">
+          <h4>&#128302; Start Review — Architecture Review Agent</h4>
+          <p>Dispatches the governance review now. Track progress here or on the issue.</p>
+        </div>
+        <div class="agent-card" id="assign-skip">
+          <h4>Skip</h4>
+          <p>Don't dispatch now. The <code>oraculum-review</code> label is added but no
+             agent is assigned.</p>
+        </div>
+      </div>
+
+      <div id="workflow-warning" class="workflow-warning" style="display: none;">
+        Note: a mesh provisioning gap was detected. Use "Deploy All" in Settings so the
+        <code>architecture-review-agent</code> persona is available in the mesh.
+      </div>
+
+      <div id="assign-loading" class="loading" style="display: none;">
+        <div class="spinner"></div>
+        <span>Dispatching the architecture-review agent...</span>
+      </div>
+      <div id="assign-error" class="error-msg"></div>
+    `;
+  }
+
+  const claudeCopy = `<h4>Claude / Alice</h4>
        <p>Posts an <code>@claude</code> comment that fires <code>oraculum-research.yml</code>.
           Claude reads the ranked sources + JTBD analysis, follows
           <code>.caterpillar/prompts/research/synthesis.md</code>, writes
-          <code>research/&lt;run-id&gt;/synthesis.md</code>, and opens a PR.</p>`
-    : `<h4>Claude / Alice</h4>
-       <p>Posts <code>@claude</code> comment to trigger architecture analysis.
-          Claude will review each repo against the BAR and post findings.</p>`;
+          <code>research/&lt;run-id&gt;/synthesis.md</code>, and opens a PR.</p>`;
 
-  const copilotCopy = isResearch
-    ? `<h4>Copilot</h4>
+  const copilotCopy = `<h4>Copilot</h4>
        <p>Assigns the GitHub Copilot coding agent. Copilot reads the issue body +
           structured data comment, drafts the synthesis markdown, and opens a PR.
-          Does not fire <code>oraculum-research.yml</code> — the agent handles end-to-end.</p>`
-    : `<h4>Copilot</h4>
-       <p>Assigns the GitHub Copilot coding agent to this issue.
-          Copilot reads the issue body, prompt packs, and BAR to perform the review.</p>`;
+          Does not fire <code>oraculum-research.yml</code> — the agent handles end-to-end.</p>`;
 
-  const triggerLabelName = isResearch ? 'oraculum-research' : 'oraculum-review';
   const skipCopy = `<h4>Skip</h4>
-       <p>Don't assign now. The <code>${triggerLabelName}</code> label will be added
+       <p>Don't assign now. The <code>oraculum-research</code> label will be added
           but no agent comment posted.</p>`;
 
-  const workflowFile = isResearch ? 'oraculum-research.yml' : 'oraculum-review.yml';
-
   return `
-    <h2>${headline}</h2>
+    <h2>Assign agent to synthesize research</h2>
     <p style="color: var(--text-secondary); margin-bottom: 4px;">
-      ${issueLink} ${isResearch ? 'is ready for synthesis.' : 'is ready for review.'}
+      ${issueLink} is ready for synthesis.
     </p>
-    <p style="color: var(--text-secondary); font-size: 12px; margin-bottom: 16px;">${subtitle}</p>
+    <p style="color: var(--text-secondary); font-size: 12px; margin-bottom: 16px;">Data collection is complete. Pick an agent to draft the synthesis report from the structured comment above.</p>
 
     <div class="agent-cards">
       <div class="agent-card" id="assign-claude">${claudeCopy}</div>
@@ -393,7 +421,7 @@ function renderAssignPhase(): string {
     </div>
 
     <div id="workflow-warning" class="workflow-warning" style="display: none;">
-      Note: The <code>${workflowFile}</code> workflow was not found.
+      Note: The <code>oraculum-research.yml</code> workflow was not found.
       The @claude comment will be posted, but automated analysis won't trigger until the workflow is added.
       Use "Redeploy All Workflows" in Settings to add it.
     </div>
