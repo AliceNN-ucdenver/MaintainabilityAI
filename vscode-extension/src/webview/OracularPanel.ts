@@ -618,29 +618,57 @@ export class OracularPanel extends BasePanel<OracularWebviewMessage, OracularExt
           [triggerLabel]
         );
 
-        // Assign Copilot as an issue assignee — this triggers the Copilot coding agent
-        await this.githubService.assignIssue(
-          this.meshRepoInfo.owner,
-          this.meshRepoInfo.repo,
-          this.currentIssueNumber,
-          ['copilot-swe-agent[bot]']
-        );
-
-        // Post a context comment for Copilot to read. Mirror the Claude
-        // path's kind-routing — the @copilot prefix doesn't fire a
-        // workflow (assignment triggers the Coding Agent directly), the
-        // comment is just instructions the agent reads from the issue.
-        // Earlier this hard-coded the review prompt, which posted
-        // architecture-review instructions on research-synthesis issues.
-        const copilotCommentBody = isResearch
-          ? `@copilot Please synthesize a research report from the data collected above. Follow \`.caterpillar/prompts/research/synthesis.md\` exactly — 10 canonical H2 sections in the specified order, every claim cites an \`S[N]\`, every Conclusion \`C[N]\` cites ≥2 sources (≥1 if confidence LOW), every Recommendation references at least one Conclusion.\n\n**Write the output to a NEW file at \`research/${runIdSlug}/synthesis.md\`.** Do NOT modify any existing synthesis files for other run ids${researchRunId ? '' : ' (substitute the run id from the data-collection comment above — look for `**Run id:**`)'}.`
-          : `@copilot Please review the repositories listed in this review request against the BAR configuration and prompt pack guidelines above. Report findings organized by pillar (architecture, security, risk, operations).`;
-        await this.githubService.createIssueComment(
-          this.meshRepoInfo.owner,
-          this.meshRepoInfo.repo,
-          this.currentIssueNumber,
-          copilotCommentBody
-        );
+        if (!isResearch) {
+          // Governance-review alignment (design/governance-review-alignment.md):
+          // reviews dispatch the architecture-review-agent PERSONA via the
+          // custom-agent API — the same primitive the OKR phases use — instead
+          // of a generic assignee + "@copilot please review…" comment. The
+          // persona parses the issue's ```oraculum config block (bar_path /
+          // repos / scope / prompt_packs) itself and writes the SAME artifacts
+          // the claude flow produces (reports/review-<n>.md + reviews.yaml),
+          // keeping the BAR page's drift/score rendering intact.
+          try {
+            await this.githubService.assignCustomCopilotAgent(
+              this.meshRepoInfo.owner,
+              this.meshRepoInfo.repo,
+              this.currentIssueNumber,
+              'architecture-review-agent',
+              { baseBranch: 'main' }
+            );
+          } catch (personaErr) {
+            // Fallback (mirrors the OKR dispatch fallback): custom-agent
+            // dispatch unavailable → generic Copilot + explicit handoff
+            // comment naming the persona, so the run still proceeds.
+            console.warn('[OracularPanel] custom-agent dispatch failed; falling back to generic Copilot:', toErrorMessage(personaErr));
+            await this.githubService.assignIssue(
+              this.meshRepoInfo.owner,
+              this.meshRepoInfo.repo,
+              this.currentIssueNumber,
+              ['copilot-swe-agent[bot]']
+            );
+            await this.githubService.createIssueComment(
+              this.meshRepoInfo.owner,
+              this.meshRepoInfo.repo,
+              this.currentIssueNumber,
+              `@copilot use agent architecture-review-agent\n\nPlease review the repositories listed in this review request against the BAR configuration and prompt pack guidelines above, following \`.github/agents/architecture-review-agent.agent.md\`.`
+            );
+          }
+        } else {
+          // Research synthesis keeps the existing generic path (its custom-
+          // agent alignment is phase 3 of the governance-review design).
+          await this.githubService.assignIssue(
+            this.meshRepoInfo.owner,
+            this.meshRepoInfo.repo,
+            this.currentIssueNumber,
+            ['copilot-swe-agent[bot]']
+          );
+          await this.githubService.createIssueComment(
+            this.meshRepoInfo.owner,
+            this.meshRepoInfo.repo,
+            this.currentIssueNumber,
+            `@copilot Please synthesize a research report from the data collected above. Follow \`.caterpillar/prompts/research/synthesis.md\` exactly — 10 canonical H2 sections in the specified order, every claim cites an \`S[N]\`, every Conclusion \`C[N]\` cites ≥2 sources (≥1 if confidence LOW), every Recommendation references at least one Conclusion.\n\n**Write the output to a NEW file at \`research/${runIdSlug}/synthesis.md\`.** Do NOT modify any existing synthesis files for other run ids${researchRunId ? '' : ' (substitute the run id from the data-collection comment above — look for `**Run id:**`)'}.`
+          );
+        }
 
         this.postMessage({ type: 'agentAssigned', agent: 'copilot' });
         this.postMessage({ type: 'phaseUpdate', phase: 'assign', status: 'completed' });

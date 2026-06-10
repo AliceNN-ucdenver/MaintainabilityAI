@@ -92,6 +92,13 @@ export const MESH_AGENTS: MeshAgentSpec[] = [
   // Skills above. Per-repo grounding via knowledge-code Skill (3-mode
   // brownfield / greenfield / refuse per A12.v1.1 targetCodeRepoStatus).
   agentSpec('code-design-agent'),
+  // Governance-review alignment (design/governance-review-alignment.md) —
+  // the Copilot architecture governance agent. Replaces the generic
+  // copilot-swe-agent + "@copilot please review…" comment path with a
+  // persona that produces the SAME artifacts the claude review flow writes
+  // (reports/review-<issue>.md + reviews.yaml record, canonical drift
+  // formula) so the BAR page's drift/score rendering stays intact.
+  agentSpec('architecture-review-agent'),
 ];
 
 /**

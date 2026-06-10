@@ -38,6 +38,35 @@ agent runs in the system that bypass the governed artifact chain.
    served by the issue link. `OracularPanel.ts` + `oraculum.ts` (~1,600 lines)
    + the `maintainabilityai.oraculum` command go away at the end of migration.
 
+## Artifact consistency — the contract that must NOT break (verified 2026-06-04)
+
+The BAR page **already renders drift + scores from review artifacts**, and the
+new persona must keep producing them byte-compatibly. Corrected picture:
+
+- The **claude path already does the PR-artifact flow.** `oraculum-review.yml`
+  instructs claude-code-action to (1) write
+  `<bar_path>/reports/review-<issue#>.md`, (2) append a record to
+  `<bar_path>/reviews.yaml`, (3) push a branch; the workflow opens the PR and
+  labels `review-complete`. Those files are what the BAR page consumes.
+- The **copilot path is the broken one**: generic assignee + an `@copilot`
+  comment that asks only for findings *comments* — no report, no reviews.yaml,
+  so a Copilot-run review never updates drift/scores.
+
+What consumes the artifacts (all must keep working unchanged):
+
+| Consumer | Reads | Contract |
+|---|---|---|
+| `BarService.readReviews` / `parseReviewsYaml` | `reviews.yaml` | snake_case fields: `issue_url`, `issue_number`, `date`, `agent`, `drift_score`, `pillars.<name>.{findings,critical,high,medium,low}` |
+| BAR page drift chip + portfolio sparkline | `latestDriftScore` / `reviews[last].driftScore` | **drift formula: `100 − (15·critical + 5·high + 2·medium + 1·low)`, floored at 0** (`BarService.computeDriftScore`) |
+| Review history rows | per-pillar finding counts | pillar keys: `architecture`, `security`, `risk`, `operations` |
+| Report links | `reports/review-<issue#>.md` | same path the claude flow writes |
+
+So the consistency rule for the new `architecture-review-agent`: **same files,
+same YAML shape, same drift formula, same labels** as the claude flow — the
+persona simply makes the Copilot path produce what only the claude path
+produces today. `agent:` in the record stays in-union (`copilot`) so old
+parsers render it; the persona identity travels in the report + PR.
+
 ## Target architecture
 
 ### One run model
