@@ -43,21 +43,19 @@ const ENTRY_POINTS = [
 // Ratchet budgets: current hotspots are explicit so new complexity cannot hide.
 const DEFAULT_COMPLEXITY_BUDGET = 40;
 const FILE_COMPLEXITY_BUDGETS: Record<string, number> = {
-  // Remaining ratchets — each pending a "characterization tests FIRST, THEN
-  // reduce below 40" pass. These functions have NO unit tests yet, so they keep
-  // a documented budget until that net exists rather than refactoring untested
-  // code under a live flow:
-  //   LookingGlassPanel.ts — fetchPhaseSignal (72) + onPollFanOutPRs (63) +
-  //                          onFanOutInner (61) + onExportAuditReport (58) +
-  //                          onExportOkrRollup (45)
-  //   main.ts (56) / oraculum.ts (48)
+  // Last remaining ratchet — pending a "characterization tests FIRST, THEN
+  // reduce below 40" pass. These 5 functions have NO unit tests yet, so the
+  // file keeps a documented budget until that net exists (and until the live
+  // OKR/fan-out flow is confirmed) rather than refactoring untested code:
+  //   fetchPhaseSignal (72) + onPollFanOutPRs (63) + onFanOutInner (61) +
+  //   onExportAuditReport (58) + onExportOkrRollup (45)
   // Dropped once their worst function fell at/under the default 40 (no ratchet
-  // needed): CalmWriteService.applyPatch (52 → ~34 — extracted 4 verbatim per-op
-  // appliers, backed by 13 new characterization tests), topologicalSort.ts
-  // (verifyCoordination split into rule helpers), lookingGlass.ts, okrDetail.ts.
+  // needed): CalmWriteService.applyPatch (52 → ~34, + 13 characterization
+  // tests), topologicalSort.ts (verifyCoordination split into rule helpers),
+  // main.ts (56 → dispatch table) and oraculum.ts (48/42 → dispatch table +
+  // deriveAgentStatus extracted pure with 11 tests), lookingGlass.ts,
+  // okrDetail.ts.
   'webview/LookingGlassPanel.ts': 73,
-  'webview/app/main.ts': 56,
-  'webview/app/oraculum.ts': 48,
 };
 
 const INTENTIONAL_STANDALONE_MODULES = new Set<string>([

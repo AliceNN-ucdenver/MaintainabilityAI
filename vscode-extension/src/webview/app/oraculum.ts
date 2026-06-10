@@ -2,6 +2,7 @@
 // Hub / Create / Manage pattern (mirrors Cheshire Cat IssueCreatorPanel)
 
 import { escapeHtml, escapeAttr, formatTimestamp } from './pillars/shared';
+import { deriveAgentStatus } from './agentStatusDerivation';
 import { themeStyles, componentStyles } from '../styles';
 import type { VsCodeApi, ReviewPillar, AgentAssignment, BarSummarySlim, PromptPackOption, IssueComment, GitHubIssueListItem, LinkedPullRequest } from './types';
 
@@ -686,76 +687,9 @@ function updateAgentStatus(comments: IssueComment[], needsApproval: boolean) {
     return;
   }
 
-  const labels = state.labels;
-  const hasPlanning = labels.includes('remediation-planning');
-  const hasInProgress = labels.includes('remediation-in-progress');
-  const hasComplete = labels.includes('remediation-complete');
-
-  const lastBot = [...comments].reverse().find(c => c.isBot);
-  const lastAny = comments[comments.length - 1];
-  let status = 'analyzing';
-  let icon = '&#x1F50D;'; // magnifying glass
-  let text = 'Agent is analyzing...';
-
-  if (lastBot) {
-    const lower = lastBot.body.toLowerCase();
-
-    const isComplete = hasComplete ||
-      lower.includes('implementation complete') ||
-      lower.includes('implementation is complete') ||
-      lower.includes('all changes have been committed') ||
-      lower.includes('review complete') ||
-      lower.includes('analysis complete') ||
-      lower.includes('opened a pull request') ||
-      lower.includes('created a pull request');
-
-    if (needsApproval) {
-      status = 'awaiting-approval';
-      icon = '&#x1F4CB;'; // clipboard
-      text = 'Plan ready \u2014 waiting for your approval';
-    } else if (hasPlanning && !needsApproval) {
-      status = 'approval-sent';
-      icon = '&#x23F3;'; // hourglass
-      text = 'Approval sent \u2014 waiting for implementation to start...';
-    } else if (hasInProgress) {
-      if (lower.includes('running tests') || lower.includes('npm test') || lower.includes('test coverage')) {
-        status = 'testing';
-        icon = '&#x1F9EA;'; // test tube
-        text = 'Agent is running tests...';
-      } else {
-        status = 'implementing';
-        icon = '&#x1F528;'; // hammer
-        text = 'Agent is implementing...';
-      }
-    } else if (isComplete) {
-      status = 'complete';
-      icon = '&#x2705;'; // check
-      text = 'Review complete';
-      if (lower.includes('pull request') || hasComplete) {
-        text = 'Review complete \u2014 PR created';
-      }
-    } else if (lower.includes('running tests') || lower.includes('npm test') || lower.includes('test coverage')) {
-      status = 'testing';
-      icon = '&#x1F9EA;';
-      text = 'Agent is running tests...';
-    } else if (lower.includes('starting implementation') || lower.includes('beginning implementation') || lower.includes('implementing') || lower.includes('creating files') || lower.includes('writing code')) {
-      status = 'implementing';
-      icon = '&#x1F528;';
-      text = 'Agent is implementing...';
-    } else if (lower.includes('plan') || lower.includes('analysis') || lower.includes('approach') || lower.includes('reviewing')) {
-      status = 'planning';
-      icon = '&#x1F4CB;';
-      text = 'Agent is analyzing the architecture...';
-    } else {
-      status = 'working';
-      icon = '&#x1F916;';
-      text = 'Agent is working...';
-    }
-  }
-
-  if (lastAny?.isBot && lastAny.updatedAt !== lastAny.createdAt && status !== 'complete' && status !== 'awaiting-approval') {
-    text += ' (comment being updated live)';
-  }
+  // The keyword/label ladder lives in agentStatusDerivation.ts (pure +
+  // unit-tested); this function only applies the derived view to the DOM.
+  const { status, icon, text } = deriveAgentStatus(comments, needsApproval, state.labels);
 
   statusEl.style.display = 'flex';
   statusEl.className = `agent-status status-${status}`;
@@ -1012,179 +946,195 @@ function selectIssueFromHub(issueNumber: number, issueUrl: string) {
 // Message Handler
 // ============================================================================
 
+// Extension -> webview message dispatch table. Replaces the prior 20-case
+// switch inside the addEventListener callback (cyclomatic complexity 48,
+// over the 40 budget). Each entry is its own function so its complexity is
+// measured independently; the router is one lookup + one call. Bodies are
+// verbatim from the switch — only type casts added (event.data was `any`).
+type InboundMessage = { type: string } & Record<string, unknown>;
+type InboundHandler = (msg: InboundMessage) => void;
+const inboundHandlers: Record<string, InboundHandler> = {
+  'meshRepoDetected': (msg) => {
+    state.meshOwner = msg.owner as string;
+    state.meshRepo = msg.repo as string;
+    if (state.viewMode === 'hub') { render(); }
+  },
+
+  'promptPacksLoaded': (msg) => {
+    state.promptPacks = msg.packs as typeof state.promptPacks;
+    if (state.viewMode === 'create' && state.currentPhase === 'configure') { render(); }
+  },
+
+  'workflowStatus': (msg) => {
+    state.workflowExists = msg.exists as boolean;
+    if (state.viewMode === 'hub') { render(); }
+  },
+
+  'workflowProvisioned': () => {
+    state.workflowExists = true;
+    render();
+  },
+
+  'meshSyncStatus': (msg) => {
+    state.meshBehind = (msg.behind as number | undefined) ?? 0;
+    state.meshAhead = (msg.ahead as number | undefined) ?? 0;
+    render();
+  },
+
+  'pullComplete': () => {
+    state.meshBehind = 0;
+    state.meshAhead = 0;
+    render();
+  },
+
+  'pullError': (msg) => {
+    state.error = (msg.message as string | undefined) || 'Pull failed';
+    render();
+  },
+
+  'startCreateFlow': (msg) => {
+    state.selectedBar = msg.bar as typeof state.selectedBar;
+    state.selectedBarRepos = (msg.repos as string[] | undefined) || [];
+    state.selectedBarPath = msg.barPath as string;
+    state.viewMode = 'create';
+    state.currentPhase = 'configure';
+    render();
+  },
+
+  'issuesLoaded': (msg) => {
+    const issues = msg.issues as typeof state.hubIssues;
+    const page = msg.page as number;
+    if (page === 1) {
+      state.hubIssues = issues;
+    } else {
+      state.hubIssues = [...state.hubIssues, ...issues];
+    }
+    state.hubHasMore = msg.hasMore as boolean;
+    state.hubPage = page;
+    if (state.viewMode === 'hub') { render(); }
+  },
+
+  'reviewCreated': (msg) => {
+    state.issueUrl = msg.url as string;
+    state.issueNumber = msg.number as number;
+    // Auto-transition to manage mode for the new issue
+    state.viewMode = 'manage';
+    state.currentPhase = 'assign';
+    render();
+  },
+
+  'agentAssigned': (msg) => {
+    const agent = msg.agent as NonNullable<typeof state.assignedAgent>;
+    if (agent === 'skip') {
+      state.assignedAgent = 'skip';
+      state.currentPhase = 'results';
+      render();
+    } else {
+      state.assignedAgent = agent;
+      // Navigate to Looking Glass BAR detail — pass agent so banner appears immediately
+      vscode.postMessage({ type: 'navigateToBar', agent });
+    }
+  },
+
+  'workflowNotFound': () => {
+    const warningEl = document.getElementById('workflow-warning');
+    if (warningEl) { warningEl.style.display = 'block'; }
+  },
+
+  'commentsUpdated': (msg) => {
+    const comments = msg.comments as typeof state.comments;
+    state.comments = comments;
+    if (state.currentPhase === 'monitor') {
+      updateTimeline(comments);
+    }
+  },
+
+  'prDetected': (msg) => {
+    const pr = msg.pr as NonNullable<typeof state.linkedPr>;
+    state.linkedPr = pr;
+    if (state.currentPhase === 'monitor') {
+      showPrBanner(pr);
+      // Only auto-transition when PR is NOT a draft (Copilot opens draft first, then marks ready)
+      if (!pr.draft) {
+        vscode.postMessage({ type: 'stopMonitoring' });
+        state.currentPhase = 'results';
+        render();
+      }
+    }
+  },
+
+  'prStatusUpdated': (msg) => {
+    const pr = msg.pr as NonNullable<typeof state.linkedPr>;
+    state.linkedPr = pr;
+    if (state.currentPhase === 'monitor') {
+      showPrBanner(pr);
+      // If PR changed from draft to ready, now auto-transition
+      if (!pr.draft) {
+        vscode.postMessage({ type: 'stopMonitoring' });
+        state.currentPhase = 'results';
+        render();
+      }
+    }
+  },
+
+  'labelsUpdated': (msg) => {
+    const labels = msg.labels as string[];
+    state.labels = labels;
+    if (state.currentPhase === 'monitor') {
+      // review-complete label means the workflow finished — transition to results
+      if (labels.includes('review-complete')) {
+        vscode.postMessage({ type: 'stopMonitoring' });
+        state.currentPhase = 'results';
+        render();
+      } else if (state.comments.length > 0) {
+        updateAgentStatus(state.comments, detectNeedsApproval(state.comments));
+      }
+    }
+  },
+
+  'issueState': (msg) => {
+    // Auto-detect which phase to show based on existing issue state
+    const labels = msg.labels as string[];
+    state.labels = labels;
+    state.issueKind = msg.issueKind as typeof state.issueKind;
+    if (labels.includes('review-complete') || labels.includes('research-synthesis-complete')) {
+      // Review already finished — go straight to results
+      state.currentPhase = 'results';
+      render();
+    } else if (msg.hasComments) {
+      // Agent was assigned (@claude or @copilot comment exists) — go to monitor
+      state.currentPhase = 'monitor';
+      render();
+    }
+    // Otherwise stay on assign phase
+  },
+
+  'phaseUpdate': (msg) => {
+    if (msg.phase === 'monitor' && msg.status === 'active') {
+      state.currentPhase = 'monitor';
+      render();
+    }
+  },
+
+  'loading': (msg) => {
+    state.isLoading = msg.active as boolean;
+    state.loadingMessage = (msg.message as string | undefined) || '';
+    render();
+  },
+
+  'error': (msg) => {
+    state.error = msg.message as string;
+    state.isLoading = false;
+    render();
+    setTimeout(() => { state.error = ''; render(); }, 8000);
+  },
+};
+
 window.addEventListener('message', (event) => {
   if (event.origin !== window.origin) { return; }
-  const msg = event.data;
-
-  switch (msg.type) {
-    case 'meshRepoDetected':
-      state.meshOwner = msg.owner;
-      state.meshRepo = msg.repo;
-      if (state.viewMode === 'hub') { render(); }
-      break;
-
-    case 'promptPacksLoaded':
-      state.promptPacks = msg.packs;
-      if (state.viewMode === 'create' && state.currentPhase === 'configure') { render(); }
-      break;
-
-    case 'workflowStatus':
-      state.workflowExists = msg.exists;
-      if (state.viewMode === 'hub') { render(); }
-      break;
-
-    case 'workflowProvisioned':
-      state.workflowExists = true;
-      render();
-      break;
-
-    case 'meshSyncStatus':
-      state.meshBehind = msg.behind ?? 0;
-      state.meshAhead = msg.ahead ?? 0;
-      render();
-      break;
-
-    case 'pullComplete':
-      state.meshBehind = 0;
-      state.meshAhead = 0;
-      render();
-      break;
-
-    case 'pullError':
-      state.error = msg.message || 'Pull failed';
-      render();
-      break;
-
-    case 'startCreateFlow':
-      state.selectedBar = msg.bar;
-      state.selectedBarRepos = msg.repos || [];
-      state.selectedBarPath = msg.barPath;
-      state.viewMode = 'create';
-      state.currentPhase = 'configure';
-      render();
-      break;
-
-    case 'issuesLoaded':
-      if (msg.page === 1) {
-        state.hubIssues = msg.issues;
-      } else {
-        state.hubIssues = [...state.hubIssues, ...msg.issues];
-      }
-      state.hubHasMore = msg.hasMore;
-      state.hubPage = msg.page;
-      if (state.viewMode === 'hub') { render(); }
-      break;
-
-    case 'reviewCreated':
-      state.issueUrl = msg.url;
-      state.issueNumber = msg.number;
-      // Auto-transition to manage mode for the new issue
-      state.viewMode = 'manage';
-      state.currentPhase = 'assign';
-      render();
-      break;
-
-    case 'agentAssigned':
-      if (msg.agent === 'skip') {
-        state.assignedAgent = 'skip';
-        state.currentPhase = 'results';
-        render();
-      } else {
-        state.assignedAgent = msg.agent;
-        // Navigate to Looking Glass BAR detail — pass agent so banner appears immediately
-        vscode.postMessage({ type: 'navigateToBar', agent: msg.agent });
-      }
-      break;
-
-    case 'workflowNotFound': {
-      const warningEl = document.getElementById('workflow-warning');
-      if (warningEl) { warningEl.style.display = 'block'; }
-      break;
-    }
-
-    case 'commentsUpdated':
-      state.comments = msg.comments;
-      if (state.currentPhase === 'monitor') {
-        updateTimeline(msg.comments);
-      }
-      break;
-
-    case 'prDetected':
-      state.linkedPr = msg.pr;
-      if (state.currentPhase === 'monitor') {
-        showPrBanner(msg.pr);
-        // Only auto-transition when PR is NOT a draft (Copilot opens draft first, then marks ready)
-        if (!msg.pr.draft) {
-          vscode.postMessage({ type: 'stopMonitoring' });
-          state.currentPhase = 'results';
-          render();
-        }
-      }
-      break;
-
-    case 'prStatusUpdated':
-      state.linkedPr = msg.pr;
-      if (state.currentPhase === 'monitor') {
-        showPrBanner(msg.pr);
-        // If PR changed from draft to ready, now auto-transition
-        if (!msg.pr.draft) {
-          vscode.postMessage({ type: 'stopMonitoring' });
-          state.currentPhase = 'results';
-          render();
-        }
-      }
-      break;
-
-    case 'labelsUpdated':
-      state.labels = msg.labels;
-      if (state.currentPhase === 'monitor') {
-        // review-complete label means the workflow finished — transition to results
-        if (msg.labels.includes('review-complete')) {
-          vscode.postMessage({ type: 'stopMonitoring' });
-          state.currentPhase = 'results';
-          render();
-        } else if (state.comments.length > 0) {
-          updateAgentStatus(state.comments, detectNeedsApproval(state.comments));
-        }
-      }
-      break;
-
-    case 'issueState':
-      // Auto-detect which phase to show based on existing issue state
-      state.labels = msg.labels;
-      state.issueKind = msg.issueKind;
-      if (msg.labels.includes('review-complete') || msg.labels.includes('research-synthesis-complete')) {
-        // Review already finished — go straight to results
-        state.currentPhase = 'results';
-        render();
-      } else if (msg.hasComments) {
-        // Agent was assigned (@claude or @copilot comment exists) — go to monitor
-        state.currentPhase = 'monitor';
-        render();
-      }
-      // Otherwise stay on assign phase
-      break;
-
-    case 'phaseUpdate':
-      if (msg.phase === 'monitor' && msg.status === 'active') {
-        state.currentPhase = 'monitor';
-        render();
-      }
-      break;
-
-    case 'loading':
-      state.isLoading = msg.active;
-      state.loadingMessage = msg.message || '';
-      render();
-      break;
-
-    case 'error':
-      state.error = msg.message;
-      state.isLoading = false;
-      render();
-      setTimeout(() => { state.error = ''; render(); }, 8000);
-      break;
-  }
+  const msg = event.data as InboundMessage;
+  const handler = inboundHandlers[msg?.type];
+  if (handler) { handler(msg); }
 });
 
 // ============================================================================

@@ -1045,215 +1045,226 @@ function hideError() {
 // Message Handling (from extension)
 // ============================================================================
 
+// Extension -> webview message dispatch table. Replaces the prior 23-case
+// switch inside the addEventListener callback (cyclomatic complexity 56,
+// over the 40 budget). Each entry is its own function so its complexity is
+// measured independently; the router is one lookup + one call. Bodies are
+// verbatim from the switch — only type casts added (event.data was `any`).
+type InboundMessage = { type: string } & Record<string, unknown>;
+type InboundHandler = (message: InboundMessage) => void;
+const inboundHandlers: Record<string, InboundHandler> = {
+  'rctroGenerated': (message) => {
+    state.rctro = message.rctro as typeof state.rctro;
+    state.rctroMarkdown = message.markdown as string;
+    state.iterationCount++;
+    if (state.currentPhase === 'input') {
+      // Save current selections to repo-metadata.yml
+      const overrides = getStackOverrides();
+      const modelSel = document.getElementById('model-select') as HTMLSelectElement | null;
+      vscode.postMessage({
+        type: 'saveMetadata',
+        metadata: {
+          language: overrides.language || '',
+          module_system: (overrides.runtime || '').includes('ESM') ? 'ESM' : (overrides.runtime || '').includes('CommonJS') ? 'CommonJS' : '',
+          testing: overrides.testing || '',
+          package_manager: '',
+          modelFamily: modelSel?.value || undefined,
+        },
+      });
+      // First generation — advance to review
+      goToPhase('review');
+    } else if (state.currentPhase === 'review') {
+      // Regeneration — re-render review phase
+      renderReviewPhase();
+    }
+  },
+
+  'stackDetected': (message) => {
+    renderStack(message.stack as Record<string, string>);
+    if (message.metadata) {
+      const meta = message.metadata as NonNullable<typeof state.detectedMetadata>;
+      state.detectedMetadata = meta;
+      applyMetadataDefaults(meta);
+    }
+  },
+
+  'issueCreated': (message) => {
+    state.issueNumber = message.number as number;
+    state.issueUrl = message.url as string;
+    goToHub();
+  },
+
+  'error': (message) => {
+    state.errorMessage = message.message as string;
+    showError(message.message as string);
+    // Re-enable sync button if it was in progress
+    const syncBtn = document.getElementById('btn-sync-repo') as HTMLButtonElement | null;
+    if (syncBtn) { syncBtn.disabled = false; syncBtn.textContent = 'Sync Repo'; }
+  },
+
+  'loading': (message) => {
+    state.isLoading = message.active as boolean;
+    const loadingEl = document.getElementById('loading');
+    if (loadingEl) {
+      loadingEl.classList.toggle('active', message.active as boolean);
+    }
+  },
+
+  'promptPacks': (message) => {
+    const packs = message.packs as typeof state.allPacks;
+    state.allPacks = packs;
+    renderPromptPacks(packs);
+  },
+
+  'repoDetected': (message) => {
+    const repo = message.repo as NonNullable<typeof state.repo>;
+    state.repo = repo;
+    repoInfoEl.textContent = `${repo.owner}/${repo.repo}`;
+    // Update the h2 repo hint if currently on input or review phase
+    const h2 = contentEl.querySelector('h2');
+    if (h2) {
+      let existing = h2.querySelector('.repo-hint');
+      if (!existing) {
+        existing = document.createElement('span');
+        existing.className = 'repo-hint';
+        (existing as HTMLElement).style.cssText = 'font-size: 12px; color: var(--text-secondary); font-weight: 400; margin-left: 12px;';
+        h2.appendChild(existing);
+      }
+      existing.textContent = `${repo.owner}/${repo.repo}`;
+    }
+  },
+
+  'workspaceFolders': (message) => {
+    const folders = message.folders as typeof state.workspaceFolders;
+    state.workspaceFolders = folders;
+    if (message.selectedPath) {
+      state.selectedFolder = message.selectedPath as string;
+    } else if (!state.selectedFolder && folders.length > 0) {
+      state.selectedFolder = folders[0].path;
+    }
+    // Re-render hub to show/update the folder dropdown
+    if (state.viewMode === 'hub') { renderIssueListHub(); }
+  },
+
+  'governanceData': (message) => {
+    state.governanceData = message.data as typeof state.governanceData;
+    // Re-render input phase to show governance posture if visible
+    if (state.currentPhase === 'input') { renderInputPhase(); }
+  },
+
+  'templateLoaded': (message) => {
+    // Set description and packs in the input phase
+    const descEl = document.getElementById('description') as HTMLTextAreaElement | null;
+    if (descEl) { descEl.value = message.description as string; }
+    setSelectedPacks(message.packs as { owasp: string[]; maintainability: string[]; threatModeling: string[] });
+  },
+
+  'prefillDescription': (message) => {
+    // Switch to create mode and render the input phase so the textarea exists
+    resetIssueState();
+    const packs = message.packs as { owasp: string[]; maintainability: string[]; threatModeling: string[] } | undefined;
+    // Detect component mode when pre-populated with packs (White Rabbit flow)
+    if (packs) { state.isComponentMode = true; }
+    setViewMode('create');
+    goToPhase('input');
+    // Now the textarea is rendered — set its value
+    const prefillEl = document.getElementById('description') as HTMLTextAreaElement | null;
+    if (prefillEl) { prefillEl.value = message.description as string; }
+    // Pre-select prompt packs if provided and auto-expand Custom section
+    if (packs) {
+      setSelectedPacks(packs);
+      const hasCustomPacks = [...packs.owasp, ...packs.maintainability, ...packs.threatModeling].length > 0;
+      if (hasCustomPacks) {
+        const advToggle = document.getElementById('advanced-packs-checkbox') as HTMLInputElement | null;
+        if (advToggle) {
+          advToggle.checked = true;
+          const section = document.getElementById('pack-section-collapsible');
+          if (section) { section.style.display = ''; }
+        }
+      }
+    }
+  },
+
+  'availableModels': (message) => {
+    const models = message.models as typeof state.availableModels;
+    const defaultFamily = message.defaultFamily as string;
+    state.availableModels = models;
+    state.selectedModelFamily = defaultFamily;
+    populateModelDropdown(models, defaultFamily);
+  },
+
+  'phaseUpdate': (message) => {
+    const el = document.querySelector(`[data-phase="${message.phase}"]`);
+    if (el) { el.className = `phase-item ${message.status}`; }
+  },
+
+  'agentAssigned': (message) => {
+    // Agent assigned — extension host switches to the Security Scorecard.
+    // Mark assign phase complete in the sidebar; no further phases here.
+    state.assignedAgent = message.agent as 'claude' | 'copilot' | null;
+    document.querySelectorAll('.phase-item').forEach(el => {
+      el.className = 'phase-item completed';
+    });
+  },
+
+  'workflowNotFound': () => {
+    state.workflowWarning = true;
+    const warningEl = document.getElementById('workflow-warning');
+    if (warningEl) { warningEl.style.display = 'block'; }
+  },
+
+  'commentsUpdated': (message) => {
+    state.comments = message.comments as typeof state.comments;
+  },
+
+  'prDetected': (message) => {
+    state.linkedPr = message.pr as typeof state.linkedPr;
+  },
+
+  'prStatusUpdated': (message) => {
+    state.linkedPr = message.pr as typeof state.linkedPr;
+  },
+
+  'labelsUpdated': (message) => {
+    state.labels = message.labels as string[];
+  },
+
+  'branchCheckedOut': () => {
+    // Show a transient notification in the webview
+    showError(''); // Clear any errors
+  },
+
+  'repoSynced': () => {
+    showError(''); // Clear any errors
+    const syncBtn = document.getElementById('btn-sync-repo') as HTMLButtonElement | null;
+    if (syncBtn) { syncBtn.disabled = false; syncBtn.textContent = 'Sync Repo'; }
+  },
+
+  'issuesLoaded': (message) => {
+    const issues = message.issues as typeof state.hubIssues;
+    const page = message.page as number;
+    if (page === 1) {
+      state.hubIssues = issues;
+    } else {
+      state.hubIssues = [...state.hubIssues, ...issues];
+    }
+    state.hubHasMore = message.hasMore as boolean;
+    state.hubPage = page;
+    if (state.viewMode === 'hub') {
+      renderIssueListHub();
+    }
+  },
+
+  'metadataSaved': () => {
+    // Acknowledged — no UI update needed
+  },
+};
+
 window.addEventListener('message', (event) => {
   if (event.origin !== window.origin) { return; }
-  const message = event.data;
-
-  switch (message.type) {
-    case 'rctroGenerated':
-      state.rctro = message.rctro;
-      state.rctroMarkdown = message.markdown;
-      state.iterationCount++;
-      if (state.currentPhase === 'input') {
-        // Save current selections to repo-metadata.yml
-        const overrides = getStackOverrides();
-        const modelSel = document.getElementById('model-select') as HTMLSelectElement | null;
-        vscode.postMessage({
-          type: 'saveMetadata',
-          metadata: {
-            language: overrides.language || '',
-            module_system: (overrides.runtime || '').includes('ESM') ? 'ESM' : (overrides.runtime || '').includes('CommonJS') ? 'CommonJS' : '',
-            testing: overrides.testing || '',
-            package_manager: '',
-            modelFamily: modelSel?.value || undefined,
-          },
-        });
-        // First generation — advance to review
-        goToPhase('review');
-      } else if (state.currentPhase === 'review') {
-        // Regeneration — re-render review phase
-        renderReviewPhase();
-      }
-      break;
-
-    case 'stackDetected':
-      renderStack(message.stack);
-      if (message.metadata) {
-        state.detectedMetadata = message.metadata;
-        applyMetadataDefaults(message.metadata);
-      }
-      break;
-
-    case 'issueCreated':
-      state.issueNumber = message.number;
-      state.issueUrl = message.url;
-      goToHub();
-      break;
-
-    case 'error':
-      state.errorMessage = message.message;
-      showError(message.message);
-      // Re-enable sync button if it was in progress
-      { const syncBtn = document.getElementById('btn-sync-repo') as HTMLButtonElement | null;
-        if (syncBtn) { syncBtn.disabled = false; syncBtn.textContent = 'Sync Repo'; } }
-      break;
-
-    case 'loading': {
-      state.isLoading = message.active;
-      const loadingEl = document.getElementById('loading');
-      if (loadingEl) {
-        loadingEl.classList.toggle('active', message.active);
-      }
-      break;
-    }
-
-    case 'promptPacks':
-      state.allPacks = message.packs;
-      renderPromptPacks(message.packs);
-      break;
-
-    case 'repoDetected':
-      state.repo = message.repo;
-      repoInfoEl.textContent = `${message.repo.owner}/${message.repo.repo}`;
-      // Update the h2 repo hint if currently on input or review phase
-      { const h2 = contentEl.querySelector('h2');
-        if (h2) {
-          let existing = h2.querySelector('.repo-hint');
-          if (!existing) {
-            existing = document.createElement('span');
-            existing.className = 'repo-hint';
-            (existing as HTMLElement).style.cssText = 'font-size: 12px; color: var(--text-secondary); font-weight: 400; margin-left: 12px;';
-            h2.appendChild(existing);
-          }
-          existing.textContent = `${message.repo.owner}/${message.repo.repo}`;
-        }
-      }
-      break;
-
-    case 'workspaceFolders':
-      state.workspaceFolders = message.folders;
-      if (message.selectedPath) {
-        state.selectedFolder = message.selectedPath;
-      } else if (!state.selectedFolder && message.folders.length > 0) {
-        state.selectedFolder = message.folders[0].path;
-      }
-      // Re-render hub to show/update the folder dropdown
-      if (state.viewMode === 'hub') { renderIssueListHub(); }
-      break;
-
-    case 'governanceData':
-      state.governanceData = message.data;
-      // Re-render input phase to show governance posture if visible
-      if (state.currentPhase === 'input') { renderInputPhase(); }
-      break;
-
-    case 'templateLoaded': {
-      // Set description and packs in the input phase
-      const descEl = document.getElementById('description') as HTMLTextAreaElement | null;
-      if (descEl) { descEl.value = message.description; }
-      setSelectedPacks(message.packs);
-      break;
-    }
-
-    case 'prefillDescription': {
-      // Switch to create mode and render the input phase so the textarea exists
-      resetIssueState();
-      // Detect component mode when pre-populated with packs (White Rabbit flow)
-      if (message.packs) { state.isComponentMode = true; }
-      setViewMode('create');
-      goToPhase('input');
-      // Now the textarea is rendered — set its value
-      const prefillEl = document.getElementById('description') as HTMLTextAreaElement | null;
-      if (prefillEl) { prefillEl.value = message.description; }
-      // Pre-select prompt packs if provided and auto-expand Custom section
-      if (message.packs) {
-        setSelectedPacks(message.packs);
-        const hasCustomPacks = [...message.packs.owasp, ...message.packs.maintainability, ...message.packs.threatModeling].length > 0;
-        if (hasCustomPacks) {
-          const advToggle = document.getElementById('advanced-packs-checkbox') as HTMLInputElement | null;
-          if (advToggle) {
-            advToggle.checked = true;
-            const section = document.getElementById('pack-section-collapsible');
-            if (section) { section.style.display = ''; }
-          }
-        }
-      }
-      break;
-    }
-
-    case 'availableModels':
-      state.availableModels = message.models;
-      state.selectedModelFamily = message.defaultFamily;
-      populateModelDropdown(message.models, message.defaultFamily);
-      break;
-
-    case 'phaseUpdate': {
-      const el = document.querySelector(`[data-phase="${message.phase}"]`);
-      if (el) { el.className = `phase-item ${message.status}`; }
-      break;
-    }
-
-    case 'agentAssigned':
-      // Agent assigned — extension host switches to the Security Scorecard.
-      // Mark assign phase complete in the sidebar; no further phases here.
-      state.assignedAgent = message.agent as 'claude' | 'copilot' | null;
-      document.querySelectorAll('.phase-item').forEach(el => {
-        el.className = 'phase-item completed';
-      });
-      break;
-
-    case 'workflowNotFound': {
-      state.workflowWarning = true;
-      const warningEl = document.getElementById('workflow-warning');
-      if (warningEl) { warningEl.style.display = 'block'; }
-      break;
-    }
-
-    case 'commentsUpdated':
-      state.comments = message.comments;
-      break;
-
-    case 'prDetected':
-      state.linkedPr = message.pr;
-      break;
-
-    case 'prStatusUpdated':
-      state.linkedPr = message.pr;
-      break;
-
-    case 'labelsUpdated':
-      state.labels = message.labels;
-      break;
-
-    case 'branchCheckedOut':
-      // Show a transient notification in the webview
-      showError(''); // Clear any errors
-      break;
-
-    case 'repoSynced': {
-      showError(''); // Clear any errors
-      const syncBtn = document.getElementById('btn-sync-repo') as HTMLButtonElement | null;
-      if (syncBtn) { syncBtn.disabled = false; syncBtn.textContent = 'Sync Repo'; }
-      break;
-    }
-
-    case 'issuesLoaded':
-      if (message.page === 1) {
-        state.hubIssues = message.issues;
-      } else {
-        state.hubIssues = [...state.hubIssues, ...message.issues];
-      }
-      state.hubHasMore = message.hasMore;
-      state.hubPage = message.page;
-      if (state.viewMode === 'hub') {
-        renderIssueListHub();
-      }
-      break;
-
-    case 'metadataSaved':
-      // Acknowledged — no UI update needed
-      break;
-  }
+  const message = event.data as InboundMessage;
+  const handler = inboundHandlers[message?.type];
+  if (handler) { handler(message); }
 });
 
 // ============================================================================
