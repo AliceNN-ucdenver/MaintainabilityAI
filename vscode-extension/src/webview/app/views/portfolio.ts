@@ -481,7 +481,7 @@ export function renderDriftIndicator(
   topFindingsState: TopFindingsState,
 ): string {
   const reviews = bar.reviews;
-  const reviewBtn = `<button class="btn-ghost btn-sm drift-review-btn" id="btn-oraculum-review" data-bar-path="${escapeAttr(bar.path)}" title="Run architecture review with Oraculum">&#128302; Review</button>`;
+  const reviewBtn = `<button class="btn-ghost btn-sm drift-review-btn" id="btn-oraculum-review" data-bar-path="${escapeAttr(bar.path)}" title="Run a governed architecture review (architecture-review agent)">&#128302; Review</button>`;
 
   if (!reviews || reviews.length === 0) {
     return `

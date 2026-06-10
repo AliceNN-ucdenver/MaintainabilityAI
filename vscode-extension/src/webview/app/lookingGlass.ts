@@ -2235,6 +2235,7 @@ function renderSettingsMeshProvisioning(): string {
         <li><strong>Market Research Agent</strong> — runs the <strong>WHY phase</strong>. Surveys the web (Tavily · arXiv · USPTO · Hacker News), iterates on coverage gaps, and synthesizes a research doc grounded in cited sources.</li>
         <li><strong>PRD Agent</strong> — runs the <strong>HOW phase</strong>. Synthesizes a mesh-grounded PRD from the research doc + the BAR's architecture / threat model / quality attributes, then self-critiques as an Architect and a Security persona in bounded rounds.</li>
         <li><strong>Code Design Agent</strong> — runs the <strong>WHAT phase</strong>. Grounds a cross-repo code design on the actual code (for existing repos) or on a scaffolding spec (for new repos to create), and applies the same persona-switch self-critique loop as the PRD agent.</li>
+        <li><strong>Architecture Review Agent</strong> — runs governed <strong>BAR reviews</strong> (outside the SDLC phases). Follows the prompt packs + pillars selected at dispatch, grounds in the BAR's mesh artifacts and linked code repos, and writes the review report + <code>reviews.yaml</code> record (canonical drift score) that drive the BAR page's drift and score history.</li>
       </ul>
 
       <h4 class="settings-subsection-heading">Workflows</h4>
@@ -2244,7 +2245,7 @@ function renderSettingsMeshProvisioning(): string {
       </div>
       <ul class="text-muted settings-subsection-list">
         <li><strong>One workflow per agent</strong> — each owns its phase's dispatch, audit + drift checks, and finalize step. Workflows verify the audit chain, the Knight's Seal signatures, and the drift gates (Pocket Watch + Caterpillar's Challenge) before a phase's PR can merge.</li>
-        <li><strong>BAR Review</strong> — runs the standalone Oraculum review on individual Business Architecture Roots, separate from the SDLC pipeline.</li>
+        <li><strong>BAR Review</strong> — reviews dispatch the <strong>architecture-review agent</strong> on individual Business Architecture Roots, separate from the SDLC pipeline. (The legacy claude-comment review workflow remains deployed until the review flow fully retires it.)</li>
         <li><strong>Composite actions</strong> — small reusable pieces (OKR-context extraction, skill-call counting, tier resolution) shared across all per-agent workflows.</li>
       </ul>
 
@@ -2279,7 +2280,7 @@ function renderSettingsMeshProvisioning(): string {
         <li><strong>Research</strong> — query plan, synthesis, refinement guidance for the WHY phase.</li>
         <li><strong>PRD</strong> — synthesis, architecture review, security review, expert-question prompts for the HOW phase.</li>
         <li><strong>Code Design</strong> — synthesis, architecture review, security review for the WHAT phase (brownfield + greenfield branching).</li>
-        <li><strong>BAR Review</strong> — Oraculum review packs (default, architecture, application-security, information-risk, operations) for the standalone BAR-review workflow.</li>
+        <li><strong>BAR Review</strong> — review packs (default, architecture, application-security, information-risk, operations) the architecture-review agent follows as its review methodology.</li>
       </ul>
 
       <div class="settings-row" style="gap: 0.5rem;">
@@ -2503,7 +2504,7 @@ function renderSettingsMeshSecrets(): string {
       <h3>Governance Mesh Secrets ${settingsRepoHint()}</h3>
       <p class="text-muted">
         Configure API keys (ANTHROPIC_API_KEY, OPENAI_API_KEY) as GitHub repository secrets on the governance mesh repository.
-        Required for Oraculum review workflows and AI-powered governance analysis.
+        Required for the legacy claude-comment review workflow and AI-powered governance analysis. (Reviews dispatched to the architecture-review agent run on Copilot and don't need these.)
       </p>
       <div class="settings-row" style="justify-content: flex-start;">
         <button id="btn-configure-mesh-secrets" class="btn-primary">Configure Secrets</button>
