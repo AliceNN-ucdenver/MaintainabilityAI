@@ -3,6 +3,11 @@
 **Business Application:** {{APP_NAME}}
 **Date:** {{DATE}}
 
+> Executed by the **`architecture-review-agent`** persona (GitHub Copilot
+> coding agent), dispatched automatically by Looking Glass. Artifacts arrive
+> as a pull request; this issue closes when that PR merges. No `@`-mention or
+> manual assignment is needed.
+
 ## Review Configuration
 
 ```oraculum
@@ -18,35 +23,28 @@ repos:
 
 ## Review Directive
 
-> **Architecture review**: Analyze code repositories against the BAR and produce review artifacts.
+> **Architecture review**: Analyze the code repositories against the BAR and produce the review artifacts.
 
 - **BAR** (at `{{BAR_PATH}}/`) = the documented expected architecture. Do not modify the BAR's architecture artifacts.
 - **Code repos** (listed above) = the actual implementation. Analyze them against the BAR.
 - **Direction**: Code → compared against → BAR. Report where code drifts from documentation.
-- **Output**: Write a report to `{{BAR_PATH}}/reports/review-ISSUE_NUMBER.md`, update `{{BAR_PATH}}/reviews.yaml` with review metrics, and open a PR with `Closes #ISSUE_NUMBER`. Also post a brief summary comment on this issue.
+- **Prompt packs** (`scope` pillars above) define the review method — read each `.caterpillar/prompts/<id>.md` from the mesh checkout, in order.
 
 {{CONTEXT_BLOCK}}
 
 {{PACK_FILE_REFS}}
 
-{{PACK_SECTIONS}}
-
 ---
 
-## Implementation Zone
+## Expected Artifacts
 
-Both agents produce the same artifacts: a report file, updated `reviews.yaml` metrics, and a PR.
+The agent (see `.github/agents/architecture-review-agent.agent.md`) produces:
 
-**Option A — Assign to Claude**: Post `@claude` as a comment to trigger the Oraculum workflow.
+1. **Report** — `{{BAR_PATH}}/reports/review-ISSUE_NUMBER.md` with the seven sections: `Summary`, `Architecture Findings`, `Security Findings`, `Information Risk Findings`, `Operations Findings`, `Recommendations`, `References` (pillar sections only for pillars in `scope`).
+2. **Review record** — append ONE record to `{{BAR_PATH}}/reviews.yaml` with the per-pillar finding counts and the canonical drift score. **Do NOT modify `app.yaml` or `score-history.yaml`** — review history lives exclusively in `reviews.yaml`.
+3. **Pull request** — commit only files under `{{BAR_PATH}}/`, open a PR that closes `#ISSUE_NUMBER`, and put the summary table (pillar counts by severity + drift score) in the **PR description**. Do not comment on this issue — the agent sandbox token cannot write issue comments (403); the `review-complete` label is applied by the merge-boundary workflow.
 
-**Option B — Assign to Copilot**: Assign `copilot-swe-agent` to this issue.
-
-### Expected Artifacts (both agents)
-
-1. **Report file**: Write findings to `{{BAR_PATH}}/reports/review-ISSUE_NUMBER.md`
-2. **Update reviews.yaml**: Append a review record to `{{BAR_PATH}}/reviews.yaml` with drift score and finding counts. **Do NOT modify app.yaml** — review history lives exclusively in `reviews.yaml`.
-3. **Open a PR**: Branch `fix/issue-ISSUE_NUMBER`, title `Oraculum Review: {{APP_NAME}} #ISSUE_NUMBER`, body containing `Closes #ISSUE_NUMBER`
-4. **Post a summary comment on this issue**: Post a comment with the summary table (pillar names, finding counts by severity) and the computed drift score.
+The `review-agent.yml` workflow verifies these artifacts at the merge boundary (scope, structure, record, and drift-math gates) before the PR can merge.
 
 ---
 

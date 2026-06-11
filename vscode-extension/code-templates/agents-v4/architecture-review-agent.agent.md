@@ -49,9 +49,12 @@ prompt_packs:
 
 Extract `bar_path`, `repos`, `scope` (the selected pillars — review ONLY
 these), and `prompt_packs` (tolerate legacy single-value `prompt_pack:`;
-default to `default` when absent). The issue number is `<ISSUE>` everywhere
-below. If the block is missing or `bar_path` is empty, STOP and comment on the
-issue naming exactly what is missing — never guess a BAR.
+default to `default` when absent). `prompt_packs` is DERIVED from `scope` by
+Looking Glass — one pack per selected pillar plus `default` — so the two lists
+move together; treat the explicit `prompt_packs` list as authoritative. The
+issue number is `<ISSUE>` everywhere below. If the block is missing or
+`bar_path` is empty, STOP and comment on the issue naming exactly what is
+missing — never guess a BAR.
 
 ## 2. Load the selected prompt packs — they define the review method
 
@@ -61,10 +64,10 @@ For each pack id, read `.caterpillar/prompts/<id>.md` from the mesh checkout
 same ones the user selected in the review configuration — they are the
 review's methodology, not optional context.
 
-- If a pack file is absent from the mesh, the issue body embeds the pack
-  content under its pack section — use that embedded copy.
-- If neither exists, note the missing pack by id in the report's Summary and
-  continue with the remaining packs. Never silently skip.
+- The mesh checkout is the ONLY source for pack bodies — the issue does NOT
+  embed them (it lists their paths only). If a pack file is absent from the
+  mesh, note the missing pack by id in the report's Summary and continue with
+  the remaining packs. Never silently skip.
 
 ## 3. Ground in evidence (no invented findings)
 
@@ -79,9 +82,16 @@ review's methodology, not optional context.
   gh repo clone <owner>/<repo> repos/<repo> -- --depth 1
   ```
 
-  If a clone fails, record `clone-failed: <repo>` in the report Summary and
-  review what you can — an unreviewable repo is reported honestly, never
-  silently omitted.
+  If `gh repo clone` is blocked by the agent sandbox (the Copilot runtime may
+  refuse to clone sibling repos — verified live on review #218), fall back to
+  reading the repo through the GitHub **contents API** (`gh api
+  repos/<owner>/<repo>/contents/<path>`) — it carries the same auth and lets
+  you cite `repo/path:line` evidence without a working tree. When you use this
+  fallback, say so in the report Summary (e.g. "linked repos read via the
+  GitHub contents API; direct clone was sandbox-blocked") so the degraded input
+  is disclosed. If even the contents API fails for a repo, record
+  `clone-failed: <repo>` in the Summary and review what you can — an
+  unreviewable repo is reported honestly, never silently omitted.
 - Every finding MUST cite its evidence: a `repo/path:line`, a CALM node id, an
   ADR id, or a threat id. A finding you cannot cite is a finding you do not
   write.

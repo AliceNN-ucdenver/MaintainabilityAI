@@ -56,6 +56,7 @@ import { phaseSpec } from '../types/phaseSpec';
 import { collectAuditFailureReasons, parseAuditCommentReason } from './auditFailureLabels';
 import type { OkrAvailableBar, OkrAvailablePlatform, OkrDetailMode } from '../types';
 import { promptPackService } from '../services/PromptPackService';
+import { deriveTopFindings } from '../services/reviewReportParser';
 import { ScaffoldPanel } from './ScaffoldPanel';
 import { execFileAsync } from '../utils/exec';
 import { getRemoteOriginUrl, parseGitHubUrl, parseGitHubPullUrl } from '../utils/git';
@@ -509,9 +510,10 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     'applyArchetype':              (m) => this.onApplyArchetype(m.barPath, m.archetypeId, m.appName),
     'saveLayout':                  (m) => this.onSaveLayout(m.barPath, m.diagramType, m.layout as object),
     'exportPng':                   (m) => this.onExportPng(m.barPath, m.diagramType, m.pngDataUrl),
-    'loadReviewPackOptions':       () => this.onLoadReviewPackOptions(),
-    'submitGovernanceReview':      (m) => this.onSubmitGovernanceReview(m.barPath, m.pillars, m.promptPacks, m.additionalContext),
-    'summarizeTopFindings':        (m) => { this.onSummarizeTopFindings(m.barPath).catch(() => {}); },
+    'submitGovernanceReview':      (m) => this.onSubmitGovernanceReview(m.barPath, m.pillars, m.additionalContext),
+    'loadReviewReport':            (m) => this.onLoadReviewReport(m.barPath, m.issueNumber),
+    'openReviewReportInEditor':    (m) => this.onOpenReviewReport(m.barPath, m.issueNumber, 'editor'),
+    'openReviewReportPreview':     (m) => this.onOpenReviewReport(m.barPath, m.issueNumber, 'preview'),
     'checkWorkflowStatus':         () => this.onCheckWorkflowStatus(),
     // Bug DD cleanup — provisionWorkflow + provisionAgentic message
     // handlers removed; provisionAll is the only redeploy entry point
@@ -6180,6 +6182,13 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       return;
     }
 
+    // D1 (governance-review-alignment v2): PromptPackService needs the mesh
+    // path to discover the looking-glass packs under .caterpillar/prompts/.
+    // Its only setter died with the Oraculum panel, so pack discovery had
+    // been silently falling back to the bundled `default` only. loadPortfolio
+    // is the single chokepoint every mesh load passes through — wire it here.
+    promptPackService.setMeshPath(meshPath);
+
     this.postMessage({ type: 'loading', active: true, message: 'Scanning governance mesh...' });
 
     try {
@@ -6624,16 +6633,6 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     }
   }
 
-  /** Pack options for the inline governed-review sheet. */
-  private onLoadReviewPackOptions(): void {
-    const packs = promptPackService.getAllPacks('looking-glass').map(p => ({
-      id: p.id,
-      name: p.name,
-      description: p.description ?? '',
-    }));
-    this.postMessage({ type: 'reviewPackOptions', packs });
-  }
-
   /**
    * Inline governed-review dispatch — the retired Oraculum panel's
    * create+assign flow as ONE action: build the review issue (same
@@ -6641,12 +6640,15 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
    * oraculum-review label, dispatch the architecture-review agent (with the
    * OKR-style generic fallback), then light the BAR's agent-status banner.
    */
-  private async onSubmitGovernanceReview(barPath: string, pillars: string[], promptPacks: string[], additionalContext: string) {
+  private async onSubmitGovernanceReview(barPath: string, pillars: string[], additionalContext: string) {
     const meshPath = MeshService.getMeshPath();
     if (!meshPath) {
       this.postMessage({ type: 'error', message: 'No mesh configured.' });
       return;
     }
+    // D1 self-heal: ensure pack discovery sees the mesh even if loadPortfolio
+    // hasn't run this session (the review can be dispatched from a deep link).
+    promptPackService.setMeshPath(meshPath);
     const meshRepo = await detectGovernanceRepo();
     if (!meshRepo) {
       this.postMessage({ type: 'error', message: 'Mesh repo has no GitHub remote — push the mesh to GitHub first.' });
@@ -6660,12 +6662,14 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       const bar = summary?.allBars.find(b => b.path === barPath);
       const appName = bar?.name || 'Unknown Application';
 
+      // Packs are derived from the pillars inside buildOraculumIssue
+      // (pillars-only config) — we no longer pass an explicit pack list.
       const body = promptPackService.buildOraculumIssue({
         appName,
         barPath: relativePath,
         scope: {
           pillars: pillars as import('../types').ReviewPillar[],
-          promptPacks: promptPacks.length > 0 ? promptPacks : ['default'],
+          promptPacks: [],
           includeRepos: bar?.repos ?? [],
           additionalContext,
         },
@@ -6758,22 +6762,48 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       await this.onLoadActiveReview(barPath, barName).catch(() => { /* best effort */ });
       return;
     }
-    // Review-kind issues get the review-complete label at merge time (the
-    // agent's sandbox can't label — 403, verified on review #216). Additive +
-    // best-effort; research issues are labeled by their own workflow.
+    // review-complete labeling: the DURABLE owner is review-agent.yml's
+    // label-on-merge job (the agent's sandbox can't label — 403, review
+    // #216). We keep a best-effort extension-side label as a transition
+    // fallback for meshes that haven't redeployed the gate workflow yet —
+    // idempotent, so double-labeling is harmless.
     if (issueNumber > 0) {
       try {
         const labels = await this.githubService.getIssueLabels(this.meshRepoInfo.owner, this.meshRepoInfo.repo, issueNumber);
         if (labels.includes('oraculum-review')) {
           await this.githubService.addIssueLabels(this.meshRepoInfo.owner, this.meshRepoInfo.repo, issueNumber, ['review-complete']);
         }
-      } catch { /* best-effort */ }
+      } catch { /* best-effort — the gate's label-on-merge job is the durable path */ }
     }
+
+    // The merged review changes reviews.yaml on the mesh. Fast-forward the
+    // local mesh so the BAR page's drift/score/summary reflect it WITHOUT the
+    // user leaving the page (governance-review-alignment v2: instant refresh).
+    let pulled = false;
+    const meshPath = MeshService.getMeshPath();
+    if (meshPath) {
+      try {
+        const gitRoot = this.gitSyncService.findGitRoot(meshPath);
+        if (gitRoot) {
+          this.postMessage({ type: 'loading', active: true, message: 'Refreshing mesh…' });
+          const pr = await this.gitSyncService.pullFromRemote(gitRoot);
+          pulled = pr.success;
+        }
+      } catch { /* fall back to the manual-pull nudge below */ }
+    }
+
     this.postMessage({ type: 'loading', active: false });
-    await this.onLoadActiveReview(barPath, barName).catch(() => { /* best effort */ });
-    // The merged review changes reviews.yaml on the mesh — nudge the user's
-    // local mesh to pull so the BAR page's drift/score reflects it.
-    this.postMessage({ type: 'info', message: `PR #${prNumber} merged. Pull the mesh to refresh drift + score history.` });
+
+    if (pulled) {
+      // Reload the BAR (refreshes reviews.yaml → drift chip + history) and
+      // surface the just-merged review's summary inline with zero clicks.
+      await this.onDrillIntoBar(barPath).catch(() => { /* best effort */ });
+      if (issueNumber > 0) { this.onLoadReviewReport(barPath, issueNumber); }
+      this.postMessage({ type: 'info', message: `PR #${prNumber} merged and mesh refreshed — drift + history updated.` });
+    } else {
+      await this.onLoadActiveReview(barPath, barName).catch(() => { /* best effort */ });
+      this.postMessage({ type: 'info', message: `PR #${prNumber} merged. Pull the mesh to refresh drift + score history.` });
+    }
   }
 
   private async onLoadActiveReview(barPath: string, barName?: string) {
@@ -6854,128 +6884,46 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
   }
 
   // ==========================================================================
-  // Top Findings Summary (LLM-powered)
+  // Review explorer — report viewer + deterministic top-findings summary
+  // (governance-review-alignment v2: no LLM; the summary is parsed straight
+  // from the structured report the architecture-review-agent writes).
   // ==========================================================================
 
-  private async onSummarizeTopFindings(barPath: string) {
-    this.postMessage({ type: 'topFindingsProgress', barPath, step: 'Reading review report...', progress: 5 });
+  /** Resolve the on-disk path of a review report for a BAR + issue number. */
+  private reviewReportPath(barPath: string, issueNumber: number): string {
+    return path.join(barPath, 'reports', `review-${issueNumber}.md`);
+  }
 
-    // 1. Find latest review
-    const reviews = this.barService.readReviews(barPath);
-    if (!reviews || reviews.length === 0) {
-      this.postMessage({ type: 'error', message: 'No reviews found for this BAR.' });
-      this.postMessage({ type: 'topFindingsSummary', barPath, summary: null });
-      return;
-    }
-
-    const latest = reviews[reviews.length - 1];
-    const reportPath = path.join(barPath, 'reports', `review-${latest.issueNumber}.md`);
-
-    // 2. Read report file
+  /** Read a review report from disk + derive its top-findings summary; post
+   *  both to the webview. markdown:null means the report isn't local yet
+   *  (pull the mesh) — the explorer still renders the reviews.yaml counts. */
+  private onLoadReviewReport(barPath: string, issueNumber: number): void {
+    const reportPath = this.reviewReportPath(barPath, issueNumber);
     if (!fs.existsSync(reportPath)) {
-      this.postMessage({ type: 'error', message: `Report file not found: review-${latest.issueNumber}.md. Pull the latest changes from remote.` });
-      this.postMessage({ type: 'topFindingsSummary', barPath, summary: null });
+      this.postMessage({ type: 'reviewReport', barPath, issueNumber, markdown: null, summary: null });
       return;
     }
-
-    let reportContent: string;
     try {
-      reportContent = fs.readFileSync(reportPath, 'utf8');
+      const markdown = fs.readFileSync(reportPath, 'utf8');
+      const summary = deriveTopFindings(markdown);
+      this.postMessage({ type: 'reviewReport', barPath, issueNumber, markdown, summary });
     } catch {
-      this.postMessage({ type: 'error', message: 'Failed to read review report.' });
-      this.postMessage({ type: 'topFindingsSummary', barPath, summary: null });
+      this.postMessage({ type: 'reviewReport', barPath, issueNumber, markdown: null, summary: null });
+    }
+  }
+
+  /** Open a review report in the native editor or markdown preview. */
+  private async onOpenReviewReport(barPath: string, issueNumber: number, mode: 'editor' | 'preview'): Promise<void> {
+    const reportPath = this.reviewReportPath(barPath, issueNumber);
+    if (!fs.existsSync(reportPath)) {
+      this.postMessage({ type: 'info', message: `Report review-${issueNumber}.md isn't local yet — pull the mesh to fetch it.` });
       return;
     }
-
-    // Truncate to stay within context limits
-    if (reportContent.length > 12000) {
-      reportContent = reportContent.slice(0, 12000) + '\n\n[...truncated]';
-    }
-
-    // 3. Select LLM
-    this.postMessage({ type: 'topFindingsProgress', barPath, step: 'Connecting to AI model...', progress: 15 });
-    const preferred = vscode.workspace.getConfiguration('maintainabilityai.llm').get<string>('preferredFamily', 'gpt-4o');
-    const families = [preferred, 'gpt-4o', 'gpt-4', 'codex', 'claude-sonnet'].filter((v, i, a) => a.indexOf(v) === i);
-    let model: vscode.LanguageModelChat | null = null;
-    for (const family of families) {
-      const models = await vscode.lm.selectChatModels({ family });
-      if (models.length > 0) { model = models[0]; break; }
-    }
-    if (!model) {
-      const allModels = await vscode.lm.selectChatModels();
-      if (allModels.length > 0) { model = allModels[0]; }
-    }
-    if (!model) {
-      this.postMessage({ type: 'error', message: 'No VS Code Language Model available. Ensure GitHub Copilot is installed and signed in.' });
-      this.postMessage({ type: 'topFindingsSummary', barPath, summary: null });
-      return;
-    }
-
-    // 4. Build prompt
-    this.postMessage({ type: 'topFindingsProgress', barPath, step: 'Summarizing findings...', progress: 25 });
-
-    const systemPrompt = `You are a senior enterprise architect summarizing a governance review report.
-Extract the top 2-3 most important findings for each pillar. Be concise — each finding should be a single sentence.
-
-Output ONLY valid JSON with this exact structure (no markdown fences, no extra text):
-{
-  "architecture": ["finding 1", "finding 2"],
-  "security": ["finding 1", "finding 2"],
-  "informationRisk": ["finding 1", "finding 2"],
-  "operations": ["finding 1", "finding 2"]
-}
-
-If a pillar has no findings, use an empty array. Focus on actionable issues, not passing checks.`;
-
-    const userPrompt = `Summarize the top findings from this architecture review report:\n\n${reportContent}`;
-
-    const messages = [
-      vscode.LanguageModelChatMessage.User(systemPrompt),
-      vscode.LanguageModelChatMessage.User(userPrompt),
-    ];
-
-    // 5. Call LLM with streaming
-    try {
-      const response = await model.sendRequest(messages, {}, new vscode.CancellationTokenSource().token);
-
-      let text = '';
-      let chunkCount = 0;
-      for await (const chunk of response.text) {
-        text += chunk;
-        chunkCount++;
-        if (chunkCount % 5 === 0) {
-          const progress = Math.min(25 + Math.round((text.length / 2000) * 60), 90);
-          this.postMessage({ type: 'topFindingsProgress', barPath, step: `Summarizing... (${text.length} chars)`, progress });
-        }
-      }
-
-      // 6. Parse JSON response
-      this.postMessage({ type: 'topFindingsProgress', barPath, step: 'Complete', progress: 100 });
-
-      const cleaned = text
-        .replace(/^```(?:json)?\s*\n?/m, '')
-        .replace(/\n?```\s*$/m, '')
-        .trim();
-
-      try {
-        const summary = JSON.parse(cleaned);
-        this.postMessage({ type: 'topFindingsSummary', barPath, summary });
-      } catch {
-        // Try to extract JSON from the response
-        const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          try {
-            const summary = JSON.parse(jsonMatch[0]);
-            this.postMessage({ type: 'topFindingsSummary', barPath, summary });
-            return;
-          } catch { /* fall through */ }
-        }
-        this.postMessage({ type: 'error', message: 'Failed to parse LLM response as JSON.' });
-        this.postMessage({ type: 'topFindingsSummary', barPath, summary: null });
-      }
-    } catch (err) {
-      this.postMessage({ type: 'error', message: `LLM request failed: ${toErrorMessage(err)}` });
-      this.postMessage({ type: 'topFindingsSummary', barPath, summary: null });
+    const uri = vscode.Uri.file(reportPath);
+    if (mode === 'preview') {
+      await vscode.commands.executeCommand('markdown.showPreview', uri);
+    } else {
+      await vscode.window.showTextDocument(uri, { preview: true });
     }
   }
 

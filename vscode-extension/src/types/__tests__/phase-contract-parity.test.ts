@@ -190,3 +190,129 @@ describe('phase artifact contract parity (pack ↔ workflow ↔ validator ↔ Po
     });
   });
 });
+
+// ════════════════════════════════════════════════════════════════════════
+// REVIEW report contract parity (governance-review-alignment v2)
+//
+// The BAR governance review report's section list + drift formula are
+// declared across FOUR surfaces that must not drift:
+//   1. Persona   — code-templates/agents-v4/architecture-review-agent.agent.md
+//                  (§5b fenced section list + §5a drift formula)
+//   2. Gate      — code-templates/workflows/scripts/review-gate.mjs
+//                  (REQUIRED_H2 / PILLAR_SECTION / DRIFT_WEIGHTS)
+//   3. Template  — prompt-packs/templates/oraculum-issue.md (Expected Artifacts)
+//   4. Parser    — src/services/BarService.ts (computeDriftScore weights +
+//                  parseReviewsYaml `risk` variant — the D2 fix)
+// Read as TEXT (same rationale as above — no cross-rootDir imports).
+// ════════════════════════════════════════════════════════════════════════
+
+const AGENTS_V4 = path.join(EXT, 'code-templates', 'agents-v4');
+const GATE_SCRIPT = path.join(WORKFLOWS, 'scripts', 'review-gate.mjs');
+const TEMPLATES = path.join(EXT, 'prompt-packs', 'templates');
+const BAR_SERVICE = path.join(EXT, 'src', 'services', 'BarService.ts');
+
+const REVIEW_SECTIONS = [
+  'Summary', 'Architecture Findings', 'Security Findings',
+  'Information Risk Findings', 'Operations Findings', 'Recommendations', 'References',
+];
+const REVIEW_DRIFT_WEIGHTS = { critical: 15, high: 5, medium: 2, low: 1 };
+
+/** Pull the seven `## X` headings from the persona's §5b report block.
+ *  The block is the unique run of CONSECUTIVE `## ` lines (the doc's real
+ *  headings are `## 1. …`-numbered and never consecutive), so collect the
+ *  run that starts at `## Summary`. */
+function personaReportSections(): string[] {
+  const md = fs.readFileSync(path.join(AGENTS_V4, 'architecture-review-agent.agent.md'), 'utf8');
+  const lines = md.split('\n');
+  const start = lines.findIndex(l => l.trim() === '## Summary');
+  if (start === -1) { throw new Error('persona §5b `## Summary` line not found'); }
+  const out: string[] = [];
+  for (let i = start; i < lines.length; i++) {
+    const m = lines[i].match(/^##\s+(.+?)\s*$/);
+    if (!m) { break; }
+    out.push(m[1].trim());
+  }
+  return out;
+}
+
+/** Extract a JS string-array literal `export const NAME = [ ... ]` from the gate. */
+function gateStringArray(name: string): string[] {
+  const src = fs.readFileSync(GATE_SCRIPT, 'utf8');
+  const m = src.match(new RegExp(`export const ${name} = \\[([\\s\\S]*?)\\]`));
+  if (!m) { throw new Error(`gate ${name} not found`); }
+  return [...m[1].matchAll(/'([^']+)'/g)].map(x => x[1]);
+}
+
+/** Extract a `key: number` object literal `export const NAME = { ... }`. */
+function gateNumberMap(name: string): Record<string, number> {
+  const src = fs.readFileSync(GATE_SCRIPT, 'utf8');
+  const m = src.match(new RegExp(`export const ${name} = \\{([\\s\\S]*?)\\}`));
+  if (!m) { throw new Error(`gate ${name} not found`); }
+  const out: Record<string, number> = {};
+  for (const e of m[1].matchAll(/(\w+):\s*(\d+)/g)) { out[e[1]] = Number(e[2]); }
+  return out;
+}
+
+/** Extract a `key: 'value'` string-map object literal from the gate. */
+function gateStringMap(name: string): Record<string, string> {
+  const src = fs.readFileSync(GATE_SCRIPT, 'utf8');
+  const m = src.match(new RegExp(`export const ${name} = \\{([\\s\\S]*?)\\}`));
+  if (!m) { throw new Error(`gate ${name} not found`); }
+  const out: Record<string, string> = {};
+  for (const e of m[1].matchAll(/(\w+):\s*'([^']+)'/g)) { out[e[1]] = e[2]; }
+  return out;
+}
+
+describe('review report contract parity (persona ↔ gate ↔ template ↔ parser)', () => {
+  it('persona §5b report sections == canonical', () => {
+    expect(personaReportSections()).toEqual(REVIEW_SECTIONS);
+  });
+
+  it('gate REQUIRED_H2 == canonical', () => {
+    expect(gateStringArray('REQUIRED_H2')).toEqual(REVIEW_SECTIONS);
+  });
+
+  it('gate PILLAR_SECTION values are the four pillar sections (risk → Information Risk)', () => {
+    const map = gateStringMap('PILLAR_SECTION');
+    expect(map).toEqual({
+      architecture: 'Architecture Findings',
+      security: 'Security Findings',
+      risk: 'Information Risk Findings',
+      operations: 'Operations Findings',
+    });
+    // Every pillar section must be one of the canonical headings.
+    for (const section of Object.values(map)) {
+      expect(REVIEW_SECTIONS).toContain(section);
+    }
+  });
+
+  it('template Expected Artifacts lists exactly the seven sections', () => {
+    const md = fs.readFileSync(path.join(TEMPLATES, 'oraculum-issue.md'), 'utf8');
+    // The seven sections appear as a backticked inline list after "seven sections:".
+    const after = md.split('seven sections:')[1] ?? '';
+    const listed = [...after.matchAll(/`([^`]+)`/g)].map(m => m[1]).slice(0, REVIEW_SECTIONS.length);
+    expect(listed).toEqual(REVIEW_SECTIONS);
+  });
+
+  it('gate DRIFT_WEIGHTS == persona §5a == BarService.computeDriftScore', () => {
+    expect(gateNumberMap('DRIFT_WEIGHTS')).toEqual(REVIEW_DRIFT_WEIGHTS);
+
+    // Persona §5a: `100 − (15·critical + 5·high + 2·medium + 1·low)`.
+    const persona = fs.readFileSync(path.join(AGENTS_V4, 'architecture-review-agent.agent.md'), 'utf8');
+    expect(persona).toMatch(/15·critical \+ 5·high \+ 2·medium \+ 1·low/);
+
+    // BarService weights: critical*15, high*5, medium*2, low*1.
+    const bar = fs.readFileSync(BAR_SERVICE, 'utf8');
+    expect(bar).toMatch(/critical\s*\*\s*15/);
+    expect(bar).toMatch(/high\s*\*\s*5/);
+    expect(bar).toMatch(/medium\s*\*\s*2/);
+    expect(bar).toMatch(/low\s*\*\s*1/);
+  });
+
+  it('BarService.parseReviewsYaml maps the persona `risk:` key to information-risk (D2)', () => {
+    const bar = fs.readFileSync(BAR_SERVICE, 'utf8');
+    const m = bar.match(/'information-risk':\s*\[([^\]]+)\]/);
+    expect(m, 'information-risk variant list not found').toBeTruthy();
+    expect(m![1]).toMatch(/'risk'/);
+  });
+});

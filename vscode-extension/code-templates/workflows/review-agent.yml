@@ -1,0 +1,106 @@
+name: "Review Agent — BAR governance review gate"
+
+# Merge-boundary verification for BAR governance reviews
+# (governance-review-alignment v2).
+#
+# Unlike the per-agent SDLC workflows (market-research/prd/code-design),
+# this workflow does NOT run an agent — the architecture-review-agent
+# persona (a Copilot coding agent) already produced the PR from its
+# sandbox. This workflow's only job is to VERIFY that PR at the merge
+# boundary and re-derive everything it checks from the diff + the
+# dispatch issue. It trusts none of the agent's self-reported numbers.
+#
+# Two jobs:
+#   1. `verify` — on PR open/sync/ready. Detects whether the PR is a
+#      review PR (changes `reports/review-<N>.md` + `reviews.yaml`); if so
+#      runs four gates (scope · structure · record · drift-math) and
+#      applies `review-pass` (clean) or `review-invalid` (named reasons in
+#      a PR comment). Non-review PRs are skipped (exit 0).
+#   2. `label-on-merge` — on PR merged. Resolves the closing issue, and if
+#      it carries `oraculum-review`, applies `review-complete` so the BAR
+#      drift/score history is marked refreshed. This makes labeling DURABLE
+#      (the extension's best-effort labeling at merge is retired).
+#
+# Trigger model: pull_request_target so the bot's PR runs without the
+# new-contributor approval gate (same rationale as the per-agent
+# workflows). SAFETY: this workflow NEVER executes PR-supplied code — it
+# checks out the head only to READ the artifact files and runs exclusively
+# its own committed script. No install / build / test of PR contents.
+#
+# Ships advisory: until a real review PR passes green, make this a
+# non-required check. Promote to required via branch protection on PRs
+# touching `platforms/**/reviews.yaml` once proven.
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review, closed]
+
+concurrency:
+  group: review-agent-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  # ════════════════════════════════════════════════════════════════════
+  # JOB 1 — verify the review PR at the merge boundary
+  # ════════════════════════════════════════════════════════════════════
+  verify:
+    name: "Verify review artifacts"
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      BASE_SHA: ${{ github.event.pull_request.base.sha }}
+    steps:
+      # Check out the PR HEAD read-only. We only READ artifact files with
+      # our own script — never run any PR-supplied code (pull_request_target
+      # safety contract).
+      - name: Checkout PR head (read-only)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Run the review gate
+        run: node .github/workflows/scripts/review-gate.mjs
+
+  # ════════════════════════════════════════════════════════════════════
+  # JOB 2 — durable review-complete labeling at merge
+  # ════════════════════════════════════════════════════════════════════
+  label-on-merge:
+    name: "Label review-complete on merge"
+    if: github.event.action == 'closed' && github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+    steps:
+      - name: Apply review-complete to the closing oraculum-review issue
+        run: |
+          set -euo pipefail
+          # Structural closing reference — never parse branch/title text.
+          ISSUES=$(gh pr view "$PR_NUMBER" --repo "$REPO" \
+            --json closingIssuesReferences \
+            --jq '.closingIssuesReferences[].number' 2>/dev/null || true)
+          if [ -z "$ISSUES" ]; then
+            echo "No closing issue reference — not a dispatched review PR. Skipping."
+            exit 0
+          fi
+          for N in $ISSUES; do
+            LABELS=$(gh issue view "$N" --repo "$REPO" --json labels \
+              --jq '.labels[].name' 2>/dev/null || true)
+            if echo "$LABELS" | grep -qx 'oraculum-review'; then
+              echo "Issue #$N is an oraculum-review — applying review-complete."
+              gh issue edit "$N" --repo "$REPO" --add-label 'review-complete' || true
+            else
+              echo "Issue #$N is not an oraculum-review — skipping."
+            fi
+          done

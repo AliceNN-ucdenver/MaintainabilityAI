@@ -45,6 +45,7 @@ export interface PromptPackInfo {
   required?: boolean;        // true for looking-glass 'default' pack
   available?: boolean;       // true if the .md file exists on disk
   content?: string;          // Loaded on demand
+  domain?: string;           // looking-glass registry domain (general | architecture | security | information-risk | operations | custom) — drives pillar→pack derivation
 }
 
 export interface PromptMappings {

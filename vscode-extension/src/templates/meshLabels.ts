@@ -164,4 +164,16 @@ export const MESH_LABELS: MeshLabelSpec[] = [
   // structure-invalid. Per-cause distinction is in the audit comment.
   { name: 'design-degraded',         description: 'WHAT mode-honesty or manifest gap. Merge blocked.',   color: 'D32F2F' },
   { name: 'design-drift-detected',   description: 'WHAT-phase Pocket Watch or Caterpillar drift gate failed (§11.5). Merge blocked.',                 color: 'D32F2F' },
+
+  // ── BAR governance reviews (governance-review-alignment v2) ───────────
+  // These run OUTSIDE the OKR SDLC phases: Looking Glass dispatches the
+  // architecture-review-agent persona on a BAR, the agent opens a PR
+  // carrying reports/review-<N>.md + a reviews.yaml record, and
+  // review-agent.yml verifies that PR at the merge boundary. Declared here
+  // so `gh issue create --label oraculum-review` and the gate's label
+  // operations don't silently no-op on a missing label.
+  { name: 'oraculum-review',         description: 'BAR governance review request — dispatched to the architecture-review-agent persona.',                color: '7E57C2' }, // deep-purple
+  { name: 'review-pass',             description: 'Review PR passed the merge-boundary gate (scope + structure + record + drift math).',                  color: '43A047' }, // green
+  { name: 'review-invalid',          description: 'Review PR failed the merge-boundary gate. See PR comment Reason. Removed on next green run.',            color: 'D32F2F' }, // red
+  { name: 'review-complete',         description: 'Review PR merged — the BAR drift score + history are updated. Applied at merge by review-agent.yml.',    color: '5C6BC0' }, // indigo
 ];

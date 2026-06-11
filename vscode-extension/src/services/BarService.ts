@@ -1073,7 +1073,12 @@ export class BarService {
       const pillarVariants: Record<string, string[]> = {
         'architecture': ['architecture'],
         'security': ['security'],
-        'information-risk': ['information-risk', 'informationrisk', 'information_risk', 'infoRisk', 'info-risk'],
+        // `risk` LAST: it's a substring of `information-risk`, so the more
+        // specific spellings must match first. Plain `risk:` is what the
+        // architecture-review-agent persona actually writes (live records
+        // #216/#218/#220) — omitting it dropped the Information Risk pillar
+        // from every parsed record (D2, governance-review-alignment v2).
+        'information-risk': ['information-risk', 'informationrisk', 'information_risk', 'infoRisk', 'info-risk', 'risk'],
         'operations': ['operations'],
       };
 

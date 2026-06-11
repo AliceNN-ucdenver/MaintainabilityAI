@@ -342,9 +342,14 @@ export type LookingGlassWebviewMessage =
   | { type: 'platformCalmMutation'; platformId: string; patch: { op: string; target: string; field?: string; value?: unknown }[] }
   // Oraculum integration
   // Inline governed-review sheet (replaces the retired Oraculum panel).
-  | { type: 'loadReviewPackOptions' }
-  | { type: 'submitGovernanceReview'; barPath: string; pillars: string[]; promptPacks: string[]; additionalContext: string }
-  | { type: 'summarizeTopFindings'; barPath: string }
+  // Pillars-only (governance-review-alignment v2): packs are DERIVED from the
+  // pillars by the panel, never selected in the UI.
+  | { type: 'submitGovernanceReview'; barPath: string; pillars: string[]; additionalContext: string }
+  // Review explorer — load a review report (deterministic summary derived
+  // panel-side) + open it in the native editor / markdown preview.
+  | { type: 'loadReviewReport'; barPath: string; issueNumber: number }
+  | { type: 'openReviewReportInEditor'; barPath: string; issueNumber: number }
+  | { type: 'openReviewReportPreview'; barPath: string; issueNumber: number }
   // Settings
   | { type: 'checkWorkflowStatus' }
   // Bug DD cleanup (2026-05) — provisionWorkflow + provisionAgentic
@@ -645,7 +650,6 @@ export type LookingGlassExtensionMessage =
   | { type: 'error'; message: string }
   | { type: 'info'; message: string }
   // Inline governed-review sheet
-  | { type: 'reviewPackOptions'; packs: { id: string; name: string; description: string }[] }
   | { type: 'reviewDispatched'; barPath: string; issueNumber: number; issueUrl: string }
   | { type: 'noMeshConfigured' }
   | { type: 'orgScanProgress'; step: string; progress: number }
@@ -683,9 +687,8 @@ export type LookingGlassExtensionMessage =
   // Oraculum integration — active review detection
   | { type: 'activeReview'; barPath: string; review: ActiveReviewInfo | null }
   | { type: 'agentStatusUpdate'; barPath: string; status: AgentStatusInfo | null }
-  // Top findings summary (LLM-powered)
-  | { type: 'topFindingsProgress'; barPath: string; step: string; progress: number }
-  | { type: 'topFindingsSummary'; barPath: string; summary: TopFindingsSummary | null }
+  // Review explorer — report viewer + deterministic summary (no LLM)
+  | { type: 'reviewReport'; barPath: string; issueNumber: number; markdown: string | null; summary: TopFindingsSummary | null }
   // Settings
   | { type: 'workflowStatus'; exists: boolean }
   | { type: 'workflowProvisioned' }

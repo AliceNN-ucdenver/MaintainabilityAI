@@ -76,7 +76,7 @@ const state = {
   // Inline governed-review sheet (replaces the retired Oraculum panel's
   // configure page). pendingReviewSheetBarPath auto-opens the sheet after a
   // Review-button drill-in resolves to bar-detail.
-  reviewSheet: null as null | { barPath: string; packOptions: { id: string; name: string; description: string }[]; selectedPacks: string[]; pillars: string[]; context: string; submitting: boolean },
+  reviewSheet: null as null | { barPath: string; pillars: string[]; context: string; submitting: boolean },
   pendingReviewSheetBarPath: '',
   currentDecisions: [] as GovernanceDecision[],
   currentRepoTree: [] as string[],
@@ -111,12 +111,10 @@ const state = {
   activeReview: null as ActiveReviewInfo | null,
   // Unified agent status
   agentStatus: null as AgentStatusInfo | null,
-  // Top findings summary state
-  topFindingsLoading: false,
-  topFindingsProgress: '',
-  topFindingsProgressPct: 0,
-  topFindingsSummary: null as { architecture: string[]; security: string[]; informationRisk: string[]; operations: string[] } | null,
-  topFindingsExpanded: true,
+  // Review-explorer state (drift tile → review history + in-panel report viewer)
+  reviewExplorerExpanded: false,
+  reviewReportLoading: false,
+  reviewReport: null as { issueNumber: number; markdown: string | null; summary: { architecture: string[]; security: string[]; informationRisk: string[]; operations: string[] } | null } | null,
   // OKR state (Phase A)
   okrs: [] as OkrListItem[],
   okrsLoading: false,
@@ -2240,7 +2238,7 @@ function renderSettingsMeshProvisioning(): string {
         <li><strong>Market Research Agent</strong> — runs the <strong>WHY phase</strong>. Surveys the web (Tavily · arXiv · USPTO · Hacker News), iterates on coverage gaps, and synthesizes a research doc grounded in cited sources.</li>
         <li><strong>PRD Agent</strong> — runs the <strong>HOW phase</strong>. Synthesizes a mesh-grounded PRD from the research doc + the BAR's architecture / threat model / quality attributes, then self-critiques as an Architect and a Security persona in bounded rounds.</li>
         <li><strong>Code Design Agent</strong> — runs the <strong>WHAT phase</strong>. Grounds a cross-repo code design on the actual code (for existing repos) or on a scaffolding spec (for new repos to create), and applies the same persona-switch self-critique loop as the PRD agent.</li>
-        <li><strong>Architecture Review Agent</strong> — runs governed <strong>BAR reviews</strong> (outside the SDLC phases). Follows the prompt packs + pillars selected at dispatch, grounds in the BAR's mesh artifacts and linked code repos, and writes the review report + <code>reviews.yaml</code> record (canonical drift score) that drive the BAR page's drift and score history.</li>
+        <li><strong>Architecture Review Agent</strong> — runs governed <strong>BAR reviews</strong> (outside the SDLC phases). You pick the pillars at dispatch; the matching prompt packs are derived automatically. It grounds in the BAR's mesh artifacts and linked code repos and writes the review report + <code>reviews.yaml</code> record (canonical drift score) that drive the BAR page's drift and score history. The <code>review-agent.yml</code> gate verifies its PR at the merge boundary.</li>
       </ul>
 
       <h4 class="settings-subsection-heading">Workflows</h4>
@@ -2250,7 +2248,7 @@ function renderSettingsMeshProvisioning(): string {
       </div>
       <ul class="text-muted settings-subsection-list">
         <li><strong>One workflow per agent</strong> — each owns its phase's dispatch, audit + drift checks, and finalize step. Workflows verify the audit chain, the Knight's Seal signatures, and the drift gates (Pocket Watch + Caterpillar's Challenge) before a phase's PR can merge.</li>
-        <li><strong>BAR Review</strong> — reviews dispatch the <strong>architecture-review agent</strong> on individual Business Architecture Roots, separate from the SDLC pipeline. The agent writes the report + review record itself — no mesh workflow involved (the legacy claude-comment review workflow is retired and pruned on Deploy).</li>
+        <li><strong>BAR Review</strong> — reviews dispatch the <strong>architecture-review agent</strong> on individual Business Architecture Roots, separate from the SDLC pipeline. The agent writes the report + review record itself; <code>review-agent.yml</code> then verifies that PR at the merge boundary (scope · structure · record · drift-math) and labels <code>review-complete</code> on merge. The legacy claude-comment review workflow is retired and pruned on Deploy.</li>
         <li><strong>Composite actions</strong> — small reusable pieces (OKR-context extraction, skill-call counting, tier resolution) shared across all per-agent workflows.</li>
       </ul>
 
@@ -2285,7 +2283,7 @@ function renderSettingsMeshProvisioning(): string {
         <li><strong>Research</strong> — query plan, synthesis, refinement guidance for the WHY phase.</li>
         <li><strong>PRD</strong> — synthesis, architecture review, security review, expert-question prompts for the HOW phase.</li>
         <li><strong>Code Design</strong> — synthesis, architecture review, security review for the WHAT phase (brownfield + greenfield branching).</li>
-        <li><strong>BAR Review</strong> — review packs (default, architecture, application-security, information-risk, operations) the architecture-review agent follows as its review methodology.</li>
+        <li><strong>BAR Review</strong> — review packs (default, architecture, application-security, information-risk, operations) the architecture-review agent follows as its review methodology. The pack for each selected pillar is included automatically at dispatch.</li>
       </ul>
 
       <div class="settings-row" style="gap: 0.5rem;">
@@ -4457,18 +4455,16 @@ function postAgentLifecycleAction(action: string, data: DOMStringMap): void {
   }
 }
 
-/** Open the inline governed-review sheet for a BAR (defaults: all pillars,
- *  the default pack). Pack options stream in via 'reviewPackOptions'. */
+/** Open the inline governed-review sheet for a BAR (defaults: all pillars).
+ *  Pillars-only — the prompt packs are derived from the pillars by the panel
+ *  at dispatch (governance-review-alignment v2). */
 function openReviewSheet(barPath: string): void {
   state.reviewSheet = {
     barPath,
-    packOptions: [],
-    selectedPacks: ['default'],
     pillars: ['architecture', 'security', 'risk', 'operations'],
     context: '',
     submitting: false,
   };
-  vscode.postMessage({ type: 'loadReviewPackOptions' });
   render();
 }
 
@@ -4526,9 +4522,10 @@ const inboundHandlers: Record<string, InboundHandler> = {
         state.appYamlForm = null;
         state.activeReview = null;
         state.agentStatus = null;
-        if (!state.topFindingsLoading) {
-          state.topFindingsSummary = null;
-        }
+        // Reset the review explorer when navigating to a different BAR.
+        state.reviewExplorerExpanded = false;
+        state.reviewReportLoading = false;
+        state.reviewReport = null;
         // Reset Absolem
         state.absolemOpen = false;
         state.absolemMessages = [];
@@ -4556,12 +4553,6 @@ const inboundHandlers: Record<string, InboundHandler> = {
         state.activeReview = review;
       }
     },
-    'reviewPackOptions': (message: WebviewInboundMessage) => {
-      if (state.reviewSheet) {
-        state.reviewSheet.packOptions = ((message as Record<string, unknown>).packs ?? []) as { id: string; name: string; description: string }[];
-        render();
-      }
-    },
     'reviewDispatched': (message: WebviewInboundMessage) => {
       // Issue created + persona assigned — close the sheet; the agent-status
       // banner lights up via the agentStatusUpdate that follows.
@@ -4585,31 +4576,18 @@ const inboundHandlers: Record<string, InboundHandler> = {
         }
       }
     },
-    'topFindingsProgress': (message: WebviewInboundMessage) => {
-      const tfBarPath = (message as Record<string, unknown>).barPath as string;
-      if (state.currentBar?.path === tfBarPath) {
-        state.topFindingsLoading = true;
-        state.topFindingsProgress = message.step as string;
-        state.topFindingsProgressPct = message.progress as number;
-        // Incremental DOM update for progress bar
-        const progressFill = document.querySelector('.top-findings-progress-fill') as HTMLElement | null;
-        const progressLabel = document.querySelector('.top-findings-progress span') as HTMLElement | null;
-        if (progressFill && progressLabel) {
-          progressFill.style.width = `${state.topFindingsProgressPct}%`;
-          progressLabel.textContent = state.topFindingsProgress;
-        } else {
-          render();
-        }
-      }
-    },
-    'topFindingsSummary': (message: WebviewInboundMessage) => {
-      const tsBarPath = (message as Record<string, unknown>).barPath as string;
-      if (state.currentBar?.path === tsBarPath) {
-        state.topFindingsLoading = false;
-        state.topFindingsSummary = (message as Record<string, unknown>).summary as typeof state.topFindingsSummary;
-        state.topFindingsExpanded = true;
-        render();
-      }
+    'reviewReport': (message: WebviewInboundMessage) => {
+      const m = message as Record<string, unknown>;
+      if (state.currentBar?.path !== (m.barPath as string)) { return; }
+      const issueNumber = m.issueNumber as number;
+      const markdown = (m.markdown as string | null) ?? null;
+      const summary = (m.summary ?? null) as { architecture: string[]; security: string[]; informationRisk: string[]; operations: string[] } | null;
+      // Surface the report inline — auto-expand the explorer so a freshly
+      // merged review's summary appears with zero clicks.
+      state.reviewExplorerExpanded = true;
+      state.reviewReportLoading = false;
+      state.reviewReport = { issueNumber, markdown, summary };
+      render();
     },
     'threatModelProgress': (message: WebviewInboundMessage) => {
       const wasGenerating = state.threatModelGenerating;

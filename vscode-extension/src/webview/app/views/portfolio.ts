@@ -4,7 +4,7 @@
 // Stateless renderers: state slices passed as parameters, callbacks for mutations
 // ============================================================================
 
-import { escapeHtml, escapeAttr } from '../pillars/shared';
+import { escapeHtml, escapeAttr, renderMarkdown } from '../pillars/shared';
 import type {
   VsCodeApi, BarSummary, PlatformSummary, PortfolioSummary,
   GovernanceTrend, GovernanceScoreSnapshot, ReviewRecord, GitSyncStatus,
@@ -14,12 +14,15 @@ import type {
 // Types
 // ============================================================================
 
+/** Deterministic per-pillar top-findings (parsed from the report, no LLM). */
+export type ReviewSummary = { architecture: string[]; security: string[]; informationRisk: string[]; operations: string[] };
+
+/** Review-explorer state (governance-review-alignment v2): the drift tile
+ *  expands into a review history + an in-panel report viewer. */
 export interface TopFindingsState {
-  topFindingsLoading: boolean;
-  topFindingsProgress: string;
-  topFindingsProgressPct: number;
-  topFindingsSummary: { architecture: string[]; security: string[]; informationRisk: string[]; operations: string[] } | null;
-  topFindingsExpanded: boolean;
+  reviewExplorerExpanded: boolean;
+  reviewReportLoading: boolean;
+  reviewReport: { issueNumber: number; markdown: string | null; summary: ReviewSummary | null } | null;
 }
 
 export interface GovernanceHistoryState {
@@ -476,9 +479,13 @@ export function renderApplicationPlatformDrillDown(
 // Render — Design Drift Indicator
 // ============================================================================
 
+function driftClass(score: number): string {
+  return score >= 75 ? 'drift-green' : score >= 50 ? 'drift-yellow' : 'drift-red';
+}
+
 export function renderDriftIndicator(
   bar: BarSummary,
-  topFindingsState: TopFindingsState,
+  state: TopFindingsState,
 ): string {
   const reviews = bar.reviews;
   const reviewBtn = `<button class="btn-ghost btn-sm drift-review-btn" id="btn-oraculum-review" data-bar-path="${escapeAttr(bar.path)}" title="Run a governed architecture review (architecture-review agent)">&#128302; Review</button>`;
@@ -496,30 +503,118 @@ export function renderDriftIndicator(
   }
 
   const score = bar.latestDriftScore ?? reviews[reviews.length - 1].driftScore;
-  const colorClass = score >= 75 ? 'drift-green' : score >= 50 ? 'drift-yellow' : 'drift-red';
   const label = score >= 75 ? 'Low Drift' : score >= 50 ? 'Moderate Drift' : 'High Drift';
+  const expanded = state.reviewExplorerExpanded;
+  const chevron = expanded ? '&#9650;' : '&#9660;';
 
-  const topFindingsBtn = `<button class="btn-ghost btn-sm drift-review-btn" id="btn-top-findings" data-bar-path="${escapeAttr(bar.path)}" title="Summarize top findings from latest review" ${topFindingsState.topFindingsLoading ? 'disabled' : ''}>${topFindingsState.topFindingsLoading ? '&#8987;' : '&#127913;'}</button>`;
+  const toggleBtn = `<button class="btn-ghost btn-sm drift-review-btn" id="btn-review-explorer-toggle" data-bar-path="${escapeAttr(bar.path)}" title="${expanded ? 'Hide' : 'Show'} review history + reports">${chevron} ${reviews.length} review${reviews.length !== 1 ? 's' : ''}</button>`;
 
   return `
     <div class="drift-indicator-compact">
       <div class="drift-header">
         <div class="drift-score-section">
-          <span class="drift-score-ring ${colorClass}">${score}</span>
+          <span class="drift-score-ring ${driftClass(score)}">${score}</span>
           <div class="drift-info">
             <span class="drift-label">${label}</span>
-            <span class="drift-meta">${reviews.length} review${reviews.length !== 1 ? 's' : ''}</span>
+            <span class="drift-meta">latest of ${reviews.length}</span>
           </div>
         </div>
         <div class="drift-btn-group">
-          ${topFindingsBtn}
+          ${toggleBtn}
           ${reviewBtn}
         </div>
       </div>
       ${renderSparklineSvg(reviews)}
-      ${renderTopFindingsPanel(topFindingsState)}
+      ${expanded ? renderReviewExplorer(bar, state) : ''}
     </div>
   `;
+}
+
+/** Compact per-pillar finding-count chips for a review record row. */
+function pillarCountChips(rec: ReviewRecord): string {
+  const order: [string, string][] = [
+    ['architecture', 'A'], ['security', 'S'], ['information-risk', 'R'], ['operations', 'O'],
+  ];
+  return order
+    .filter(([key]) => rec.pillars[key])
+    .map(([key, abbr]) => {
+      const c = rec.pillars[key];
+      const cls = c.critical > 0 ? 'drift-red' : c.high > 0 ? 'drift-yellow' : 'drift-green';
+      return `<span class="review-pillar-chip ${cls}" title="${escapeAttr(key)}: ${c.critical}C ${c.high}H ${c.medium}M ${c.low}L">${abbr}&middot;${c.findings}</span>`;
+    })
+    .join('');
+}
+
+/** Expanded explorer: an open report viewer, or the review history list. */
+function renderReviewExplorer(bar: BarSummary, state: TopFindingsState): string {
+  if (state.reviewReport) { return renderReviewReportViewer(bar, state); }
+
+  const reviews = [...(bar.reviews || [])].reverse(); // latest first
+  const rows = reviews.map(r => `
+    <div class="review-row">
+      <span class="review-score-chip ${driftClass(r.driftScore)}">${r.driftScore}</span>
+      <span class="review-date">${escapeHtml(r.date || '')}</span>
+      <span class="review-pillars">${pillarCountChips(r)}</span>
+      <a class="review-issue-link" href="${escapeAttr(r.issueUrl)}" title="Open issue #${r.issueNumber}">#${r.issueNumber}</a>
+      <button class="btn-ghost btn-sm review-view-btn" data-bar-path="${escapeAttr(bar.path)}" data-issue="${r.issueNumber}">View report</button>
+    </div>`).join('');
+
+  return `
+    <div class="review-explorer">
+      <div class="review-explorer-head">Review history</div>
+      ${rows || '<span class="text-muted">No review records.</span>'}
+    </div>
+  `;
+}
+
+const SUMMARY_PILLARS: { key: keyof ReviewSummary; icon: string; label: string }[] = [
+  { key: 'architecture', icon: '&#128736;', label: 'Architecture' },
+  { key: 'security', icon: '&#128274;', label: 'Security' },
+  { key: 'informationRisk', icon: '&#128202;', label: 'Information Risk' },
+  { key: 'operations', icon: '&#9881;', label: 'Operations' },
+];
+
+/** Derived top-findings summary block (instant, no LLM). */
+function renderSummaryBlock(summary: ReviewSummary | null): string {
+  if (!summary) { return ''; }
+  const blocks = SUMMARY_PILLARS
+    .filter(p => summary[p.key] && summary[p.key].length > 0)
+    .map(p => `
+      <div class="review-summary-pillar">
+        <div class="review-summary-pillar-name">${p.icon} ${p.label}</div>
+        <ul class="review-summary-list">${summary[p.key].map(f => `<li>${escapeHtml(f)}</li>`).join('')}</ul>
+      </div>`).join('');
+  if (!blocks) { return '<div class="review-summary"><span class="text-muted">No actionable findings reported.</span></div>'; }
+  return `<div class="review-summary"><div class="review-summary-head">&#127913; Top findings</div>${blocks}</div>`;
+}
+
+/** In-panel report viewer: derived summary + rendered markdown + actions. */
+function renderReviewReportViewer(bar: BarSummary, state: TopFindingsState): string {
+  const rep = state.reviewReport!;
+  const actions = `
+    <div class="review-viewer-actions">
+      <button class="btn-ghost btn-sm" id="btn-review-back">&#8592; Reviews</button>
+      <span style="flex:1"></span>
+      <button class="btn-ghost btn-sm review-open-editor" data-bar-path="${escapeAttr(bar.path)}" data-issue="${rep.issueNumber}" title="Open the report .md in the editor">Open in editor</button>
+      <button class="btn-ghost btn-sm review-open-preview" data-bar-path="${escapeAttr(bar.path)}" data-issue="${rep.issueNumber}" title="Open the native markdown preview">Preview</button>
+    </div>`;
+  if (rep.markdown === null && !state.reviewReportLoading) {
+    return `
+      <div class="review-explorer">
+        ${actions}
+        <div class="review-viewer-title">Review #${rep.issueNumber}</div>
+        <p class="text-muted">The report file isn't in your local mesh yet. Pull the mesh to fetch <code>reports/review-${rep.issueNumber}.md</code>.</p>
+      </div>`;
+  }
+  if (state.reviewReportLoading || rep.markdown === null) {
+    return `<div class="review-explorer">${actions}<p class="text-muted">Loading report #${rep.issueNumber}…</p></div>`;
+  }
+  return `
+    <div class="review-explorer">
+      ${actions}
+      ${renderSummaryBlock(rep.summary)}
+      <div class="review-report-md absolem-md">${renderMarkdown(rep.markdown)}</div>
+    </div>`;
 }
 
 // ============================================================================
@@ -542,35 +637,45 @@ export function attachDriftListeners(
     }
   });
 
-  // Top findings summary button
-  document.getElementById('btn-top-findings')?.addEventListener('click', () => {
-    const barPath = document.getElementById('btn-top-findings')?.getAttribute('data-bar-path');
-    const s = getState();
-    if (barPath && !s.topFindingsLoading) {
-      setState({
-        topFindingsLoading: true,
-        topFindingsProgress: 'Starting...',
-        topFindingsProgressPct: 0,
-        topFindingsSummary: null,
-        topFindingsExpanded: true,
-      });
-      render();
-      vscode.postMessage({ type: 'summarizeTopFindings', barPath });
-    }
+  // Expand/collapse the review explorer.
+  document.getElementById('btn-review-explorer-toggle')?.addEventListener('click', () => {
+    const expanded = !getState().reviewExplorerExpanded;
+    setState({ reviewExplorerExpanded: expanded, reviewReport: null });
+    render();
   });
 
-  // Top findings collapse/expand/dismiss
-  document.getElementById('top-findings-collapse')?.addEventListener('click', () => {
-    setState({ topFindingsExpanded: false });
+  // View a specific review report (request markdown + derived summary).
+  document.querySelectorAll('.review-view-btn').forEach(el => {
+    el.addEventListener('click', () => {
+      const barPath = (el as HTMLElement).dataset.barPath;
+      const issue = Number((el as HTMLElement).dataset.issue);
+      if (!barPath || !issue) { return; }
+      setState({ reviewReport: { issueNumber: issue, markdown: null, summary: null }, reviewReportLoading: true });
+      render();
+      vscode.postMessage({ type: 'loadReviewReport', barPath, issueNumber: issue });
+    });
+  });
+
+  // Back to the history list.
+  document.getElementById('btn-review-back')?.addEventListener('click', () => {
+    setState({ reviewReport: null });
     render();
   });
-  document.getElementById('top-findings-toggle')?.addEventListener('click', () => {
-    setState({ topFindingsExpanded: true });
-    render();
+
+  // Open the report in the native editor / markdown preview.
+  document.querySelectorAll('.review-open-editor').forEach(el => {
+    el.addEventListener('click', () => {
+      const barPath = (el as HTMLElement).dataset.barPath;
+      const issue = Number((el as HTMLElement).dataset.issue);
+      if (barPath && issue) { vscode.postMessage({ type: 'openReviewReportInEditor', barPath, issueNumber: issue }); }
+    });
   });
-  document.getElementById('top-findings-dismiss')?.addEventListener('click', () => {
-    setState({ topFindingsSummary: null });
-    render();
+  document.querySelectorAll('.review-open-preview').forEach(el => {
+    el.addEventListener('click', () => {
+      const barPath = (el as HTMLElement).dataset.barPath;
+      const issue = Number((el as HTMLElement).dataset.issue);
+      if (barPath && issue) { vscode.postMessage({ type: 'openReviewReportPreview', barPath, issueNumber: issue }); }
+    });
   });
 }
 
@@ -694,76 +799,6 @@ export function renderGovernanceHistoryIndicator(historyState: GovernanceHistory
         </div>
       </div>
       ${renderGovernanceScoreSparkline(history)}
-    </div>
-  `;
-}
-
-// ============================================================================
-// Render — Top Findings Panel
-// ============================================================================
-
-export function renderTopFindingsPanel(s: TopFindingsState): string {
-  // Loading state
-  if (s.topFindingsLoading) {
-    return `
-      <div class="top-findings-panel">
-        <div class="top-findings-progress">
-          <span>${escapeHtml(s.topFindingsProgress)}</span>
-        </div>
-        <div class="top-findings-progress-bar">
-          <div class="top-findings-progress-fill" style="width: ${s.topFindingsProgressPct}%"></div>
-        </div>
-      </div>
-    `;
-  }
-
-  if (!s.topFindingsSummary) { return ''; }
-
-  // Collapsed state
-  if (!s.topFindingsExpanded) {
-    return `
-      <div class="top-findings-panel top-findings-collapsed" id="top-findings-toggle">
-        &#127913; Top Findings &#9662;
-      </div>
-    `;
-  }
-
-  // Expanded state
-  const pillarConfig = [
-    { key: 'architecture', icon: '&#128736;', label: 'Architecture' },
-    { key: 'security', icon: '&#128274;', label: 'Security' },
-    { key: 'informationRisk', icon: '&#128202;', label: 'Information Risk' },
-    { key: 'operations', icon: '&#9881;', label: 'Operations' },
-  ];
-
-  const summary = s.topFindingsSummary;
-  const pillarsHtml = pillarConfig
-    .filter(p => {
-      const findings = summary[p.key as keyof typeof summary];
-      return findings && findings.length > 0;
-    })
-    .map(p => {
-      const findings = summary[p.key as keyof typeof summary] as string[];
-      const items = findings.map(f => `<li>${escapeHtml(f)}</li>`).join('');
-      return `
-        <div class="top-findings-pillar">
-          <div class="top-findings-pillar-name">${p.icon} ${p.label}</div>
-          <ul class="top-findings-list">${items}</ul>
-        </div>
-      `;
-    })
-    .join('');
-
-  return `
-    <div class="top-findings-panel">
-      <div class="top-findings-header">
-        <span class="top-findings-header-title">&#127913; Top Findings</span>
-        <div class="top-findings-header-actions">
-          <button class="btn-ghost btn-sm" id="top-findings-collapse" title="Collapse">&#9650;</button>
-          <button class="btn-ghost btn-sm" id="top-findings-dismiss" title="Dismiss">&times;</button>
-        </div>
-      </div>
-      ${pillarsHtml || '<span style="font-size: 11px; color: var(--vscode-descriptionForeground);">No actionable findings reported.</span>'}
     </div>
   `;
 }
@@ -1315,8 +1350,8 @@ export function getPortfolioStyles(): string {
       .governance-sparkline { width: 100%; height: 36px; margin-top: 6px; }
       .governance-sparkline svg { width: 100%; height: 100%; }
 
-      /* Top findings panel */
-      .top-findings-panel {
+      /* Review explorer (drift tile → review history + report viewer) */
+      .review-explorer {
         margin-top: 8px;
         padding: 8px 10px;
         border: 1px solid var(--vscode-panel-border);
@@ -1324,56 +1359,38 @@ export function getPortfolioStyles(): string {
         font-size: 12px;
         background: var(--vscode-editor-background);
       }
-      .top-findings-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 6px;
+      .review-explorer-head, .review-summary-head, .review-viewer-title {
+        font-weight: 600; font-size: 11px; color: var(--vscode-descriptionForeground); margin-bottom: 6px;
       }
-      .top-findings-header-title { font-weight: 600; font-size: 12px; }
-      .top-findings-header-actions { display: flex; gap: 4px; }
-      .top-findings-pillar { margin-bottom: 8px; }
-      .top-findings-pillar:last-child { margin-bottom: 0; }
-      .top-findings-pillar-name {
-        font-weight: 600;
-        font-size: 11px;
-        color: var(--vscode-descriptionForeground);
-        margin-bottom: 2px;
+      .review-row {
+        display: flex; align-items: center; gap: 8px; padding: 4px 0;
+        border-top: 1px solid var(--vscode-panel-border);
       }
-      .top-findings-list {
-        margin: 0;
-        padding-left: 16px;
+      .review-row:first-of-type { border-top: none; }
+      .review-score-chip {
+        font-weight: 700; font-size: 11px; min-width: 28px; text-align: center;
+        padding: 1px 4px; border-radius: 4px;
       }
-      .top-findings-list li {
-        font-size: 11px;
-        line-height: 1.5;
-        margin-bottom: 2px;
+      .review-date { font-size: 11px; color: var(--vscode-descriptionForeground); min-width: 78px; }
+      .review-pillars { display: flex; gap: 4px; flex: 1; flex-wrap: wrap; }
+      .review-pillar-chip { font-size: 10px; padding: 0 4px; border-radius: 3px; opacity: 0.9; }
+      .review-issue-link { font-size: 11px; color: var(--vscode-textLink-foreground); text-decoration: none; }
+      .review-score-chip.drift-green, .review-pillar-chip.drift-green { background: rgba(34,197,94,0.18); color: #22c55e; }
+      .review-score-chip.drift-yellow, .review-pillar-chip.drift-yellow { background: rgba(234,179,8,0.18); color: #eab308; }
+      .review-score-chip.drift-red, .review-pillar-chip.drift-red { background: rgba(239,68,68,0.18); color: #ef4444; }
+      .review-viewer-actions { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+      .review-summary { margin-bottom: 10px; }
+      .review-summary-pillar { margin-bottom: 6px; }
+      .review-summary-pillar-name { font-weight: 600; font-size: 11px; color: var(--vscode-descriptionForeground); margin-bottom: 2px; }
+      .review-summary-list { margin: 0; padding-left: 16px; }
+      .review-summary-list li { font-size: 11px; line-height: 1.5; margin-bottom: 2px; }
+      .review-report-md {
+        max-height: 420px; overflow-y: auto; font-size: 12px;
+        border-top: 1px solid var(--vscode-panel-border); padding-top: 8px;
       }
-      .top-findings-collapsed {
-        cursor: pointer;
-        font-size: 11px;
-        color: var(--vscode-descriptionForeground);
-        padding: 4px 0;
-      }
-      .top-findings-collapsed:hover { color: var(--vscode-foreground); }
-      .top-findings-progress {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 11px;
-        color: var(--vscode-descriptionForeground);
-      }
-      .top-findings-progress-bar {
-        flex: 1;
-        height: 4px;
-        background: var(--vscode-panel-border);
-        border-radius: 2px;
-        overflow: hidden;
-      }
-      .top-findings-progress-fill {
-        height: 100%;
-        background: var(--vscode-progressBar-background);
-        transition: width 0.3s;
+      .review-report-md table { border-collapse: collapse; margin: 6px 0; }
+      .review-report-md th, .review-report-md td {
+        border: 1px solid var(--vscode-panel-border); padding: 2px 8px; text-align: left;
       }
 
       /* App Tile Grid */

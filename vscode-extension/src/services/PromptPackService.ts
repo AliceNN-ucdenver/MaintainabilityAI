@@ -165,6 +165,39 @@ export class PromptPackService {
     };
   }
 
+  /**
+   * Derive the looking-glass prompt-pack ids for a set of review pillars
+   * (governance-review-alignment v2: the review config is pillars-only;
+   * packs are no longer hand-picked). `default` (registry `domain: general`,
+   * `required: true`) is always included; each pillar pulls every registry
+   * pack whose `domain` matches its mapping. Custom packs (`domain: custom`
+   * or unset, non-required) are excluded until they declare a pillar domain.
+   * Order follows registry/UI order with `default` guaranteed first.
+   */
+  derivePacksForPillars(pillars: string[]): string[] {
+    const PILLAR_DOMAIN: Record<string, string> = {
+      architecture: 'architecture',
+      security: 'security',
+      risk: 'information-risk',
+      operations: 'operations',
+    };
+    const wanted = new Set<string>(['general']);
+    for (const p of pillars) {
+      const d = PILLAR_DOMAIN[p];
+      if (d) { wanted.add(d); }
+    }
+    const ids: string[] = [];
+    for (const pack of this.getLookingGlassPacks()) {
+      if (pack.required || (pack.domain !== undefined && wanted.has(pack.domain))) {
+        ids.push(pack.id);
+      }
+    }
+    // Guarantee `default` even when the mesh/registry is unavailable (the
+    // fallback pack has required:true, but be defensive about ordering).
+    if (!ids.includes('default')) { ids.unshift('default'); }
+    return ids;
+  }
+
   // ==========================================================================
   // Pack Content Loading
   // ==========================================================================
@@ -384,14 +417,25 @@ export class PromptPackService {
     return body;
   }
 
-  /** Build an Oraculum review issue body. */
+  /**
+   * Build an Oraculum review issue body. Packs are DERIVED from the selected
+   * pillars (governance-review-alignment v2 — the review config is pillars-
+   * only) unless the caller passes an explicit `scope.promptPacks` list (back-
+   * compat). Pack BODIES are no longer embedded: the architecture-review-agent
+   * runs in the mesh checkout and reads `.caterpillar/prompts/<id>.md` itself,
+   * so the issue references the packs by path only (kills the ~65 KB
+   * truncation footgun, D4). Body shrinks from tens of KB to ~2 KB.
+   */
   buildOraculumIssue(params: OraculumIssueParams): string {
     const { appName, barPath, scope, additionalContext } = params;
     const today = new Date().toISOString().slice(0, 10);
-    const packIds = scope.promptPacks ?? (scope.promptPack ? [scope.promptPack] : ['default']);
-
-    // Load pack contents from mesh (override resolution)
-    const promptPacks = this.getEffectivePacks('looking-glass', packIds);
+    // Prefer an explicit list (back-compat / tests); otherwise derive from
+    // pillars. Never fall to a bare `default` silently — derivePacksForPillars
+    // already guarantees `default` is present.
+    const explicit = scope.promptPacks ?? (scope.promptPack ? [scope.promptPack] : undefined);
+    const packIds = explicit && explicit.length > 0
+      ? explicit
+      : this.derivePacksForPillars(scope.pillars);
 
     const template = this.loadTemplate('oraculum-issue');
     const contextText = additionalContext || scope.additionalContext
@@ -405,10 +449,13 @@ export class PromptPackService {
       PILLARS_YAML: scope.pillars.map(p => `  - ${p}`).join('\n'),
       REPOS_YAML: scope.includeRepos.map(r => `  - ${r}`).join('\n'),
       CONTEXT_BLOCK: `## Review Context\n${contextText}\n`,
-      PACK_FILE_REFS: promptPacks.length > 0
-        ? this.renderPackFileRefs('looking-glass', promptPacks.map(p => ({ id: p.name, category: 'governance' as const, name: p.name, filename: '', content: p.content })), packIds)
-        : '',
-      PACK_SECTIONS: this.renderOraculumPackSections(promptPacks),
+      // Reference-only — no embedded bodies (embed=false).
+      PACK_FILE_REFS: this.renderPackFileRefs(
+        'looking-glass',
+        packIds.map(id => ({ id, category: 'governance' as const })),
+        packIds,
+        false,
+      ),
       METADATA: this.renderMetadata({
         Created: new Date().toISOString(),
         'Extension Version': 'MaintainabilityAI VS Code Extension v0.1.0',
@@ -421,7 +468,7 @@ export class PromptPackService {
 
     if (body.length > BODY_SAFE_LIMIT) {
       body = body.slice(0, BODY_SAFE_LIMIT - 200);
-      body += '\n\n> **Note:** Prompt pack content was truncated to stay within GitHub\'s 65 KB issue body limit.\n';
+      body += '\n\n> **Note:** Review issue body was truncated to stay within GitHub\'s 65 KB issue body limit.\n';
     }
 
     return body;
@@ -568,6 +615,7 @@ export class PromptPackService {
     domain: PackDomain,
     packs: { id: string; category?: string }[],
     packIds?: string[],
+    embed = true,
   ): string {
     let paths: string[];
 
@@ -585,9 +633,17 @@ export class PromptPackService {
 
     const verb = domain === 'looking-glass' ? 'review instructions' : 'implementation guidance';
 
+    // Reference-only mode (looking-glass reviews, governance-review-alignment
+    // v2): the agent runs in the mesh checkout and reads these files directly,
+    // so we don't embed the bodies in the issue (avoids the ~65 KB truncation
+    // risk, D4). The closing sentence reflects whether bodies follow.
+    const closing = embed
+      ? '\n\nEach pack file is also embedded below for reference.\n'
+      : '\n\nRead each pack file from the mesh checkout in the order listed — they are the review methodology. Do not rely on this issue for their contents.\n';
+
     return `## Prompt Packs\n\nRead the following prompt pack files for detailed ${verb}:\n`
       + paths.map(p => `- \`${p}\``).join('\n')
-      + '\n\nEach pack file is also embedded below for reference.\n';
+      + closing;
   }
 
   /** Render collapsible pack sections for rabbit-hole issues (grouped by category). */
@@ -615,19 +671,6 @@ export class PromptPackService {
       }
 
       html += '</details>\n\n';
-    }
-    return html;
-  }
-
-  /** Render collapsible pack sections for oraculum issues (flat, each pack is a section). */
-  private renderOraculumPackSections(packs: { name: string; content: string }[]): string {
-    let html = '';
-    for (const pack of packs) {
-      let content = pack.content;
-      if (content.length > MAX_PACK_CONTENT_CHARS) {
-        content = content.slice(0, MAX_PACK_CONTENT_CHARS) + '\n\n*... (truncated)*';
-      }
-      html += `<details>\n<summary>\u{1F4D8} <strong>Prompt Pack: ${pack.name}</strong></summary>\n\n${content}\n\n</details>\n\n`;
     }
     return html;
   }
@@ -705,6 +748,7 @@ export class PromptPackService {
             if (key === 'name') { currentPack.name = value; }
             else if (key === 'description') { currentPack.description = value; }
             else if (key === 'required') { currentPack.required = value === 'true'; }
+            else if (key === 'domain') { currentPack.domain = value; }
           }
         }
       }
@@ -730,6 +774,7 @@ export class PromptPackService {
       description: partial.description || `Prompt pack: ${id}`,
       required: partial.required || false,
       available: fs.existsSync(mdPath),
+      domain: partial.domain,
     };
   }
 

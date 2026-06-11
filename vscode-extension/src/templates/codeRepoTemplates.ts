@@ -433,6 +433,24 @@ export function generateCodeDesignAgentWorkflow(extensionPath: string): string {
   return readScaffoldFile(extensionPath, 'workflows', 'code-design-agent.yml');
 }
 
+/**
+ * Merge-boundary gate for BAR governance reviews (governance-review-
+ * alignment v2). NOT an agent workflow — the architecture-review-agent
+ * persona produces the review PR; this workflow VERIFIES it (scope ·
+ * structure · record · drift-math gates) and applies review-pass /
+ * review-invalid, plus durable review-complete labeling on merge. Runs
+ * its own committed `review-gate.mjs` over the checked-out PR head and
+ * never executes PR-supplied code.
+ */
+export function generateReviewAgentWorkflow(extensionPath: string): string {
+  return readScaffoldFile(extensionPath, 'workflows', 'review-agent.yml');
+}
+
+/** The verification script invoked by review-agent.yml's verify job. */
+export function generateReviewGateScript(extensionPath: string): string {
+  return readScaffoldFile(extensionPath, 'workflows', 'scripts', 'review-gate.mjs');
+}
+
 // architect-reviewer.yml + security-reviewer.yml removed in B24 —
 // self-critique inside prd-agent.agent.md (Architect + Security
 // personas, bounded rounds) replaced the separate reviewer dispatches.
@@ -581,6 +599,14 @@ export const MESH_WORKFLOWS: MeshWorkflowSpec[] = [
   // D-PR1 — code-design-agent for the WHAT phase. Brownfield/greenfield
   // branching per A12.v1.1 targetCodeRepoStatus.
   { relativePath: '.github/workflows/code-design-agent.yml',     generate: generateCodeDesignAgentWorkflow },
+
+  // ── BAR governance review gate (governance-review-alignment v2) ──────
+  // Verifies the architecture-review-agent's PR at the merge boundary
+  // (scope/structure/record/drift-math) + durable review-complete
+  // labeling on merge. Replaces the retired oraculum-review.yml — which
+  // RAN claude-code-action; this one runs no agent, only verification.
+  { relativePath: '.github/workflows/review-agent.yml',          generate: generateReviewAgentWorkflow },
+  { relativePath: '.github/workflows/scripts/review-gate.mjs',   generate: generateReviewGateScript },
 
   // ── Composite actions (referenced by per-agent workflows) ────────────
   { relativePath: '.github/actions/extract-okr-context/action.yml', generate: generateExtractOkrContextAction },
