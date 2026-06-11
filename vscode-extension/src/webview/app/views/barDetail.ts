@@ -880,7 +880,8 @@ function renderReviewSheet(s: BarDetailRenderState): string {
         <div><strong>Prompt packs</strong>${packBoxes}</div>
       </div>
       <div style="margin-top: 10px;"><strong>Additional context</strong> <span class="text-muted">(optional)</span><br/>
-        <textarea id="review-sheet-context" rows="3" style="width: 100%; margin-top: 4px;">${escapeHtml(sheet.context)}</textarea>
+        <textarea id="review-sheet-context" rows="3" placeholder="Anything the reviewer should focus on — recent incidents, areas of concern, upcoming changes…"
+          style="width: 100%; margin-top: 4px; box-sizing: border-box; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border, var(--border, #444)); border-radius: 4px; padding: 6px 8px; font-family: inherit; font-size: 12px; resize: vertical;">${escapeHtml(sheet.context)}</textarea>
       </div>
       <div style="display: flex; gap: 8px; margin-top: 10px;">
         <button id="btn-review-sheet-submit" class="btn-primary" ${sheet.submitting || sheet.pillars.length === 0 ? 'disabled' : ''}>${sheet.submitting ? 'Dispatching…' : 'Dispatch Review'}</button>

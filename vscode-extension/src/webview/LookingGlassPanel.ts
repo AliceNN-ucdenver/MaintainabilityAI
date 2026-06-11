@@ -324,6 +324,10 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
   // OKR card. Directly re-drilling is more reliable.
   private lastDrilledOkrId: string | undefined;
   private activeReviewPollTimer: ReturnType<typeof setInterval> | undefined;
+  /** Until this timestamp, a null agent-status detection is treated as
+   *  "GitHub search hasn't indexed the fresh dispatch yet" — the synthetic
+   *  banner stays up and polling continues instead of being wiped. */
+  private reviewDispatchGraceUntil = 0;
   private lastActiveReviewState: boolean = false;
   public pendingBarPath: string | undefined;
   private pendingActiveReview: import('../types').ActiveReviewInfo | undefined;
@@ -6699,7 +6703,20 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       }
       this.postMessage({ type: 'reviewDispatched', barPath, issueNumber: result.number, issueUrl: result.url });
       this.postMessage({ type: 'info', message: `Governed review dispatched — issue #${result.number} (${appName}).` });
-      await this.onLoadActiveReview(barPath, appName).catch(() => { /* best effort */ });
+      // Light the banner IMMEDIATELY with the issue we just created — GitHub's
+      // issue search lags a fresh create, so detectForBar can return null on
+      // the first try, and (pre-fix) polling only started on a non-null
+      // detection — the banner stayed dark until the user left + re-entered
+      // the page (reported on review #218). Synthetic status now, real status
+      // via forced polling.
+      this.postMessage({ type: 'agentStatusUpdate', barPath, status: {
+        phase: 'implementing' as const,
+        agent: 'copilot' as const,
+        issue: { number: result.number, url: result.url, title: `Oraculum Review: ${appName}` },
+      }});
+      this.lastActiveReviewState = true;
+      this.reviewDispatchGraceUntil = Date.now() + 120_000;
+      this.startActiveReviewPolling(barPath, appName);
     } catch (err) {
       this.postMessage({ type: 'error', message: `Failed to dispatch review: ${toErrorMessage(err)}` });
     } finally {
@@ -6782,6 +6799,14 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       const status = await this.agentStatusService.detectForBar(
         this.meshRepoInfo.owner, this.meshRepoInfo.repo, searchName
       );
+
+      // Dispatch grace window: GitHub's issue search lags a fresh create, so
+      // a null detection right after dispatch is "not indexed YET", not "no
+      // active review". Keep the synthetic banner + keep polling instead of
+      // wiping it and stopping (the review-#218 dark-banner bug).
+      if (!status && Date.now() < this.reviewDispatchGraceUntil) {
+        return;
+      }
 
       // Send unified agent status
       this.postMessage({ type: 'agentStatusUpdate', barPath, status });

@@ -497,6 +497,59 @@ export class GitHubService {
     }));
   }
 
+  /**
+   * PR numbers structurally linked to an issue — closing references plus
+   * Copilot's ConnectedEvent assignment link. Text-independent (survives
+   * agent PRs whose branch/body never mention the issue). OPEN first, then
+   * MERGED, then CLOSED; newest number first within each group.
+   */
+  private async getClosingPrNumbers(owner: string, repo: string, issueNumber: number): Promise<number[]> {
+    try {
+      const client = await this.getClient();
+      const gql = await client.graphql(
+        `query($owner:String!,$repo:String!,$num:Int!){
+          repository(owner:$owner,name:$repo){
+            issue(number:$num){
+              closedByPullRequestsReferences(first:10, includeClosedPrs:true){ nodes{ number state } }
+              timelineItems(first:30, itemTypes:[CONNECTED_EVENT,CROSS_REFERENCED_EVENT]){
+                nodes{
+                  ... on ConnectedEvent{ subject{ __typename ... on PullRequest{ number state } } }
+                  ... on CrossReferencedEvent{ source{ __typename ... on PullRequest{ number state } } }
+                }
+              }
+            }
+          }
+        }`,
+        { owner, repo, num: issueNumber },
+      ) as unknown as {
+        repository?: { issue?: {
+          closedByPullRequestsReferences?: { nodes?: Array<{ number: number; state: string } | null> };
+          timelineItems?: { nodes?: Array<{ subject?: { __typename?: string; number?: number; state?: string }; source?: { __typename?: string; number?: number; state?: string } } | null> };
+        } | null } | null;
+      };
+      const issue = gql?.repository?.issue;
+      if (!issue) { return []; }
+      const candidates: Array<{ number: number; state: string }> = [];
+      for (const n of issue.closedByPullRequestsReferences?.nodes ?? []) {
+        if (n && typeof n.number === 'number') { candidates.push({ number: n.number, state: n.state }); }
+      }
+      for (const t of issue.timelineItems?.nodes ?? []) {
+        const pr = t?.subject ?? t?.source;
+        if (pr && pr.__typename === 'PullRequest' && typeof pr.number === 'number') {
+          candidates.push({ number: pr.number, state: pr.state ?? '' });
+        }
+      }
+      const rank = (s: string) => (s === 'OPEN' ? 0 : s === 'MERGED' ? 1 : 2);
+      const seen = new Set<number>();
+      return candidates
+        .filter(c => (seen.has(c.number) ? false : (seen.add(c.number), true)))
+        .sort((a, b) => rank(a.state) - rank(b.state) || b.number - a.number)
+        .map(c => c.number);
+    } catch {
+      return [];
+    }
+  }
+
   async getLinkedPullRequests(
     owner: string,
     repo: string,
@@ -506,6 +559,36 @@ export class GitHubService {
     const expectedBranch = `fix/issue-${issueNumber}`;
 
     try {
+      // PRIMARY: the STRUCTURAL issue→PR link (closing references + connected
+      // events). Text/branch heuristics below miss agent PRs — Copilot's
+      // branch for review #218 was `copilot/218-oraculum-review-…` (no
+      // `issue-218` substring) and its body carried no `#218`, so PR #219
+      // never attached to the status banner. Same lesson as the OKR PR
+      // finder: the assignment link is text-independent.
+      const structural = await this.getClosingPrNumbers(owner, repo, issueNumber);
+      if (structural.length > 0) {
+        const results: LinkedPullRequest[] = [];
+        for (const prNumber of structural.slice(0, 3)) {
+          try {
+            const { data: pr } = await client.rest.pulls.get({ owner, repo, pull_number: prNumber });
+            const { checksStatus, mergeable } = await this.getPrChecksStatus(owner, repo, pr.number);
+            results.push({
+              number: pr.number,
+              title: pr.title,
+              url: pr.html_url,
+              state: pr.merged_at ? 'merged' : pr.state as 'open' | 'closed',
+              branch: pr.head.ref,
+              checksStatus,
+              mergeable,
+              draft: pr.draft ?? false,
+              reviewRequested: (pr.requested_reviewers?.length ?? 0) > 0,
+            });
+          } catch { /* skip unfetchable candidate */ }
+        }
+        if (results.length > 0) { return results; }
+      }
+
+      // FALLBACK: branch/body text heuristics (pre-structural behavior).
       const { data: pulls } = await client.rest.pulls.list({
         owner,
         repo,
