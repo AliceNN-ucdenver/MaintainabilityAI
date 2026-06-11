@@ -664,9 +664,14 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
   }
 
   private onImproveCoverage() {
-    const breakdown = this.scorecardService.getCoverageBreakdown(80);
+    // Read the breakdown from the SELECTED folder — the same one collectAll
+    // scored. Defaulting to workspaceFolders[0] (the old behavior) read a
+    // different repo in a multi-root workspace, so the per-file breakdown came
+    // back empty even when the overall score was well below 80%.
+    const workspaceRoot = this.selectedFolderPath || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    const breakdown = this.scorecardService.getCoverageBreakdown(80, workspaceRoot);
     if (breakdown.length === 0) {
-      vscode.window.showInformationMessage('No files below 80% coverage — run tests with coverage first.');
+      vscode.window.showInformationMessage('No files below 80% coverage in this report — run "Run Coverage" first, or coverage-summary.json may be missing per-file data.');
       return;
     }
 
@@ -701,7 +706,11 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
   private onImproveDeps() {
     const outdated = this.scorecardService.getOutdatedDeps();
     if (outdated.length === 0) {
-      vscode.window.showInformationMessage('No outdated dependencies detected — refresh the scorecard first.');
+      // getOutdatedDeps() returns the last Dependency-Freshness scan's result
+      // (folder-correct, set by collectAll). Empty = the Dependency Freshness
+      // tile is "all up to date", OR the npm age-check couldn't reach the
+      // registry — refresh the scorecard to re-scan.
+      vscode.window.showInformationMessage('No dependencies older than 90 days in the last scan — nothing to pre-fill. Refresh the scorecard to re-scan (needs npm registry access).');
       return;
     }
 
