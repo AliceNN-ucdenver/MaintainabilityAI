@@ -1,8 +1,9 @@
 /**
- * ResearchRequestService — turn an Oraculum finding (or any ad-hoc
- * idea) into a `research-request`-labeled issue on the governance mesh
- * repo. The existing archeologist.yml workflow fires on that label, so
- * dispatch is implicit — we just create or relabel the issue.
+ * ResearchRequestService — create a `research-request`-labeled issue on
+ * the governance mesh repo. NOTE: the archeologist.yml workflow that used
+ * to fire on this label is retired (pruned from meshes) — the label is
+ * inert until research returns as a governed agent
+ * (design/research-agent-alignment.md).
  *
  * One entry point:
  *   - createResearchRequest(): create a fresh mesh issue from scratch

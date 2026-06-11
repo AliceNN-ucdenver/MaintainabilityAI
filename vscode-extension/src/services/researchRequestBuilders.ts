@@ -4,8 +4,8 @@
  * without the vscode runtime — the service imports githubService
  * (which imports vscode), but these builders touch nothing external.
  *
- * The body format mirrors the regex contracts in
- * code-templates/workflows/archeologist.yml:
+ * The body format mirrors the legacy archeologist regex contract (the
+ * workflow is retired; kept for the future research agent's parser):
  *   scope: <platform|bar>
  *   scope_id: <id>     (required — portfolio scope was removed)
  *   path: <research|archaeology>

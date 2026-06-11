@@ -87,12 +87,6 @@
         "icon": "$(bug)"
       },
       {
-        "command": "maintainabilityai.newResearch",
-        "title": "New Research / PRD Run",
-        "category": "MaintainabilityAI",
-        "icon": "$(search)"
-      },
-      {
         "command": "maintainabilityai.activeRuns",
         "title": "Active Research / PRD Runs",
         "category": "MaintainabilityAI",
@@ -165,9 +159,6 @@
           "command": "maintainabilityai.bugReport"
         },
         {
-          "command": "maintainabilityai.newResearch"
-        },
-        {
           "command": "maintainabilityai.activeRuns"
         },
         {
@@ -219,7 +210,7 @@
         "maintainabilityai.governance.meshToken": {
           "type": "string",
           "default": "",
-          "description": "Fine-grained GitHub PAT (GOVERNANCE_MESH_TOKEN). Scopes on every linked code repo: Metadata=read (auto), Issues=read+write (so notify-code-repos.yml on the mesh can open + update PRD landing-issues), Contents=read (lets the workflow cross-reference code-repo files in the issue body). Cannot modify code or trigger workflows. Lives on the mesh repo only. Use Looking Glass → Settings → Research → Create to mint a correctly-scoped token."
+          "description": "Fine-grained GitHub PAT (GOVERNANCE_MESH_TOKEN). Scopes on every linked code repo: Metadata=read (auto), Issues=read+write (lets mesh workflows open + update landing issues in code repos), Contents=read (lets workflows cross-reference code-repo files). Cannot modify code or trigger workflows. Lives on the mesh repo only. Use Looking Glass \u2192 Settings \u2192 Research \u2192 Create to mint a correctly-scoped token."
         },
         "maintainabilityai.research.llmProvider": {
           "type": "string",

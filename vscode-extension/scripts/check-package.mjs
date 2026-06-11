@@ -18,8 +18,8 @@ const requiredFiles = [
   'prompt-packs/rabbit-hole/default.md',
   'prompt-packs/looking-glass/default.md',
   'code-templates/workflows/ci.yml',
-  'code-templates/agents/security-reviewer.md',
-  'code-templates/agents/architecture-reviewer.md',
+  'code-templates/agents/implementation-agent.agent.md',
+  'code-templates/skills/self-review-impl-architect/SKILL.md',
 ];
 
 const forbiddenPatterns = [

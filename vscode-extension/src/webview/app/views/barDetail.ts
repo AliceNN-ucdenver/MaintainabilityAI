@@ -923,7 +923,7 @@ export function renderBarDetail(s: BarDetailRenderState): string {
           <span class="tier-badge ${computeDisplayTier(bar)}" title="Governance tier (score-based)">${computeDisplayTier(bar)}</span>
           <span style="font-size: 12px; color: var(--text-muted);">${bar.repoCount} repo${bar.repoCount !== 1 ? 's' : ''}</span>
           <button class="btn-ghost btn-sm" id="btn-edit-app-yaml" data-bar-path="${escapeAttr(bar.path)}" title="Edit app.yaml">&#9998; Edit</button>
-          <button class="btn-ghost btn-sm" id="btn-bar-run-research" data-bar-id="${escapeAttr(bar.id)}" data-bar-name="${escapeAttr(bar.name)}" title="Dispatch the Archeologist research agent at this BAR">&#128270; Research</button>
+          <button class="btn-ghost btn-sm" id="btn-bar-run-research" data-bar-id="${escapeAttr(bar.id)}" data-bar-name="${escapeAttr(bar.name)}" title="Research is being rebuilt as a governed agent — coming soon">&#128270; Research</button>
           ${s.gitStatus?.isGitRepo ? (() => {
             const barGs = s.gitStatus?.barStatus[bar.path];
             const hasDirty = barGs?.isDirty;

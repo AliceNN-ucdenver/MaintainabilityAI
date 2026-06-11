@@ -814,13 +814,19 @@ exec node "\${SCRIPT_DIR}/validate-tool.js"
  *   - vsix install: <ext root>/dist/extension.js -> ../code-templates/
  */
 function readImplementationAgentTemplate(): string | null {
+  return readCodeTemplate(path.join('agents', 'implementation-agent.agent.md'));
+}
+
+/** Multi-context read of any file under code-templates/ (same path walk as
+ *  the agent template — dev tree, esbuild dist, vsix install). */
+function readCodeTemplate(relPath: string): string | null {
   const candidatePaths = [
     // src/mcp/config-scaffold.ts → up three to vscode-extension/
-    path.join(__dirname, '..', '..', 'code-templates', 'agents', 'implementation-agent.agent.md'),
+    path.join(__dirname, '..', '..', 'code-templates', relPath),
     // dist/extension.js → up one
-    path.join(__dirname, '..', 'code-templates', 'agents', 'implementation-agent.agent.md'),
+    path.join(__dirname, '..', 'code-templates', relPath),
     // dist/ deep nesting (defensive)
-    path.join(__dirname, '..', '..', '..', 'code-templates', 'agents', 'implementation-agent.agent.md'),
+    path.join(__dirname, '..', '..', '..', 'code-templates', relPath),
   ];
   for (const p of candidatePaths) {
     try {
@@ -829,6 +835,25 @@ function readImplementationAgentTemplate(): string | null {
   }
   return null;
 }
+
+/**
+ * The custom skills implementation-agent.agent.md declares in its `tools:`
+ * frontmatter that have SKILL.md templates to ship. Gap fix (2026-06-11):
+ * the mesh deploys SKILL.md for ITS agents via MESH_SKILLS, but the code-repo
+ * scaffold shipped only the agent file — never `.github/skills/` — so the
+ * persona's declared skills had no SKILL.md where the agent runs. Execution
+ * worked regardless (skills run via `npx … skill-<name>`), but the declared-
+ * tool contract was broken repo-side. `audit-sign-redqueen-decisions` is
+ * intentionally absent — runner-only, tolerated-missing by the agent prompt.
+ * Keep in sync with the agent template's `tools:` list.
+ */
+const IMPL_AGENT_SKILLS = [
+  'knowledge-code',
+  'knowledge-code-read',
+  'audit-emit-event',
+  'self-review-impl-architect',
+  'self-review-impl-security',
+];
 
 export function writeScaffoldFiles(outputDir: string, files: Record<string, string>): number {
   let written = 0;
@@ -1602,6 +1627,14 @@ export function scaffoldAgentConfig(
   const implAgentTemplate = readImplementationAgentTemplate();
   if (implAgentTemplate) {
     files['.github/agents/implementation-agent.agent.md'] = implAgentTemplate;
+    // Ship the SKILL.md for every custom skill the persona declares (the
+    // scaffold gap found 2026-06-11 — agent file landed, skills never did).
+    for (const skill of IMPL_AGENT_SKILLS) {
+      const skillMd = readCodeTemplate(path.join('skills', skill, 'SKILL.md'));
+      if (skillMd) {
+        files[`.github/skills/${skill}/SKILL.md`] = skillMd;
+      }
+    }
   }
 
   // D-PR7 — `.maintainability/audit/` is agent-emission territory

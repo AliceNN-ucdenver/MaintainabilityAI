@@ -442,7 +442,7 @@ export function renderApplicationPlatformDrillDown(
         data-platform-slug="${escapeAttr((platform as { slug?: string }).slug ?? currentPlatformId.toLowerCase())}"
         data-platform-id="${escapeAttr(platform.id)}"
         data-platform-name="${escapeAttr(platform.name)}"
-        title="Dispatch the Archeologist research agent at this platform — opens the New Research panel pre-filled with scope=platform">
+        title="Research is being rebuilt as a governed agent — coming soon">
         &#128270; Run Research at Platform
       </button>
     </div>
@@ -876,10 +876,9 @@ export function attachPortfolioEvents(
     render();
   });
 
-  // Platform-scope research dispatch — posts message to LookingGlassPanel
-  // which executes the maintainabilityai.newResearch command with
-  // prefill={ scopeLevel: 'platform', scopeId: <slug> } so the form
-  // lands ready to dispatch.
+  // Platform-scope research — the issue-based dispatcher is retired;
+  // the panel shows a "coming soon" notice until the research agent
+  // lands (design/research-agent-alignment.md).
   document.getElementById('btn-platform-run-research')?.addEventListener('click', () => {
     const btn = document.getElementById('btn-platform-run-research') as HTMLElement;
     const slug = btn.dataset.platformSlug || '';

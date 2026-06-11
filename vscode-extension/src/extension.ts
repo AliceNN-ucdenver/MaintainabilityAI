@@ -10,13 +10,11 @@ import { openScorecardCommand } from './commands/openScorecard';
 import { lookingGlassCommand } from './commands/lookingGlass';
 import { bugReportCommand } from './commands/bugReport';
 import { createResearchRequestCommand, type CreateResearchRequestPrefill } from './commands/createResearchRequest';
-import { NewResearchPanel, type PrefillInputs } from './webview/NewResearchPanel';
 import { ActiveRunsPanel } from './webview/ActiveRunsPanel';
 import { ResearchLibraryPanel } from './webview/ResearchLibraryPanel';
 import { ActiveRunsService } from './services/ActiveRunsService';
 import { RunStatusTailer } from './services/RunStatusTailer';
 import { RunNotificationService } from './services/RunNotificationService';
-import type { AgentKind } from './services/ResearchPreflightService';
 
 import { checkPrerequisitesOnActivation } from './services/PrerequisiteChecker';
 import { configService } from './services/ConfigService';
@@ -100,8 +98,10 @@ export function activate(context: vscode.ExtensionContext) {
       ),
       vscode.commands.registerCommand(
         'maintainabilityai.newResearch',
-        (agent?: AgentKind, prefill?: PrefillInputs) =>
-          NewResearchPanel.createOrShow(context, agent ?? 'archeologist', prefill ?? null),
+        // The issue-based research dispatcher (NewResearchPanel → archeologist.yml)
+        // was retired with the pruned workflows; research returns as a governed
+        // agent — see design/research-agent-alignment.md.
+        () => { void vscode.window.showInformationMessage('Research is being rebuilt as a governed agent (like reviews) — coming soon.'); },
       ),
       vscode.commands.registerCommand(
         'maintainabilityai.activeRuns',

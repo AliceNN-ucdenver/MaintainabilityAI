@@ -2601,7 +2601,7 @@ function renderSettingsResearch(): string {
     <div class="settings-section">
       <h3>Research + PRD Agents ${meshRepoHint}</h3>
       <p class="text-muted">
-        Keys for the Archeologist (research) and PRD agents. Each key lives in two places: VS Code workspace settings (for local dev runs) and the mesh GitHub repo secrets (for workflow runs). Use <strong>Push to GitHub</strong> to sync.
+        Keys for the research pipelines and agents. Each key lives in two places: VS Code workspace settings (for local dev runs) and the mesh GitHub repo secrets (for workflow runs). Use <strong>Push to GitHub</strong> to sync.
       </p>
 
       <div class="settings-research-grid">
