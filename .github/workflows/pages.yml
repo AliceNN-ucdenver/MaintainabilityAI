@@ -10,6 +10,17 @@ permissions:
   pages: write
   id-token: write
 
+# Serialize Pages deploys. The publish workflows push version-bump commits
+# back to main (e.g. `[vsce-publish]`), which can put a second deploy in
+# flight while the first is still running — `actions/deploy-pages` then finds
+# two `github-pages` artifacts for the shared environment and fails with
+# "Multiple artifacts named github-pages ... Artifact count is 2". This guard
+# (GitHub's recommended Pages pattern) lets the in-flight deploy finish before
+# the next starts. `cancel-in-progress: false` so we never abort a live deploy.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
