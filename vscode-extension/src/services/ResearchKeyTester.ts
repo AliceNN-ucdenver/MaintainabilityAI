@@ -39,8 +39,6 @@ export async function testResearchKey(id: ResearchSecretId, key: string): Promis
   }
   try {
     switch (id) {
-      case 'anthropic':              return await testAnthropic(key);
-      case 'openai':                 return await testOpenai(key);
       case 'tavily':                 return await testTavily(key);
       case 'uspto':                  return await testUspto(key);
       case 'huggingface':            return await testHuggingface(key);
@@ -51,36 +49,6 @@ export async function testResearchKey(id: ResearchSecretId, key: string): Promis
     logger.warn(`testResearchKey(${id}) failed: ${message}`);
     return { ok: false, message: `Network error: ${message}` };
   }
-}
-
-async function testAnthropic(key: string): Promise<KeyTestResult> {
-  const res = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': key,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'claude-haiku-4-5',
-      max_tokens: 1,
-      messages: [{ role: 'user', content: 'ping' }],
-    }),
-  });
-  if (res.ok) { return { ok: true, message: 'Anthropic key valid.', status: res.status }; }
-  if (res.status === 401) { return { ok: false, message: 'Anthropic rejected the key (401 unauthorized).', status: 401 }; }
-  if (res.status === 403) { return { ok: false, message: 'Anthropic key lacks permissions (403).', status: 403 }; }
-  return { ok: false, message: `Anthropic returned ${res.status}.`, status: res.status };
-}
-
-async function testOpenai(key: string): Promise<KeyTestResult> {
-  const res = await fetchWithTimeout('https://api.openai.com/v1/models', {
-    method: 'GET',
-    headers: { 'authorization': `Bearer ${key}` },
-  });
-  if (res.ok) { return { ok: true, message: 'OpenAI key valid.', status: res.status }; }
-  if (res.status === 401) { return { ok: false, message: 'OpenAI rejected the key (401 unauthorized).', status: 401 }; }
-  return { ok: false, message: `OpenAI returned ${res.status}.`, status: res.status };
 }
 
 async function testGovernanceMeshToken(key: string): Promise<KeyTestResult> {

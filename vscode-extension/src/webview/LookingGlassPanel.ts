@@ -534,7 +534,6 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     'mergeAgentPr':                (m) => this.onMergeAgentPr(m.barPath, m.barName, m.prNumber, m.issueNumber),
     'loadDriftWeights':            () => this.onLoadDriftWeights(),
     'saveDriftWeights':            (m) => this.onSaveDriftWeights(m.weights),
-    'configureMeshSecrets':        () => { vscode.commands.executeCommand('maintainabilityai.configureSecrets', 'governance'); },
     'refreshPromptPacks':          () => this.onRefreshPromptPacks(),
     'loadResearchSettings':        () => this.onLoadResearchSettings(),
     'saveResearchSecret':          (m) => this.onSaveResearchSecret(m.id, m.value),

@@ -478,4 +478,4 @@ export interface AdrRecord {
  * so this is a hand-mirrored union — any new secret added there must also
  * land here, otherwise typecheck catches it via narrowed switch coverage.
  */
-export type ResearchSecretId = 'anthropic' | 'openai' | 'tavily' | 'uspto' | 'huggingface' | 'governance-mesh-token';
+export type ResearchSecretId = 'tavily' | 'uspto' | 'huggingface' | 'governance-mesh-token';

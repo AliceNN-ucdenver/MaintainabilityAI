@@ -165,9 +165,10 @@ export interface CalmPatch {
 // Research Settings — surfaced in the Looking Glass Settings panel
 // ============================================================================
 
+// ANTHROPIC/OPENAI dropped from the Looking Glass research surface — the
+// agents route LLM calls through GitHub Models (GITHUB_TOKEN). Those keys are
+// a code-repo concern (alice-remediation), managed Cheshire-side via `SECRETS`.
 export type ResearchSecretId =
-  | 'anthropic'
-  | 'openai'
   | 'tavily'
   | 'uspto'
   | 'huggingface'
@@ -383,7 +384,6 @@ export type LookingGlassWebviewMessage =
   | { type: 'getCalmComponents'; barPath: string }
   | { type: 'implementComponent'; barPath: string; componentId: string; repoName: string; componentName: string; componentType: string; componentDescription: string }
   | { type: 'saveWorkspace'; name: string }
-  | { type: 'configureMeshSecrets' }
   | { type: 'refreshPromptPacks' }
   // Research Settings — Tavily + Anthropic/OpenAI keys + non-secret prefs
   | { type: 'loadResearchSettings' }

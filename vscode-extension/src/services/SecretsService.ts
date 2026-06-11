@@ -81,8 +81,14 @@ export const SECRETS: SecretDefinition[] = [
   },
 ];
 
-/** Subset of SECRETS that the Research + PRD agents need at run time. */
-export const RESEARCH_SECRET_IDS = ['anthropic', 'openai', 'tavily', 'uspto', 'huggingface', 'governance-mesh-token'] as const;
+/**
+ * Subset of SECRETS the Looking Glass Research + PRD settings surface. The
+ * agents route LLM calls through GitHub Models (GITHUB_TOKEN), so the
+ * ANTHROPIC_API_KEY / OPENAI_API_KEY rows were dropped here — those keys are a
+ * CODE-REPO concern (alice-remediation.yml), managed on the Cheshire side, and
+ * remain in `SECRETS` for that flow.
+ */
+export const RESEARCH_SECRET_IDS = ['tavily', 'uspto', 'huggingface', 'governance-mesh-token'] as const;
 export type ResearchSecretId = (typeof RESEARCH_SECRET_IDS)[number];
 
 export type SecretsTarget = 'governance' | 'workspace';

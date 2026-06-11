@@ -2170,7 +2170,6 @@ function renderSettings(): string {
       ${renderSettingsMeshProvisioning()}
       ${renderSettingsCodingAgentEnv()}
       ${renderSettingsLlmModel()}
-      ${renderSettingsMeshSecrets()}
       ${renderSettingsResearch()}
       ${renderSettingsDriftWeights()}
       ${renderSettingsOrchestration()}
@@ -2501,20 +2500,6 @@ function renderSettingsLlmModel(): string {
   `;
 }
 
-function renderSettingsMeshSecrets(): string {
-  return `
-    <div class="settings-section">
-      <h3>Governance Mesh Secrets ${settingsRepoHint()}</h3>
-      <p class="text-muted">
-        Configure API keys (ANTHROPIC_API_KEY, OPENAI_API_KEY) as GitHub repository secrets on the governance mesh repository.
-        Used by legacy @claude research-synthesis runs and AI-powered governance analysis. (Reviews run on the Copilot architecture-review agent and don't need these.)
-      </p>
-      <div class="settings-row" style="justify-content: flex-start;">
-        <button id="btn-configure-mesh-secrets" class="btn-primary">Configure Secrets</button>
-      </div>
-    </div>
-  `;
-}
 
 function statusPill(set: boolean | null, label: string): string {
   if (set === null) {
@@ -2613,8 +2598,6 @@ function renderSettingsResearch(): string {
         <div class="settings-label">LLM provider</div>
         <select id="research-pref-provider" class="settings-select">
           ${providerOpt('github-models', 'GitHub Models / Copilot (no API key needed)')}
-          ${providerOpt('anthropic', 'Anthropic (Claude) — needs ANTHROPIC_API_KEY')}
-          ${providerOpt('openai', 'OpenAI (GPT) — needs OPENAI_API_KEY')}
         </select>
       </div>
       <div class="settings-row">
@@ -3289,11 +3272,6 @@ function attachEventHandlers() {
     if (select) {
       vscode.postMessage({ type: 'savePreferredModel', family: select.value });
     }
-  });
-
-  // Settings: configure mesh secrets
-  document.getElementById('btn-configure-mesh-secrets')?.addEventListener('click', () => {
-    vscode.postMessage({ type: 'configureMeshSecrets' });
   });
 
   // Research Settings — Create / Set / Test / Push per-secret + Save Preferences.
