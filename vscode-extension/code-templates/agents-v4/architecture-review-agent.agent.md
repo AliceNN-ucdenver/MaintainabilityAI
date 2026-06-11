@@ -136,8 +136,24 @@ Write `<bar_path>/reports/review-<ISSUE>.md`:
 
 Skip a pillar section only when that pillar was not in `scope`. The Summary
 states the drift score, the per-pillar counts, any `clone-failed` /
-missing-pack notes. Findings are `**[severity]**` bullets with their evidence
-citation. Recommendations reference the findings they address.
+missing-pack notes.
+
+Each finding opens a line with the severity in **bold brackets**, then its
+evidence. Either of these shapes is accepted by the gate's recount — pick one
+and be consistent:
+
+```
+**[high] Short finding title**
+- Evidence: `repo/path:line`
+- Expected / Actual / Action: …
+```
+
+or the one-line bullet form `- **[high]** statement. Evidence: \`repo/path:line\``.
+
+The merge gate counts these severity-tagged finding lines per pillar and they
+MUST equal the counts in `reviews.yaml` — so write exactly one severity line
+per finding (don't repeat `**[high]**` inside a finding's body).
+Recommendations reference the findings they address.
 
 ### 5c. reviews.yaml record — byte-compatible with the existing parser
 

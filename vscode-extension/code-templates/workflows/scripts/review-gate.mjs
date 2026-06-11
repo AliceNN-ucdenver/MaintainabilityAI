@@ -84,13 +84,17 @@ export function sectionBody(md, heading) {
   return next === -1 ? rest : rest.slice(0, next);
 }
 
-/** Count `**[severity]**` finding bullets per severity in a section body. */
+/** Count findings per severity in a section body. A finding opens a line with
+ *  the severity in bold brackets — tolerant of both shapes the agent emits:
+ *    `**[high] Short title**`      (heading style — observed live on #222)
+ *    `- **[high]** text`           (bullet style — observed on #216/#218)
+ *    `**[high]** text`             (bold-only)
+ *  Line-anchored so a severity mentioned inside a finding body isn't recounted. */
 export function countSeverities(body) {
   const counts = { critical: 0, high: 0, medium: 0, low: 0 };
-  for (const sev of SEVERITIES) {
-    const re = new RegExp(`\\*\\*\\[${sev}\\]\\*\\*`, 'gi');
-    counts[sev] = (body.match(re) || []).length;
-  }
+  const re = /^\s*(?:[-*]\s+)?\*\*\[(critical|high|medium|low)\]/gim;
+  let m;
+  while ((m = re.exec(body)) !== null) { counts[m[1].toLowerCase()]++; }
   return counts;
 }
 

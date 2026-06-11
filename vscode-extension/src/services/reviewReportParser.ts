@@ -34,16 +34,27 @@ export function sectionBody(md: string, heading: string): string {
 
 interface Finding { severity: string; text: string; }
 
-/** Parse `**[severity]** text…` finding bullets from a section body. */
+/**
+ * Parse finding lines from a section body. Tolerant of both shapes the
+ * architecture-review-agent emits (verified on live runs #216/#218 vs #222):
+ *   `**[high] Short title**`   (heading style — severity + title in one bold)
+ *   `- **[high]** text`        (bullet style — severity-only bold)
+ *   `**[high]** text`          (bold-only)
+ * The statement text is whatever follows the severity bracket on that line,
+ * with the bold markers + a trailing "Evidence: …" citation stripped.
+ */
 function parseFindings(body: string): Finding[] {
   const findings: Finding[] = [];
-  const re = /^\s*[-*]\s*\*\*\[(critical|high|medium|low)\]\*\*\s*(.+?)\s*$/gim;
+  const re = /^\s*(?:[-*]\s+)?\*\*\[(critical|high|medium|low)\]\s*(.*?)\s*$/gim;
   let m: RegExpExecArray | null;
   while ((m = re.exec(body)) !== null) {
     const severity = m[1].toLowerCase();
-    // Trim to the finding statement: drop the trailing "Evidence: …" citation
-    // and cap length so the inline summary stays scannable.
-    let text = m[2].replace(/\s*Evidence:.*$/i, '').trim();
+    // m[2] is the rest of the line: ` Title**` (heading) or `** text` (bullet).
+    let text = m[2]
+      .replace(/^\*\*/, '')          // bullet: leading `**` before the text
+      .replace(/\*\*$/, '')          // heading: trailing `**` after the title
+      .replace(/\s*Evidence:.*$/i, '')
+      .trim();
     if (text.length > 160) { text = text.slice(0, 157).trimEnd() + '…'; }
     findings.push({ severity, text });
   }

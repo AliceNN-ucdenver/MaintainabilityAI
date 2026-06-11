@@ -6736,7 +6736,18 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     const ok = await this.githubService.approveWorkflowRun(this.meshRepoInfo.owner, this.meshRepoInfo.repo, runId);
     this.postMessage({ type: 'loading', active: false });
     if (!ok) {
-      this.postMessage({ type: 'error', message: `Could not approve workflow run ${runId} — it may already be running, or your token lacks Actions write.` });
+      // The extension's token often lacks Actions:write (fine-grained PATs
+      // commonly do), and only a maintainer can approve an `action_required`
+      // run anyway. Rather than dead-end, offer the GitHub run page so the
+      // user can approve in the browser (verified pain point on review #222).
+      const runUrl = `https://github.com/${this.meshRepoInfo.owner}/${this.meshRepoInfo.repo}/actions/runs/${runId}`;
+      const choice = await vscode.window.showWarningMessage(
+        `Couldn't approve run ${runId} from here (your token may lack Actions:write, or it's already running). Approve it on GitHub instead.`,
+        'Open run on GitHub',
+      );
+      if (choice === 'Open run on GitHub') {
+        await vscode.env.openExternal(vscode.Uri.parse(runUrl));
+      }
     }
     await this.onLoadActiveReview(barPath, barName).catch(() => { /* best effort */ });
   }

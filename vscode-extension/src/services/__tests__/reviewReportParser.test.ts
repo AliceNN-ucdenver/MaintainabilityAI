@@ -101,4 +101,32 @@ describe('reviewReportParser.deriveTopFindings', () => {
       architecture: [], security: [], informationRisk: [], operations: [],
     });
   });
+
+  // Regression: live run #222 wrote findings as `**[sev] Title**` heading lines
+  // (severity + title in one bold span) with `- Location/Action` sub-bullets,
+  // NOT `- **[sev]** text` bullets. The old regex matched zero of them.
+  it('parses the `**[sev] Title**` heading format (live #222)', () => {
+    const headingReport = `## Architecture Findings
+
+**[high] imdb-identity service is undocumented in the CALM model**
+- Location: \`imdb-identity/src/app.ts:1\`
+- Action: document or remove the service.
+
+**[medium] Role-name mismatch between ADR-003 and movie-api**
+- Location: \`movie-api/src/models/User.js\`
+
+## Security Findings
+
+**[critical] Hardcoded database credentials in imdb-identity**
+- Location: \`imdb-identity/src/app.ts:17\`
+`;
+    const s = deriveTopFindings(headingReport);
+    expect(s.architecture).toEqual([
+      '[high] imdb-identity service is undocumented in the CALM model',
+      '[medium] Role-name mismatch between ADR-003 and movie-api',
+    ]);
+    expect(s.security).toEqual([
+      '[critical] Hardcoded database credentials in imdb-identity',
+    ]);
+  });
 });

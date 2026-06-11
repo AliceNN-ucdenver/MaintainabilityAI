@@ -220,3 +220,104 @@ test('scope: pillar section out of scope → structure-invalid', () => {
   }));
   assert.ok(r.reasons.some((x) => x.includes('"Operations Findings" present but operations not in scope')));
 });
+
+// Regression: live run #222 wrote findings as `**[sev] Title**` heading lines,
+// not `- **[sev]** text` bullets. The old recount returned 0 for every pillar
+// → a false math-mismatch on a correct report. countSeverities must count both.
+test('countSeverities: `**[sev] Title**` heading lines count as findings', () => {
+  const headingBody = `
+**[critical] Hardcoded DB credentials in imdb-identity**
+- Location: \`imdb-identity/src/app.ts:17\`
+**[high] SHA-1 password hashing**
+- Location: \`imdb-identity/src/auth.ts:12\`
+**[high] Unauthenticated admin endpoint**
+`;
+  assert.deepEqual(countSeverities(headingBody), { critical: 1, high: 2, medium: 0, low: 0 });
+});
+
+test('heading-format report (live #222 shape) passes the math gate', () => {
+  // Architecture: 3 findings (1 high, 1 medium, 1 low) — drift record matches.
+  const report = `## Summary
+
+| Pillar | Findings | Critical | High | Medium | Low |
+|--------|----------|----------|------|--------|-----|
+
+## Architecture Findings
+
+**[high] imdb-identity undocumented in CALM**
+- Location: \`imdb-identity/src/app.ts:1\`
+
+**[medium] Role-name mismatch ADR-003 vs movie-api**
+- Location: \`movie-api/src/models/User.js\`
+
+**[low] Frontend-to-API protocol inconsistency**
+- Location: \`imdb-react-frontend/.env.development:1\`
+
+## Security Findings
+
+**[critical] Hardcoded DB credentials**
+- Location: \`imdb-identity/src/app.ts:17\`
+
+**[high] SHA-1 password hashing + SQL injection**
+- Location: \`imdb-identity/src/auth.ts:12\`
+
+## Information Risk Findings
+
+**[high] Data classification empty while PII processed**
+- Location: \`information-risk/data-classification.yaml:3\`
+
+## Operations Findings
+
+**[high] Runbook is an empty placeholder**
+- Location: \`operations/runbook.md:1\`
+
+## Recommendations
+## References
+`;
+  // drift: 100 − (15·1crit + 5·4high + 2·1med + 1·1low) = 100 − 38 = 62.
+  const head = BASE_REVIEWS + `  - issue_url: "https://github.com/x/y/issues/222"
+    issue_number: 222
+    date: "2026-06-11"
+    agent: copilot
+    drift_score: 62
+    pillars:
+      architecture:
+        findings: 3
+        critical: 0
+        high: 1
+        medium: 1
+        low: 1
+      security:
+        findings: 2
+        critical: 1
+        high: 1
+        medium: 0
+        low: 0
+      risk:
+        findings: 1
+        critical: 0
+        high: 1
+        medium: 0
+        low: 0
+      operations:
+        findings: 1
+        critical: 0
+        high: 1
+        medium: 0
+        low: 0
+`;
+  const r = evaluateArtifacts({
+    changed: [REPORT.replace('218', '222'), REVIEWS],
+    reportText: report,
+    headYaml: head,
+    baseYaml: BASE_REVIEWS,
+    issueScope: ['architecture', 'security', 'risk', 'operations'],
+    issueBarPath: BAR,
+    issueHasLabel: true,
+    issueReadable: true,
+    closesIssues: [222],
+  });
+  // The #222 bug fired a math-mismatch on EVERY pillar (report recount = 0).
+  // With the heading-aware recount + matching record, the gate is fully clean.
+  assert.deepEqual(r.reasons, [], `unexpected gate reasons: ${r.reasons.join(', ')}`);
+});
