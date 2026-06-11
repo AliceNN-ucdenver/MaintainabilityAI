@@ -13,11 +13,8 @@ const GOVERNANCE_ACTIONS: GovernanceItem[] = [
     command: 'maintainabilityai.lookingGlass',
     icon: 'eye',
   },
-  {
-    label: 'Oraculum',
-    command: 'maintainabilityai.oraculum',
-    icon: 'telescope',
-  },
+  // (Oraculum entry removed — the panel is retired; reviews run inline on the
+  // BAR page via the Review button → Run Governed Review sheet.)
 ];
 
 class GovernanceTreeItem extends vscode.TreeItem {
