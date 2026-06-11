@@ -2,7 +2,7 @@
   "name": "maintainabilityai",
   "displayName": "MaintainabilityAI",
   "description": "Security-first RCTRO issue creation for AI-assisted feature development",
-  "version": "0.1.289",
+  "version": "0.1.290",
   "publisher": "chiefarcheologist",
   "license": "MIT",
   "preview": true,
@@ -210,7 +210,7 @@
         "maintainabilityai.governance.meshToken": {
           "type": "string",
           "default": "",
-          "description": "Fine-grained GitHub PAT (GOVERNANCE_MESH_TOKEN). Scopes on every linked code repo: Metadata=read (auto), Issues=read+write (lets mesh workflows open + update landing issues in code repos), Contents=read (lets workflows cross-reference code-repo files). Cannot modify code or trigger workflows. Lives on the mesh repo only. Use Looking Glass \u2192 Settings \u2192 Research \u2192 Create to mint a correctly-scoped token."
+          "description": "Fine-grained GitHub PAT (GOVERNANCE_MESH_TOKEN). Scopes on every linked code repo: Metadata=read (auto), Issues=read+write (lets mesh workflows open + update landing issues in code repos), Contents=read (lets workflows cross-reference code-repo files). Cannot modify code or trigger workflows. Lives on the mesh repo only. Use Looking Glass → Settings → Research → Create to mint a correctly-scoped token."
         },
         "maintainabilityai.research.llmProvider": {
           "type": "string",
