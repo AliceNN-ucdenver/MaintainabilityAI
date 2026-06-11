@@ -16,7 +16,13 @@
 > RCTRO grounding is **task-dependent** (scorecard/CodeQL → paths + manifest +
 > metadata + target-file excerpts; new feature → discover + excerpt the most
 > relevant source files from the ask). (4) Maintenance PRs are gated by the
-> repo's **existing CI** + extension-side labeling — no new gate workflow.
+> repo's **existing CI** + extension-side labeling — no new gate workflow. (5)
+> Governance for Alice is the **deterministic Red Queen policy** the repo already
+> carries (baked `.redqueen/policy.json` from the mesh + the PreToolUse hook +
+> `impl-provenance.yml` — no mesh/MCP/token at runtime); the unused MCP
+> "live-mesh-tools" layer (`copilot-governance-steps.yml`, `COPILOT_MCP_MESH_TOKEN`,
+> `mcp-runner.js`, `.mcp.json`) is **retired** as dead weight, deferred to a
+> future enhancement.
 
 ## Why this exists
 
@@ -202,6 +208,54 @@ grounding handoff: the RCTRO scan reads it, the issue body cites it, and the
 persona is told to read it first. The scaffold already always-writes it; keep
 that.
 
+### Red Queen governance — deterministic policy, provisioned from the mesh
+
+Alice is governed by the **Red Queen's Court** the repo already carries — the
+*deterministic policy* model documented at `/docs/red-queens-court`. It is
+self-contained and needs no mesh path, MCP server, or token at runtime
+(verified end-to-end on celeb-api, 2026-06-11):
+
+1. **Provision (mesh → repo, at scaffold/Deploy time).** The extension reads
+   the BAR's tier + governance rules **from the mesh** and bakes them into the
+   code repo as committed `.redqueen/policy.json` + `.redqueen/decision.json`.
+   The mesh is consumed ONLY here — `policy.json` is a deterministic snapshot
+   of the mesh's decision, carried by the repo. Re-provision when the BAR tier
+   changes.
+2. **Enforce (runtime, in-repo, deterministic).** Every tool call passes the
+   PreToolUse hook — `.github/hooks/redqueen.json` (Copilot) /
+   `.claude/settings.json` (Claude Code) → `.redqueen/hooks/validate-tool.sh`
+   → `validate-tool.js`, which reads the LOCAL `policy.json` and allows/denies
+   (fail-closed), appending to `.redqueen/audit-log.jsonl`. No network, no mesh.
+3. **Prove (merge time).** `impl-provenance.yml` re-hashes the committed chain
+   at the merge SHA and gates on a mismatch (the signed enforcement chain
+   tested on the celeb-api fan-out).
+
+**Alice inherits this unchanged** — her PR runs under the same baked policy +
+hook + impl-provenance + CI. No new governance plumbing.
+
+### Retire the MCP "live mesh tools" layer (unused — and the source of the confusion)
+
+A separate, OPTIONAL layer would let an agent *query the live mesh mid-run* via
+the Red Queen MCP server. It is **unused and unwired** — and it's exactly the
+part that read as "is the Red Queen even on?" Retire it now (revisit only as a
+future enhancement; the deterministic policy above is the governance):
+
+- `.github/copilot-governance-steps.yml` — a generated **manual-merge snippet**
+  (checkout mesh + start the MCP server) that was never merged into any repo's
+  `copilot-setup-steps.yml`. Stop generating it.
+- `COPILOT_MCP_MESH_TOKEN` — referenced ONLY inside that snippet; no
+  provisioning UI, run by nothing. Drop the reference.
+- `.redqueen/mcp-runner.js` + `.mcp.json` — the local Claude-Code MCP-tools
+  launcher; needs a mesh path the scaffold only writes as a portable
+  placeholder (`./governance-mesh`), so it can't resolve locally anyway. Stop
+  scaffolding both (the enforcement hook is independent and stays).
+
+What STAYS (the live governance, untouched): `.redqueen/policy.json`,
+`decision.json`, `governance-context.md`, `.redqueen/hooks/validate-tool.{sh,js}`,
+`.github/hooks/redqueen.json`, `.claude/settings.json` (minus the MCP server
+entry), and `impl-provenance.yml`. The `config-manifest.yaml` keeps fingerprints
+for what remains and drops the retired files.
+
 ## Scaffold changes
 
 `ScaffoldPanel` file set (the `SCAFFOLD_OPTIONS` list + `runScaffold`):
@@ -214,12 +268,17 @@ that.
 | `.github/repo-metadata.yml` | **kept** (always written) |
 | `.cheshire/prompts/**` (`prompt-packs`) | **kept** — now the agent's methodology source, not issue-embed fodder |
 | `codeql.yml` / `codeql-to-issues.yml` + automation | **kept**, but `process-codeql-results.cjs` stops embedding pack bodies, drops the "Claude Remediation Zone", and the workflow dispatches `alice-maintenance-agent` by name |
+| `.redqueen/policy.json` / `decision.json` / `governance-context.md` / `hooks/validate-tool.{sh,js}` + `.github/hooks/redqueen.json` + `impl-provenance.yml` | **kept** — the live deterministic Red Queen governance (see above) |
+| `.github/copilot-governance-steps.yml` | **removed** — orphaned MCP-tools snippet, never merged into `copilot-setup-steps.yml` |
+| `.redqueen/mcp-runner.js` + `.mcp.json` | **removed** — MCP "live mesh tools" launcher; unused, can't resolve the mesh locally; deferred to a future enhancement |
 | `ci.yml` / `fitness-functions.yml` / PR template / SECURITY.md | unchanged |
 
-Deprecated-file prune: add `CLAUDE.md` and `alice-remediation.yml` to a
-Cheshire-side prune list so "Scaffold/Deploy" removes them from
+Deprecated-file prune: add `CLAUDE.md`, `alice-remediation.yml`,
+`.github/copilot-governance-steps.yml`, `.redqueen/mcp-runner.js`, and `.mcp.json`
+to a Cheshire-side prune list so "Scaffold/Deploy" removes them from
 already-scaffolded repos (mirror `DEPRECATED_MESH_FILES`). NOT
-`copilot-setup-steps.yml` — it stays.
+`copilot-setup-steps.yml` — it stays. The MCP-server entry in
+`.claude/settings.json` is dropped, but its PreToolUse hook entry stays.
 
 ## Settings cleanup (Cheshire side)
 
@@ -232,15 +291,23 @@ already-scaffolded repos (mirror `DEPRECATED_MESH_FILES`). NOT
   / the `copilot` environment).
 - The Looking Glass side already dropped these (see
   `8c89aa0`); this is the symmetric Cheshire cleanup.
+- **`COPILOT_MCP_MESH_TOKEN`** — drop the only reference (the generated
+  `copilot-governance-steps.yml` snippet). It had no provisioning and was run by
+  nothing; the deterministic policy needs no token.
 
 ## Migration phases (each independently shippable, gates green)
 
 **Phase 1 — the spine (no UI change):** `alice-maintenance-agent.agent.md` +
-scaffold wiring (add persona option, remove CLAUDE.md / alice / copilot-setup,
-prune list); `codeql-to-issues` + `process-codeql-results.cjs` stop embedding
-packs, drop the `@claude` zone, dispatch the agent by name; the grounded-RCTRO
-folder scan in `onGenerate`. Smoke: scaffold a repo, trip a CodeQL finding,
-watch the agent get dispatched and open a PR through `ci.yml`.
+scaffold wiring (add persona option; remove `CLAUDE.md` + `alice-remediation.yml`;
+retire the MCP-tools layer — `copilot-governance-steps.yml`, `mcp-runner.js`,
+`.mcp.json`, the `COPILOT_MCP_MESH_TOKEN` reference, the `.claude/settings.json`
+MCP entry — and add them to the prune list; KEEP `copilot-setup-steps.yml` and
+the deterministic policy/hook/impl-provenance files); `codeql-to-issues` +
+`process-codeql-results.cjs` stop embedding packs, drop the `@claude` zone,
+dispatch the agent by name; the grounded-RCTRO folder scan in `onGenerate`.
+Smoke: scaffold a repo, confirm the baked `.redqueen/policy.json` + PreToolUse
+hook still validate, trip a CodeQL finding, watch Alice get dispatched and open
+a PR through `ci.yml` + `impl-provenance.yml`.
 
 **Phase 2 — inline UI:** move the Rabbit Hole form inline on the Cheshire/
 Scorecard panel; wire **Create feature** + the four **Improve** actions to the
