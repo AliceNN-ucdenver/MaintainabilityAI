@@ -211,15 +211,23 @@ severity counts). APPEND — never rewrite or reorder existing records.
 ### 5d. Ship it
 
 1. Commit ONLY files under `<bar_path>/` on your working branch with message
-   `Oraculum Review: <app name> #<ISSUE>`. Open your pull request as usual,
-   linking it to close issue `#<ISSUE>`.
-2. Put the review summary in your **PR description** (NOT an issue comment):
-   drift score, per-pillar counts, the report path, and any degraded-input
-   notes. Your sandbox token cannot write to issues (comments/labels return
-   403 — verified live on review #216), so do NOT attempt to comment on the
-   issue or add labels; the `review-complete` labeling is owned by the
-   extension/workflow at merge time. The issue closes automatically when your
-   PR merges via the closing reference.
+   `Oraculum Review: <app name> #<ISSUE>`. Open your pull request.
+2. The **first line of the PR description MUST be the literal closing
+   reference** so GitHub links and auto-closes the dispatch issue on merge:
+
+   ```
+   Closes #<ISSUE>
+   ```
+
+   This is load-bearing — without it the issue does not close and the merge
+   gate has to recover the link from the report filename (PR #225 → issue #224
+   stayed open because this line was missing). Do not paraphrase it.
+3. Put the review summary in the **PR description** below that line (NOT an
+   issue comment): drift score, per-pillar counts, the report path, and any
+   genuine degraded-input notes. Your sandbox token cannot write to issues
+   (comments/labels return 403 — verified live on review #216), so do NOT
+   attempt to comment on the issue or add labels; `review-complete` labeling
+   and issue close are owned by the extension/workflow at merge time.
 
 ## 6. Honesty rules
 

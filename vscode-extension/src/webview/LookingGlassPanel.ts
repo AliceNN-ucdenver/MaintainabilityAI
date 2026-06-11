@@ -6773,16 +6773,20 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       await this.onLoadActiveReview(barPath, barName).catch(() => { /* best effort */ });
       return;
     }
-    // review-complete labeling: the DURABLE owner is review-agent.yml's
-    // label-on-merge job (the agent's sandbox can't label — 403, review
-    // #216). We keep a best-effort extension-side label as a transition
-    // fallback for meshes that haven't redeployed the gate workflow yet —
-    // idempotent, so double-labeling is harmless.
+    // review-complete labeling + issue close. The DURABLE owner is
+    // review-agent.yml's label-on-merge job, but it (and GitHub's own
+    // auto-close) depend on the PR carrying a `Closes #N` reference — and the
+    // Copilot agent frequently omits it (PR #225 → issue #224 stayed open
+    // with no closingIssuesReferences). So the extension uses the tracked
+    // issue number (not text) to BOTH label review-complete AND close the
+    // dispatch issue. Idempotent; the gate has its own filename-derived
+    // fallback for merges done outside the extension.
     if (issueNumber > 0) {
       try {
         const labels = await this.githubService.getIssueLabels(this.meshRepoInfo.owner, this.meshRepoInfo.repo, issueNumber);
         if (labels.includes('oraculum-review')) {
           await this.githubService.addIssueLabels(this.meshRepoInfo.owner, this.meshRepoInfo.repo, issueNumber, ['review-complete']);
+          await this.githubService.closeIssue(this.meshRepoInfo.owner, this.meshRepoInfo.repo, issueNumber);
         }
       } catch { /* best-effort — the gate's label-on-merge job is the durable path */ }
     }

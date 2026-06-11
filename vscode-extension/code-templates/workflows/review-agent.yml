@@ -83,23 +83,37 @@ jobs:
       REPO: ${{ github.repository }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
     steps:
-      - name: Apply review-complete to the closing oraculum-review issue
+      - name: Close + label the dispatched oraculum-review issue
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
-          # Structural closing reference — never parse branch/title text.
+          # Prefer the structural closing reference (never branch/title text).
           ISSUES=$(gh pr view "$PR_NUMBER" --repo "$REPO" \
             --json closingIssuesReferences \
             --jq '.closingIssuesReferences[].number' 2>/dev/null || true)
+          # Fallback: the Copilot agent frequently omits `Closes #N`, so the PR
+          # merges with NO closing reference and GitHub never auto-closes the
+          # issue (PR #225 → issue #224). Recover the issue number from the
+          # review report filename in the merged diff: reports/review-<N>.md.
           if [ -z "$ISSUES" ]; then
-            echo "No closing issue reference — not a dispatched review PR. Skipping."
+            ISSUES=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json files \
+              --jq '.files[].path' 2>/dev/null \
+              | sed -nE 's#.*/reports/review-([0-9]+)\.md$#\1#p' | sort -u || true)
+          fi
+          if [ -z "$ISSUES" ]; then
+            echo "No closing reference and no review-<N>.md in the diff — not a review PR. Skipping."
             exit 0
           fi
           for N in $ISSUES; do
             LABELS=$(gh issue view "$N" --repo "$REPO" --json labels \
               --jq '.labels[].name' 2>/dev/null || true)
             if echo "$LABELS" | grep -qx 'oraculum-review'; then
-              echo "Issue #$N is an oraculum-review — applying review-complete."
+              echo "Issue #$N is an oraculum-review — labeling review-complete + closing."
               gh issue edit "$N" --repo "$REPO" --add-label 'review-complete' || true
+              # Close it ourselves — the missing `Closes #N` means GitHub won't.
+              gh issue close "$N" --repo "$REPO" --reason completed || true
             else
               echo "Issue #$N is not an oraculum-review — skipping."
             fi
