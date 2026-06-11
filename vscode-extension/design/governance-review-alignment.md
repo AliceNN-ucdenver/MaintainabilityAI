@@ -61,12 +61,26 @@ phase-contract parity test pattern. Do not let a fourth copy drift.
 ### Repository grounding — verified, with one nuance
 
 Repos travel from `app.yaml` `repos:` into the dispatch issue's `oraculum`
-config block (`buildOraculumIssue` → `includeRepos: bar.repos`). Review #218
-cites all three linked repos line-precisely (26 citations across
-`movie-api`, `imdb-identity`, `imdb-react-frontend`). **Nuance:** the Copilot
-sandbox blocked `gh repo clone` of sibling repos; the agent fell back to the
-GitHub contents API and disclosed it in the Summary. The persona should bless
-that fallback explicitly (v2 persona edit P3) so honesty notes stay uniform.
+config block (`buildOraculumIssue` → `includeRepos: bar.repos`). Reviews #218
+and #222 cite all three linked repos line-precisely (26+ citations across
+`movie-api`, `imdb-identity`, `imdb-react-frontend`).
+
+**Repo grounding channel (confirmed 2026-06-11 from the live #222 agent
+session log, run `27353050061`):** the Copilot coding-agent runs with
+`COPILOT_AGENT_FIREWALL_ENABLED: true`, and its auto-generated allow-list
+only permits direct git egress for the **assigned mesh repo** — sibling repos
+(the linked code repos) are not allow-listed, so a raw `git clone` of them is
+blocked by design. The **GitHub contents / MCP read tools** (routed through the
+allow-listed Copilot proxy) are the expected grounding channel and produced a
+fully-cited, high-quality review. The repos are public, so this is NOT a token
+problem — no agent clones via `GOVERNANCE_MESH_TOKEN` (the runner clone uses
+`GITHUB_TOKEN`, and the mesh PAT isn't in the `copilot` environment); the same
+firewall constraint applies to the code-design agent's `knowledge-code` skill.
+Persona §3 now treats the contents tools as the **primary, non-degraded** path
+(not a "sandbox-blocked fallback"), so reports stop carrying an apology line
+for normal operation. A real clone would only add full-tree breadth and needs
+a one-time firewall allow-list change in the repo's Copilot coding-agent
+settings (UI-only) — deferred unless breadth proves necessary.
 
 ---
 

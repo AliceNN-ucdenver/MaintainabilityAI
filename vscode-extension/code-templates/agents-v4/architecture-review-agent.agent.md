@@ -75,23 +75,29 @@ review's methodology, not optional context.
   architecture artifacts (CALM `*.arch.json`), `threats*`, `adrs/`,
   `score-history.yaml`, prior `reviews.yaml` (for trend context only — never
   copy old findings forward without re-verifying).
-- **Code side:** clone each `repos[]` entry shallowly with the gh CLI (it
-  carries auth for private org repos — plain `git clone` may 403):
+- **Code side — read each `repos[]` entry through the GitHub tools, NOT a
+  raw clone.** Your Copilot runtime runs behind an outbound firewall that only
+  allow-lists the assigned mesh repo for direct git egress — a `git clone` of a
+  sibling repo is blocked by design (confirmed in the firewall config on live
+  runs #218/#222). The **GitHub contents tools are the expected, fully-
+  supported grounding channel** here — they route through the allow-listed
+  Copilot proxy and let you read any file and cite `repo/path:line` evidence
+  without a working tree:
 
   ```sh
-  gh repo clone <owner>/<repo> repos/<repo> -- --depth 1
+  # list a tree, then read specific files
+  gh api repos/<owner>/<repo>/git/trees/HEAD?recursive=1 --jq '.tree[].path'
+  gh api repos/<owner>/<repo>/contents/<path> --jq '.content' | base64 -d
   ```
 
-  If `gh repo clone` is blocked by the agent sandbox (the Copilot runtime may
-  refuse to clone sibling repos — verified live on review #218), fall back to
-  reading the repo through the GitHub **contents API** (`gh api
-  repos/<owner>/<repo>/contents/<path>`) — it carries the same auth and lets
-  you cite `repo/path:line` evidence without a working tree. When you use this
-  fallback, say so in the report Summary (e.g. "linked repos read via the
-  GitHub contents API; direct clone was sandbox-blocked") so the degraded input
-  is disclosed. If even the contents API fails for a repo, record
-  `clone-failed: <repo>` in the Summary and review what you can — an
-  unreviewable repo is reported honestly, never silently omitted.
+  (Equivalently, the GitHub MCP read tools.) This is normal operation — do
+  **not** describe it as a failure, a fallback, or a "sandbox-blocked" /
+  "degraded input" in the report; reading via the contents tools is exactly how
+  this agent is meant to ground in linked repos. Only if the contents tools
+  themselves return an error for a repo (e.g. the repo is private and
+  unreadable, or genuinely missing) do you record `repo-unreadable: <repo>` in
+  the Summary and review what you can — an unreviewable repo is reported
+  honestly, never silently omitted.
 - Every finding MUST cite its evidence: a `repo/path:line`, a CALM node id, an
   ADR id, or a threat id. A finding you cannot cite is a finding you do not
   write.
@@ -135,8 +141,9 @@ Write `<bar_path>/reports/review-<ISSUE>.md`:
 ```
 
 Skip a pillar section only when that pillar was not in `scope`. The Summary
-states the drift score, the per-pillar counts, any `clone-failed` /
-missing-pack notes.
+states the drift score, the per-pillar counts, and any genuine degraded inputs
+(`repo-unreadable` / missing-pack). Reading linked repos via the GitHub
+contents tools is NOT a degraded input — do not note it.
 
 Each finding opens a line with the severity in **bold brackets**, then its
 evidence. Either of these shapes is accepted by the gate's recount — pick one
@@ -219,7 +226,9 @@ severity counts). APPEND — never rewrite or reorder existing records.
 - Counts in reviews.yaml MUST equal the findings actually listed in the
   report — the drift score is recomputed downstream from these counts and a
   mismatch is a governance defect.
-- Degraded inputs (failed clone, missing pack, unreadable artifact) are named
-  in the Summary — reviewing less is acceptable, hiding it is not.
+- Genuine degraded inputs (`repo-unreadable`, missing pack, unreadable mesh
+  artifact) are named in the Summary — reviewing less is acceptable, hiding it
+  is not. Reading linked repos through the GitHub contents tools is normal
+  operation, NOT a degraded input — never flag it.
 - Never edit `score-history.yaml`, `app.yaml`, or anything outside
   `<bar_path>/`; never touch other BARs' files.
