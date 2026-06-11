@@ -27,6 +27,17 @@ name: "Review Agent — BAR governance review gate"
 # checks out the head only to READ the artifact files and runs exclusively
 # its own committed script. No install / build / test of PR contents.
 #
+# "Wait until out of draft": the verify job runs ONLY when the PR is NOT a
+# draft. The Copilot agent opens its review PR as a draft and pushes commits
+# while building it; each push is a `synchronize` event. Without the draft
+# guard the gate ran on every draft push (3 runs on PR #225, the superseded
+# ones left CANCELLED and showed a red ✗ in the checks rollup). The OKR agents
+# sidestep this by triggering their audit on a `labeled` event (the "Run audit"
+# button) — reviews have no such button, so the draft→ready transition (the
+# user's "Mark PR ready" click → `ready_for_review`) is the equivalent
+# "verify now" signal. Post-ready fix pushes (`synchronize`, draft == false)
+# still re-verify.
+#
 # Ships advisory: until a real review PR passes green, make this a
 # non-required check. Promote to required via branch protection on PRs
 # touching `platforms/**/reviews.yaml` once proven.
@@ -50,7 +61,9 @@ jobs:
   # ════════════════════════════════════════════════════════════════════
   verify:
     name: "Verify review artifacts"
-    if: github.event.action != 'closed'
+    # Out-of-draft only: skip while the agent is still drafting (draft pushes
+    # are draft == true), run once on Mark-PR-ready, re-run on post-ready pushes.
+    if: github.event.action != 'closed' && github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
