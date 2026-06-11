@@ -346,6 +346,19 @@ revert to free-form). No gate/formula change — findings still render as
 `**[severity] <CHECK-ID>: title**`, which the recount already matches.
 Deploys to the mesh via **Refresh Prompts / Deploy All**.
 
+**Phase 7b — per-pillar drift, no single floored composite — ✅ DELIVERED:**
+Once the rubric made findings consistent, the SUM-then-floor composite bottomed
+out: run #230 deducted 110 → `max(0, 100−110) = 0`, hiding that architecture
+(81), risk (86), and operations (82) were healthy and only **security (41)** was
+the problem. Decision (user, 2026-06-11): **drop the single composite headline;
+score each pillar independently** (`pillarDrift` = same 15/5/2/1 weights, floored
+per pillar). The BAR tile now shows four per-pillar chips + a 4-line per-pillar
+sparkline (one colored line per pillar); the explorer rows show per-pillar
+scores. The record's `drift_score` stays the floored composite for back-compat
++ the merge-gate math check (UI-unused). Persona §5a/§5b emit per-pillar drift in
+the report Summary so the report and tile agree. UI-only on the extension side;
+no gate/formula/schema change.
+
 ## Hardening lessons to apply (from this repo's own history)
 
 - **Persist `issueNumber` at dispatch; resolve PRs structurally** — never

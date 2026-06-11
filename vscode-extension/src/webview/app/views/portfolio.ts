@@ -483,6 +483,23 @@ function driftClass(score: number): string {
   return score >= 75 ? 'drift-green' : score >= 50 ? 'drift-yellow' : 'drift-red';
 }
 
+// Per-pillar drift scoring (governance-review-alignment v2). A single composite
+// score floored at 0 collapsed four pillars into one bottomed-out number
+// (security 41 + everything else healthy still read as "0"). Each pillar now
+// carries its OWN floored 0–100 score so the weak dimension is legible.
+const REVIEW_PILLAR_VIEW: { key: string; abbr: string; label: string; color: string }[] = [
+  { key: 'architecture',     abbr: 'Arch', label: 'Architecture',     color: '#60a5fa' },
+  { key: 'security',         abbr: 'Sec',  label: 'Security',         color: '#f87171' },
+  { key: 'information-risk', abbr: 'Risk', label: 'Information Risk', color: '#fbbf24' },
+  { key: 'operations',       abbr: 'Ops',  label: 'Operations',       color: '#34d399' },
+];
+
+/** Floored 0–100 drift score for ONE pillar from its finding counts (same
+ *  15/5/2/1 weights as the gate, floored per pillar). */
+function pillarDrift(c: { critical: number; high: number; medium: number; low: number }): number {
+  return Math.max(0, 100 - (15 * c.critical + 5 * c.high + 2 * c.medium + 1 * c.low));
+}
+
 export function renderDriftIndicator(
   bar: BarSummary,
   state: TopFindingsState,
@@ -502,45 +519,44 @@ export function renderDriftIndicator(
     `;
   }
 
-  const score = bar.latestDriftScore ?? reviews[reviews.length - 1].driftScore;
-  const label = score >= 75 ? 'Low Drift' : score >= 50 ? 'Moderate Drift' : 'High Drift';
+  const latest = reviews[reviews.length - 1];
   const expanded = state.reviewExplorerExpanded;
   const chevron = expanded ? '&#9650;' : '&#9660;';
+
+  // Per-pillar drift scores from the latest review's counts (no composite).
+  const pillarChips = REVIEW_PILLAR_VIEW
+    .filter(p => latest.pillars[p.key])
+    .map(p => {
+      const c = latest.pillars[p.key];
+      const s = pillarDrift(c);
+      return `<span class="pillar-drift-chip ${driftClass(s)}" title="${escapeAttr(p.label)} drift ${s} — ${c.findings} finding${c.findings !== 1 ? 's' : ''} (${c.critical}C ${c.high}H ${c.medium}M ${c.low}L)"><span class="pillar-drift-abbr">${p.abbr}</span><span class="pillar-drift-num">${s}</span></span>`;
+    }).join('');
 
   const toggleBtn = `<button class="btn-ghost btn-sm drift-review-btn" id="btn-review-explorer-toggle" data-bar-path="${escapeAttr(bar.path)}" title="${expanded ? 'Hide' : 'Show'} review history + reports">${chevron} ${reviews.length} review${reviews.length !== 1 ? 's' : ''}</button>`;
 
   return `
     <div class="drift-indicator-compact">
       <div class="drift-header">
-        <div class="drift-score-section">
-          <span class="drift-score-ring ${driftClass(score)}">${score}</span>
-          <div class="drift-info">
-            <span class="drift-label">${label}</span>
-            <span class="drift-meta">latest of ${reviews.length}</span>
-          </div>
-        </div>
+        <div class="pillar-drift-row" title="Per-pillar drift — each 0–100, lower = more drift">${pillarChips}</div>
         <div class="drift-btn-group">
           ${toggleBtn}
           ${reviewBtn}
         </div>
       </div>
-      ${renderSparklineSvg(reviews)}
+      ${renderPillarSparklines(reviews)}
       ${expanded ? renderReviewExplorer(bar, state) : ''}
     </div>
   `;
 }
 
-/** Compact per-pillar finding-count chips for a review record row. */
-function pillarCountChips(rec: ReviewRecord): string {
-  const order: [string, string][] = [
-    ['architecture', 'A'], ['security', 'S'], ['information-risk', 'R'], ['operations', 'O'],
-  ];
-  return order
-    .filter(([key]) => rec.pillars[key])
-    .map(([key, abbr]) => {
-      const c = rec.pillars[key];
-      const cls = c.critical > 0 ? 'drift-red' : c.high > 0 ? 'drift-yellow' : 'drift-green';
-      return `<span class="review-pillar-chip ${cls}" title="${escapeAttr(key)}: ${c.critical}C ${c.high}H ${c.medium}M ${c.low}L">${abbr}&middot;${c.findings}</span>`;
+/** Per-pillar drift-score chips for a review record row. */
+function pillarScoreChips(rec: ReviewRecord): string {
+  return REVIEW_PILLAR_VIEW
+    .filter(p => rec.pillars[p.key])
+    .map(p => {
+      const c = rec.pillars[p.key];
+      const s = pillarDrift(c);
+      return `<span class="review-pillar-chip ${driftClass(s)}" title="${escapeAttr(p.label)} drift ${s} — ${c.findings} finding${c.findings !== 1 ? 's' : ''} (${c.critical}C ${c.high}H ${c.medium}M ${c.low}L)">${p.abbr} ${s}</span>`;
     })
     .join('');
 }
@@ -552,9 +568,8 @@ function renderReviewExplorer(bar: BarSummary, state: TopFindingsState): string 
   const reviews = [...(bar.reviews || [])].reverse(); // latest first
   const rows = reviews.map(r => `
     <div class="review-row">
-      <span class="review-score-chip ${driftClass(r.driftScore)}">${r.driftScore}</span>
       <span class="review-date">${escapeHtml(r.date || '')}</span>
-      <span class="review-pillars">${pillarCountChips(r)}</span>
+      <span class="review-pillars">${pillarScoreChips(r)}</span>
       <a class="review-issue-link" href="${escapeAttr(r.issueUrl)}" title="Open issue #${r.issueNumber}">#${r.issueNumber}</a>
       <button class="btn-ghost btn-sm review-view-btn" data-bar-path="${escapeAttr(bar.path)}" data-issue="${r.issueNumber}">View report</button>
     </div>`).join('');
@@ -680,45 +695,42 @@ export function attachDriftListeners(
 }
 
 // ============================================================================
-// Render — Sparkline SVG (drift reviews)
+// Render — Per-pillar sparklines (drift reviews)
 // ============================================================================
 
-export function renderSparklineSvg(reviews: ReviewRecord[]): string {
+/** One thin trend line PER PILLAR over the review history (no composite line).
+ *  Each pillar keeps its own color so you can read which dimension is moving. */
+export function renderPillarSparklines(reviews: ReviewRecord[]): string {
   if (reviews.length < 2) { return ''; }
 
-  const w = 200;
-  const h = 36;
-  const pad = 4;
+  const w = 200, h = 36, pad = 4;
   const plotW = w - pad * 2;
   const plotH = h - pad * 2;
 
-  const points = reviews.map((r, i) => {
-    const x = pad + (i / (reviews.length - 1)) * plotW;
-    const y = pad + plotH - (r.driftScore / 100) * plotH;
-    return { x, y, score: r.driftScore };
-  });
-
-  const linePoints = points.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
-  const latestScore = reviews[reviews.length - 1].driftScore;
-  const strokeColor = latestScore >= 75 ? '#22c55e' : latestScore >= 50 ? '#eab308' : '#ef4444';
-  const fillColor = latestScore >= 75 ? 'rgba(34,197,94,0.1)' : latestScore >= 50 ? 'rgba(234,179,8,0.1)' : 'rgba(239,68,68,0.1)';
-
-  // Area fill polygon: line points + bottom-right + bottom-left
-  const areaPoints = linePoints + ` ${(pad + plotW).toFixed(1)},${(pad + plotH).toFixed(1)} ${pad.toFixed(1)},${(pad + plotH).toFixed(1)}`;
-
-  const dots = points.map((p, i) => {
-    const r = i === points.length - 1 ? 3 : 1.5;
-    return `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${r}" fill="${strokeColor}" />`;
+  const lines = REVIEW_PILLAR_VIEW.map(p => {
+    const pts = reviews.map((r, i) => {
+      const c = r.pillars[p.key];
+      const s = c ? pillarDrift(c) : 100; // absent pillar → no drift
+      const x = pad + (i / (reviews.length - 1)) * plotW;
+      const y = pad + plotH - (s / 100) * plotH;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ');
+    const lastC = reviews[reviews.length - 1].pillars[p.key];
+    const lastX = pad + plotW;
+    const lastY = pad + plotH - ((lastC ? pillarDrift(lastC) : 100) / 100) * plotH;
+    return `<polyline points="${pts}" fill="none" stroke="${p.color}" stroke-width="1.25" stroke-linejoin="round" stroke-linecap="round" opacity="0.9" />`
+      + `<circle cx="${lastX.toFixed(1)}" cy="${lastY.toFixed(1)}" r="2" fill="${p.color}" />`;
   }).join('');
+
+  const legend = REVIEW_PILLAR_VIEW
+    .map(p => `<span class="pillar-legend-item"><span style="color:${p.color};">&#9632;</span> ${p.abbr}</span>`)
+    .join('');
 
   return `
     <div class="drift-sparkline">
-      <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
-        <polygon points="${areaPoints}" fill="${fillColor}" />
-        <polyline points="${linePoints}" fill="none" stroke="${strokeColor}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" />
-        ${dots}
-      </svg>
+      <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">${lines}</svg>
     </div>
+    <div class="pillar-legend">${legend}</div>
   `;
 }
 
@@ -1373,11 +1385,24 @@ export function getPortfolioStyles(): string {
       }
       .review-date { font-size: 11px; color: var(--vscode-descriptionForeground); min-width: 78px; }
       .review-pillars { display: flex; gap: 4px; flex: 1; flex-wrap: wrap; }
-      .review-pillar-chip { font-size: 10px; padding: 0 4px; border-radius: 3px; opacity: 0.9; }
+      .review-pillar-chip { font-size: 10px; padding: 0 5px; border-radius: 3px; opacity: 0.95; font-weight: 600; }
       .review-issue-link { font-size: 11px; color: var(--vscode-textLink-foreground); text-decoration: none; }
       .review-score-chip.drift-green, .review-pillar-chip.drift-green { background: rgba(34,197,94,0.18); color: #22c55e; }
       .review-score-chip.drift-yellow, .review-pillar-chip.drift-yellow { background: rgba(234,179,8,0.18); color: #eab308; }
       .review-score-chip.drift-red, .review-pillar-chip.drift-red { background: rgba(239,68,68,0.18); color: #ef4444; }
+      /* Per-pillar drift chips on the BAR tile (no composite) */
+      .pillar-drift-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+      .pillar-drift-chip {
+        display: inline-flex; align-items: baseline; gap: 3px;
+        padding: 2px 7px; border-radius: 6px; font-size: 11px; font-weight: 600;
+      }
+      .pillar-drift-chip .pillar-drift-abbr { font-size: 10px; opacity: 0.8; }
+      .pillar-drift-chip .pillar-drift-num { font-size: 13px; font-weight: 700; }
+      .pillar-drift-chip.drift-green { background: rgba(34,197,94,0.16); color: #22c55e; }
+      .pillar-drift-chip.drift-yellow { background: rgba(234,179,8,0.16); color: #eab308; }
+      .pillar-drift-chip.drift-red { background: rgba(239,68,68,0.16); color: #ef4444; }
+      .pillar-legend { display: flex; gap: 10px; font-size: 9px; color: var(--vscode-descriptionForeground); margin-top: 2px; }
+      .pillar-legend-item { white-space: nowrap; }
       .review-viewer-actions { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
       .review-summary { margin-bottom: 10px; }
       .review-summary-pillar { margin-bottom: 6px; }

@@ -131,14 +131,23 @@ inputs. Severities come from the checklist, never invented per finding.
 
 ## 5. Output contract — EXACT shapes (the BAR page depends on these)
 
-### 5a. Drift score — canonical formula, no variations
+### 5a. Drift score — canonical weights, scored PER PILLAR
+
+Compute drift for **each pillar independently** from that pillar's finding
+counts, using the canonical weights (do not invent weights):
 
 ```
-drift_score = max(0, 100 − (15·critical + 5·high + 2·medium + 1·low))
+pillar_drift = max(0, 100 − (15·critical + 5·high + 2·medium + 1·low))
 ```
 
-summed over ALL pillars' finding counts. This mirrors
-`BarService.computeDriftScore`; do not invent weights.
+The BAR page scores each pillar on its own with this formula, so a weak pillar
+(e.g. security at 41) no longer drags the healthy ones to zero. Show the
+per-pillar drift in the Summary table (§5b).
+
+The `drift_score` you write to `reviews.yaml` stays the **floored composite**
+over ALL pillars' counts (same weights, summed) — kept for back-compat and the
+merge-gate math check; it may legitimately reach 0 when total deductions exceed
+100. This mirrors `BarService.computeDriftScore`.
 
 ### 5b. Report file
 
@@ -155,9 +164,11 @@ Write `<bar_path>/reports/review-<ISSUE>.md`:
 ```
 
 Skip a pillar section only when that pillar was not in `scope`. The Summary
-states the drift score, the per-pillar counts, and any genuine degraded inputs
-(`repo-unreadable` / missing-pack). Reading linked repos via the GitHub
-contents tools is NOT a degraded input — do not note it.
+leads with a per-pillar table — one row per in-scope pillar with its
+**finding counts (critical/high/medium/low) AND its `pillar_drift` score** —
+then notes any genuine degraded inputs (`repo-unreadable` / missing-pack).
+Reading linked repos via the GitHub contents tools is NOT a degraded input —
+do not note it.
 
 Each finding opens a line with the severity in **bold brackets**, then its
 evidence. Either of these shapes is accepted by the gate's recount — pick one
