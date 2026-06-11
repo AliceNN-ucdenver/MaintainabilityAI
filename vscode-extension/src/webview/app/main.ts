@@ -24,6 +24,11 @@ const PHASE_ORDER: Phase[] = ['input', 'review', 'submit', 'assign'];
 
 const state = {
   currentPhase: 'input' as Phase,
+  // Backs the Feature Description textarea. Async messages (governanceData,
+  // stackDetected) re-render the input phase, so the textarea value must live
+  // in state — otherwise a prefill (improve-coverage/deps/tech-debt/complexity
+  // from the scorecard) gets wiped when governanceData lands a beat later.
+  description: '',
   rctro: null as RctroPrompt | null,
   rctroMarkdown: '',
   issueNumber: null as number | null,
@@ -200,7 +205,7 @@ function renderInputPhase() {
 
     <div style="margin-top: 16px;">
       <label for="description">Feature Description</label>
-      <textarea id="description" style="min-height: 120px;" placeholder="Describe the feature you want to build. Be specific about functionality, user interactions, and any security considerations..."></textarea>
+      <textarea id="description" style="min-height: 120px;" placeholder="Describe the feature you want to build. Be specific about functionality, user interactions, and any security considerations...">${escapeHtml(state.description || '')}</textarea>
     </div>
 
     <div style="margin-top: 16px;">
@@ -299,6 +304,12 @@ function renderInputPhase() {
     if (templateEl.value) {
       vscode.postMessage({ type: 'selectTemplate', templateId: templateEl.value });
     }
+  });
+
+  // Keep state.description in sync so an async re-render of the input phase
+  // (governanceData / stackDetected) preserves what's typed or prefilled.
+  document.getElementById('description')?.addEventListener('input', (e) => {
+    state.description = (e.target as HTMLTextAreaElement).value;
   });
 
   // Generate button
@@ -523,6 +534,7 @@ const CREATE_PHASES: Phase[] = ['input', 'review', 'submit'];
 const MANAGE_PHASES: Phase[] = ['assign'];
 
 function resetIssueState() {
+  state.description = '';
   state.rctro = null;
   state.rctroMarkdown = '';
   state.issueNumber = null;
@@ -1153,9 +1165,11 @@ const inboundHandlers: Record<string, InboundHandler> = {
   },
 
   'templateLoaded': (message) => {
-    // Set description and packs in the input phase
+    // Set description and packs in the input phase (store in state too so a
+    // later re-render doesn't wipe it).
+    state.description = (message.description as string) || '';
     const descEl = document.getElementById('description') as HTMLTextAreaElement | null;
-    if (descEl) { descEl.value = message.description as string; }
+    if (descEl) { descEl.value = state.description; }
     setSelectedPacks(message.packs as { owasp: string[]; maintainability: string[]; threatModeling: string[] });
   },
 
@@ -1165,11 +1179,14 @@ const inboundHandlers: Record<string, InboundHandler> = {
     const packs = message.packs as { owasp: string[]; maintainability: string[]; threatModeling: string[] } | undefined;
     // Detect component mode when pre-populated with packs (White Rabbit flow)
     if (packs) { state.isComponentMode = true; }
+    // Store in state FIRST so renderInputPhase (and any later async re-render
+    // from governanceData/stackDetected) renders the textarea WITH the value.
+    state.description = (message.description as string) || '';
     setViewMode('create');
     goToPhase('input');
-    // Now the textarea is rendered — set its value
+    // Belt-and-suspenders: also set the live DOM value.
     const prefillEl = document.getElementById('description') as HTMLTextAreaElement | null;
-    if (prefillEl) { prefillEl.value = message.description as string; }
+    if (prefillEl) { prefillEl.value = state.description; }
     // Pre-select prompt packs if provided and auto-expand Custom section
     if (packs) {
       setSelectedPacks(packs);
