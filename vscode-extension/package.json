@@ -2,7 +2,7 @@
   "name": "maintainabilityai",
   "displayName": "MaintainabilityAI",
   "description": "Security-first RCTRO issue creation for AI-assisted feature development",
-  "version": "0.1.288",
+  "version": "0.1.289",
   "publisher": "chiefarcheologist",
   "license": "MIT",
   "preview": true,
@@ -209,17 +209,17 @@
         "maintainabilityai.llm.usptoApiKey": {
           "type": "string",
           "default": "",
-          "description": "USPTO API key (optional \u2014 adds patent coverage to the Archeologist run via the USPTO Open Data Portal at api.uspto.gov/api/v1/patent/applications/search; pipeline degrades gracefully when absent). Request a key at https://data.uspto.gov/apis/getting-started"
+          "description": "USPTO API key (optional — adds patent coverage to the Archeologist run via the USPTO Open Data Portal at api.uspto.gov/api/v1/patent/applications/search; pipeline degrades gracefully when absent). Request a key at https://data.uspto.gov/apis/getting-started"
         },
         "maintainabilityai.llm.huggingfaceToken": {
           "type": "string",
           "default": "",
-          "description": "Hugging Face token (HF_TOKEN) \u2014 used by the Oracle injection rail (Phase 3) to download the gated Llama Prompt Guard 2 model on the mesh. A read token is enough; your HF account must first accept the model license at https://huggingface.co/meta-llama/Llama-Prompt-Guard-2-86M. Optional while the injection rail is advisory; required before it is promoted to a hard gate. Mint at https://huggingface.co/settings/tokens"
+          "description": "Hugging Face token (HF_TOKEN) — used by the Oracle injection rail (Phase 3) to download the gated Llama Prompt Guard 2 model on the mesh. A read token is enough; your HF account must first accept the model license at https://huggingface.co/meta-llama/Llama-Prompt-Guard-2-86M. Optional while the injection rail is advisory; required before it is promoted to a hard gate. Mint at https://huggingface.co/settings/tokens"
         },
         "maintainabilityai.governance.meshToken": {
           "type": "string",
           "default": "",
-          "description": "Fine-grained GitHub PAT (GOVERNANCE_MESH_TOKEN). Scopes on every linked code repo: Metadata=read (auto), Issues=read+write (so notify-code-repos.yml on the mesh can open + update PRD landing-issues), Contents=read (lets the workflow cross-reference code-repo files in the issue body). Cannot modify code or trigger workflows. Lives on the mesh repo only. Use Looking Glass \u2192 Settings \u2192 Research \u2192 Create to mint a correctly-scoped token."
+          "description": "Fine-grained GitHub PAT (GOVERNANCE_MESH_TOKEN). Scopes on every linked code repo: Metadata=read (auto), Issues=read+write (so notify-code-repos.yml on the mesh can open + update PRD landing-issues), Contents=read (lets the workflow cross-reference code-repo files in the issue body). Cannot modify code or trigger workflows. Lives on the mesh repo only. Use Looking Glass → Settings → Research → Create to mint a correctly-scoped token."
         },
         "maintainabilityai.research.llmProvider": {
           "type": "string",
