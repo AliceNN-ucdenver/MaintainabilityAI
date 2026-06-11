@@ -329,6 +329,23 @@ owner).
 the same sheet pattern, gate skeleton, and explorer surface —
 `design/research-agent-alignment.md` owns it.
 
+**Phase 7 — deterministic drift score (graded rubric) — ✅ DELIVERED 2026-06-11:**
+Live runs #216–#228 scored the SAME BAR + repos at drift 66/60/36/16/66/28
+(6–21 findings) — pure LLM recall variance, because the review was open-ended
+discovery, not a fixed evaluation. Verified all runs read all three repos, so
+it was not a grounding gap. Fix: each looking-glass pillar pack now leads with
+a **Graded Checklist** (`ARCH-*`/`SEC-*`/`RISK-*`/`OPS-*`) — a fixed set of
+binary, evidence-anchored checks, each with a **fixed severity**. The persona
+(§4) GRADES the rubric: one finding per FAILED check at its declared severity,
+PASS → no finding, novel issues → Recommendations (advisory, unscored). The
+per-pillar count = failed-checks × affected-components, so identical inputs
+yield the same count and the same drift score — the trend now reflects real
+change, not model thoroughness. `default.md` documents the methodology;
+`reviewRubric.test.ts` pins that each pack keeps its checklist (no silent
+revert to free-form). No gate/formula change — findings still render as
+`**[severity] <CHECK-ID>: title**`, which the recount already matches.
+Deploys to the mesh via **Refresh Prompts / Deploy All**.
+
 ## Hardening lessons to apply (from this repo's own history)
 
 - **Persist `issueNumber` at dispatch; resolve PRs structurally** — never

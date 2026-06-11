@@ -113,9 +113,31 @@ For each code repository in `repos/`, analyze:
 - **Data handling** — what data is read, written, stored, transmitted
 - **Operational instrumentation** — logging, metrics, tracing, health checks
 
-### Step 3: Compare and Report
+### Step 3: Grade the checklists (deterministic scoring)
 
-Compare the documented state (BAR) against the actual state (code) and report findings across all four pillars.
+This review is a **graded rubric, not open-ended discovery.** Each in-scope
+pillar pack (`architecture`, `application-security`, `information-risk`,
+`operations`) defines a fixed **Graded Checklist** of binary checks, each with a
+**fixed severity**. For every check:
+
+1. Evaluate it PASS or FAIL against the BAR + code evidence.
+2. Report **exactly one finding per FAILED check**, at that check's declared
+   severity. A PASS produces **no finding**.
+3. Do **NOT** invent findings outside the checklists, and do **NOT** report the
+   same failure twice. A check may FAIL once per distinct component where its
+   condition holds (e.g. hardcoded secrets in two repos = two SEC-1 findings),
+   but never re-count the same issue.
+
+**Why this matters:** the drift score is `100 − (15·critical + 5·high +
+2·medium + 1·low)` summed over the finding counts. If the finding *set* is a
+fixed rubric, the same inputs always yield the same count and the same score —
+so the drift **trend** reflects real change in the system, not how thorough the
+model happened to be on a given run. Free-form discovery made the score swing
+wildly on identical inputs; the checklist removes that variance.
+
+Findings outside the rubric (genuinely novel issues the checklist doesn't
+cover) may be listed under Recommendations as advisory notes, but they do **not**
+contribute to the per-pillar counts or the drift score.
 
 ---
 

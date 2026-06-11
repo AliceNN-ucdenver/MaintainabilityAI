@@ -4,6 +4,33 @@ This pack provides **deep application security analysis** beyond the Default pac
 
 ---
 
+## Graded Checklist — Security (authoritative; this is what gets scored)
+
+Grade **each** check as PASS or FAIL against the evidence. Report **one finding
+per FAILED check**, at the check's fixed severity; a PASS produces **no
+finding**. Do **not** score findings outside this list — the OWASP / threat-
+model / dependency sections below are *how* to evaluate each check, not extra
+scored items. This keeps the count — and the drift score — deterministic for
+the same inputs. (A single check can FAIL once per repo where the condition
+holds — e.g. SEC-1 fails once per repo with hardcoded secrets — so distinct
+components are still distinguished, but the same vuln is never counted twice.)
+
+| ID | Severity | FAIL when… |
+|----|----------|------------|
+| SEC-1 | critical | **Hardcoded secrets** — credentials, API keys, private keys, or connection strings with embedded passwords appear in source. |
+| SEC-2 | critical | **Injection** — SQL / NoSQL / command / template injection reachable from a request handler (string-built queries, unsanitized shell/eval). |
+| SEC-3 | critical | **Missing authn/authz on a privileged endpoint** — an admin/sensitive route has no authentication or no role check, or an IDOR lets a user reach another's resource. |
+| SEC-4 | high | **Weak cryptography** — password hashing with MD5/SHA-1/SHA-256/DES, deprecated ciphers (DES/RC4/`createCipher`), or predictable security tokens (timestamp/sequential). |
+| SEC-5 | high | A **security control declared** in CALM/`security-controls.yaml` (CORS allowlist, rate limiting, token hashing, security headers, TLS) is **not implemented or is bypassable** in code. |
+| SEC-6 | high | `threat-model.yaml` is **empty/placeholder** while the application exposes authentication endpoints or handles PII (no STRIDE coverage of the live surface). |
+| SEC-7 | medium | **Insecure configuration** — wildcard CORS (`*`) on authenticated paths, debug enabled, missing security headers, or a committed `.env`/secret file. |
+| SEC-8 | medium | **Dependency risk** — a known-vulnerable or EOL dependency, a missing/uncommitted lockfile, or major versions >12 months stale. |
+
+Each finding's title MUST start with its check id, e.g.
+`**[critical] SEC-1: hardcoded DB credentials in imdb-identity**`.
+
+---
+
 ## OWASP Top 10 Pattern Analysis
 
 Systematically scan each repository for vulnerability patterns across the OWASP Top 10 (2021):

@@ -4,6 +4,32 @@ This pack provides **deep architecture analysis** beyond the Default pack's base
 
 ---
 
+## Graded Checklist — Architecture (authoritative; this is what gets scored)
+
+Grade **each** check below as PASS or FAIL against the evidence. Report **one
+finding per FAILED check**, at the check's fixed severity; a PASS produces **no
+finding**. Do **not** score findings outside this list — the deep-analysis
+sections further down are *how* to evaluate each check, not extra scored items.
+A check whose artifact does not exist is `N/A` (treated as PASS) unless its FAIL
+condition says otherwise. This keeps the count — and the drift score —
+deterministic for the same inputs.
+
+| ID | Severity | FAIL when… |
+|----|----------|------------|
+| ARCH-1 | high | A deployed/linked service or datastore in the repos has **no node** in the CALM model (`bar.arch.json`) — an undocumented component. |
+| ARCH-2 | high | Code **contradicts an Accepted/Approved ADR** (technology, communication, storage, or auth decision). |
+| ARCH-3 | high | A CALM node is a **phantom** — documented but no corresponding implementation exists. |
+| ARCH-4 | medium | A CALM relationship's **declared protocol/transport differs from code** (e.g. HTTPS declared but HTTP used), or a declared integration is absent in code. |
+| ARCH-5 | medium | Code uses a **datastore / broker / cache / external dependency not documented** in the architecture. |
+| ARCH-6 | medium | `fitness-functions.yaml` defines a gate with **no supporting evidence** (e.g. a coverage gate but no tests, an egregiously complex hot path). N/A if the file is absent. |
+| ARCH-7 | low | A documented **quality attribute** (availability/scalability) lacks its enabling pattern (health check, externalized config, stateless services). N/A if `quality-attributes.yaml` is absent. |
+| ARCH-8 | low | A **boundary anti-pattern** exists and is undocumented — shared database across services, or cross-service direct data access bypassing APIs. |
+
+Each finding's title MUST start with its check id, e.g.
+`**[high] ARCH-1: imdb-identity service undocumented in CALM**`.
+
+---
+
 ## CALM Model Drift Analysis
 
 Perform a comprehensive comparison between the CALM 1.2 architecture model (`architecture/bar.arch.json`) and the actual code:

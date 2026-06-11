@@ -4,6 +4,30 @@ This pack provides **deep operations analysis** beyond the Default pack's baseli
 
 ---
 
+## Graded Checklist — Operations (authoritative; this is what gets scored)
+
+Grade **each** check as PASS or FAIL against the evidence. Report **one finding
+per FAILED check**, at the check's fixed severity; a PASS produces **no
+finding**. Do **not** score findings outside this list — the deep sections below
+are *how* to evaluate each check, not extra scored items. An empty/placeholder
+governance artifact is a FAIL (not N/A) when its check says so. This keeps the
+count — and the drift score — deterministic for the same inputs.
+
+| ID | Severity | FAIL when… |
+|----|----------|------------|
+| OPS-1 | high | **Runbook is a placeholder** — `runbook.md` lacks real deployment, rollback, scaling, or troubleshooting content (empty bullets / template rows). |
+| OPS-2 | high | **Service mapping incomplete** — a dependency present in code (datastore, downstream service, CDN, email) is missing from `service-mapping.yaml`, or the file is empty while dependencies exist. |
+| OPS-3 | medium | **Shallow health check** — a health endpoint always returns 200 without verifying a real dependency (e.g. DB connectivity). |
+| OPS-4 | medium | **No observability** — a service has no structured logging or no metrics (RED: rate/errors/duration) instrumentation. |
+| OPS-5 | medium | **Incident-response gap** — `incident-response.yaml` is empty/placeholder (no severity classification, on-call, or communication plan). |
+| OPS-6 | low | **Resilience gap** — missing timeouts or retries-with-backoff on external calls, or a declared rate limiter that is never applied to its routes. |
+| OPS-7 | low | **No correlation/trace propagation** — incoming `X-Correlation-ID` / trace context is not propagated across service boundaries. |
+
+Each finding's title MUST start with its check id, e.g.
+`**[high] OPS-1: runbook is an unpopulated placeholder**`.
+
+---
+
 ## Service Mapping Verification
 
 If `operations/service-mapping.yaml` exists, validate the documented service topology:

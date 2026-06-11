@@ -4,6 +4,30 @@ This pack provides **deep information risk analysis** beyond the Default pack's 
 
 ---
 
+## Graded Checklist — Information Risk (authoritative; this is what gets scored)
+
+Grade **each** check as PASS or FAIL against the evidence. Report **one finding
+per FAILED check**, at the check's fixed severity; a PASS produces **no
+finding**. Do **not** score findings outside this list — the deep sections below
+are *how* to evaluate each check, not extra scored items. A check whose artifact
+does not exist FAILs only when its condition says so (an empty `data-
+classification.yaml` while PII is processed is a FAIL, not N/A). This keeps the
+count — and the drift score — deterministic for the same inputs.
+
+| ID | Severity | FAIL when… |
+|----|----------|------------|
+| RISK-1 | high | **Data classification gap** — PII/sensitive fields handled in code (email, password, name, tokens, etc.) are absent from `data-classification.yaml`, or the file is empty while PII is processed. |
+| RISK-2 | high | **Privacy Impact Assessment missing** — `privacy-impact.yaml` is empty/placeholder while the app collects PII (no consent, retention, or deletion documented). |
+| RISK-3 | medium | **VISM gap** — an external integration present in code or the CALM model (CDN, email, third-party API) is not registered in `vism.yaml` with an assessment. |
+| RISK-4 | medium | **Encryption requirement gap** — confidential/restricted data has no encryption-at-rest/in-transit requirement assigned, or the requirement is not supported in code. |
+| RISK-5 | medium | **Plaintext secret storage** — auth tokens/credentials stored unhashed/unencrypted (e.g. a `refreshTokenHash` field holding the raw token). |
+| RISK-6 | low | **PII in logs or responses** — PII is logged in plaintext or returned in API responses/errors where it should be masked or omitted. |
+
+Each finding's title MUST start with its check id, e.g.
+`**[high] RISK-1: PII auth data not classified**`.
+
+---
+
 ## Data Classification Compliance
 
 If `information-risk/data-classification.yaml` exists, perform end-to-end data flow tracing:

@@ -102,18 +102,32 @@ review's methodology, not optional context.
   ADR id, or a threat id. A finding you cannot cite is a finding you do not
   write.
 
-## 4. Findings + severities
+## 4. Grade the checklists — this is a rubric, not open-ended discovery
 
-For each selected pillar (`architecture`, `security`, `risk` — information
-risk, `operations`), list findings as the prompt packs direct. Each finding
-carries a severity:
+Each in-scope pillar pack contains a **Graded Checklist** (`ARCH-*`, `SEC-*`,
+`RISK-*`, `OPS-*`) — a fixed set of binary checks, each with a **fixed
+severity**. Your job is to GRADE that rubric, not to free-associate findings.
+This is what makes the drift score reproducible: the same BAR + repos must
+yield the same count every run.
 
-| Severity | Meaning |
-|---|---|
-| `critical` | exploitable / data-loss / governance-bypass risk now |
-| `high` | material drift from the BAR's declared architecture or controls |
-| `medium` | erosion that will compound (missing tests/docs/limits) |
-| `low` | hygiene / consistency nits |
+For each check in every selected pillar's checklist:
+
+1. Evaluate it **PASS or FAIL** against the BAR + code evidence.
+2. Report **exactly one finding per FAILED check**, at the check's **declared
+   severity** (do not re-rate it). A PASS produces **no finding**.
+3. The finding's title MUST begin with the check id, e.g.
+   `**[critical] SEC-1: hardcoded DB credentials in imdb-identity**`.
+4. A check may FAIL **once per distinct component** where its condition holds
+   (e.g. hardcoded secrets in two repos → two `SEC-1` findings). Never count
+   the same issue twice, and never emit two findings for one check on one
+   component.
+5. Do **NOT** score findings outside the checklists. A genuinely novel issue
+   the rubric doesn't cover goes under **Recommendations** as an advisory note
+   — it does NOT add to the per-pillar counts or the drift score.
+
+The per-pillar count in `reviews.yaml` therefore equals the number of FAILED
+checks (× affected components) for that pillar — deterministic for fixed
+inputs. Severities come from the checklist, never invented per finding.
 
 ## 5. Output contract — EXACT shapes (the BAR page depends on these)
 
