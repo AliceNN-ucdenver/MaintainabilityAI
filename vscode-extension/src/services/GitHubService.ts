@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { Octokit } from '@octokit/rest';
-import type { IssueCreationRequest, IssueCreationResult, RepoInfo, IssueComment, LinkedPullRequest, GitHubIssueListItem, WorkflowRunSummary, OrgRepo, ActiveReviewInfo } from '../types';
+import type { IssueCreationRequest, IssueCreationResult, RepoInfo, IssueComment, LinkedPullRequest, GitHubIssueListItem, WorkflowRunSummary, OrgRepo, ActiveReviewInfo, BreakGlassGrant } from '../types';
 import { promptPackService } from './PromptPackService';
 import { toErrorMessage } from '../utils/errors';
 import { parseGitHubUrl, getRemoteOriginUrl, getCurrentBranch } from '../utils/git';
@@ -1219,6 +1219,59 @@ export class GitHubService {
       ...(branch ? { branch } : {}),
     });
     return { commitSha: data.commit?.sha ?? '' };
+  }
+
+  // ==========================================================================
+  // Red Queen break-glass — restricted-tier maintenance overrides.
+  // The grant lives in `.redqueen/approvals.json` on the default branch; the
+  // PreToolUse hook reads it from the agent's working tree (the agent inherits
+  // it by branching off the commit). See design/redqueen-break-glass.md.
+  // ==========================================================================
+
+  /** Read the break-glass grants from `.redqueen/approvals.json` on `branch`. */
+  async getBreakGlassGrants(owner: string, repo: string, branch?: string): Promise<BreakGlassGrant[]> {
+    const ref = branch || await this.getDefaultBranch(owner, repo);
+    const text = await this.getRepoFileText(owner, repo, '.redqueen/approvals.json', ref);
+    if (!text) { return []; }
+    try {
+      const data = JSON.parse(text) as { approvals?: BreakGlassGrant[] };
+      return Array.isArray(data.approvals) ? data.approvals : [];
+    } catch { return []; }
+  }
+
+  /** Grant a break-glass for one issue. Single-active by construction: replaces
+   *  any existing grants with the one new entry, committed to the default
+   *  branch so it's in the agent's tree before dispatch. */
+  async grantBreakGlass(owner: string, repo: string, issue: number, opts: { hours: number; grantedBy: string; reason?: string }, nowMs: number): Promise<void> {
+    const branch = await this.getDefaultBranch(owner, repo);
+    const grant: BreakGlassGrant = {
+      issue,
+      tier: 'restricted',
+      grantedBy: opts.grantedBy,
+      grantedAt: new Date(nowMs).toISOString(),
+      expiresAt: new Date(nowMs + opts.hours * 3600_000).toISOString(),
+      reason: opts.reason || '',
+    };
+    const content = JSON.stringify({ version: 1, approvals: [grant] }, null, 2) + '\n';
+    await this.putRepoFile(
+      owner, repo, '.redqueen/approvals.json', content,
+      `chore(redqueen): break-glass override for #${issue}\n\nHuman-granted restricted-tier maintenance override (TIER-001). Expires ${grant.expiresAt}.`,
+      branch,
+    );
+  }
+
+  /** Remove the grant for an issue (idempotent — no-op when absent). */
+  async revokeBreakGlass(owner: string, repo: string, issue: number): Promise<void> {
+    const branch = await this.getDefaultBranch(owner, repo);
+    const grants = await this.getBreakGlassGrants(owner, repo, branch);
+    const remaining = grants.filter(g => g.issue !== issue);
+    if (remaining.length === grants.length) { return; }
+    const content = JSON.stringify({ version: 1, approvals: remaining }, null, 2) + '\n';
+    await this.putRepoFile(
+      owner, repo, '.redqueen/approvals.json', content,
+      `chore(redqueen): revoke break-glass for #${issue}`,
+      branch,
+    );
   }
 
   /**

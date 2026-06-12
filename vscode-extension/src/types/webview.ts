@@ -1,4 +1,4 @@
-import type { RepoInfo, GitHubIssueListItem } from './github';
+import type { RepoInfo, GitHubIssueListItem, BreakGlassGrant } from './github';
 import type {
   AgentStatusInfo, ScorecardData, ScorecardSnapshot, TrendDirection,
 } from './scorecard';
@@ -39,6 +39,10 @@ export type ScorecardWebviewMessage =
   // CodeQL auto-assign toggle (the AUTO_ASSIGN_ALICE repo Actions variable):
   | { type: 'getAutoAssignAlice' }
   | { type: 'setAutoAssignAlice'; enabled: boolean }
+  // Restricted-tier break-glass (.redqueen/approvals.json):
+  | { type: 'loadBreakGlass' }
+  | { type: 'breakGlassAssign'; issueNumber: number }
+  | { type: 'revokeBreakGlass'; issueNumber: number }
   // Agent-status banner lifecycle one-clicks (mirrors the BAR detail banner).
   | { type: 'approveAgentRun'; runId: number }
   | { type: 'markAgentPrReady'; prNumber: number }
@@ -76,6 +80,7 @@ export type ScorecardExtensionMessage =
   | { type: 'rabbitHoleDispatched'; url: string; number: number }
   | { type: 'issuesLoaded'; issues: GitHubIssueListItem[]; filter: 'open' | 'all' }
   | { type: 'autoAssignAliceStatus'; enabled: boolean | null }
+  | { type: 'breakGlassStatus'; grants: BreakGlassGrant[] }
   | { type: 'syncStatus'; behind: number; ahead: number; branch: string; dirty: boolean }
   | { type: 'repoSynced' }
   // Phase 6 — Governance bridge data for Scorecard

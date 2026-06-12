@@ -376,26 +376,55 @@ function validate(input) {
     return { allowed: true, reason: '[Red Queen] Read-only tool allowed.' };
   }
 
-  // Check tool restrictions for this tier
-  const tierRules = rules.toolRestrictions && rules.toolRestrictions[tier];
-  if (tierRules) {
-    if (tierRules.deny && tierRules.deny.includes(toolName)) {
-      return {
-        allowed: false,
-        ruleId: 'TIER-001',
-        reason:
-          '[Red Queen] Tool "' + toolName + '" is denied for ' + tier +
-          '-tier BARs (score: ' + policy.compositeScore + '/100). ' +
-          'Improve governance scores or get approval first.',
-      };
-    }
-  }
-
   // Track pending overrides so we can attribute the bypass on the audit
   // line even though the final verdict is allow. If a later check denies,
   // that deny is recorded as-is (no override claim) and pendingOverride
   // is discarded.
   let pendingOverride = null;
+
+  // Break-glass: an active, unexpired grant in .redqueen/approvals.json
+  // (committed to the default branch by a human BEFORE dispatch) lets a
+  // restricted-tier agent do the implementation work it would otherwise be
+  // denied. It flips the TIER tool-denies only (TIER-001 Write/Bash + TIER-002
+  // restricted Edit). The read-only governance harness (CTRL-001), security-
+  // critical paths (SEC-001), CALM (CALM-004), and custom rules stay HARD.
+  // The agent can't forge a grant: writing .redqueen/** is itself CTRL-001.
+  function activeBreakGlass() {
+    try {
+      const ap = path.join(process.cwd(), '.redqueen', 'approvals.json');
+      if (!fs.existsSync(ap)) { return null; }
+      const data = JSON.parse(fs.readFileSync(ap, 'utf8'));
+      const now = Date.now();
+      const grants = (data && Array.isArray(data.approvals) ? data.approvals : []).filter(function (g) {
+        const exp = g && g.expiresAt ? Date.parse(g.expiresAt) : NaN;
+        return !isNaN(exp) && exp > now;
+      });
+      return grants.length > 0 ? grants[0] : null;
+    } catch (e) { return null; }
+  }
+  function breakGlassSource(bg) {
+    return 'break-glass#' + (bg && bg.issue != null ? bg.issue : '?');
+  }
+
+  // Check tool restrictions for this tier
+  const tierRules = rules.toolRestrictions && rules.toolRestrictions[tier];
+  if (tierRules) {
+    if (tierRules.deny && tierRules.deny.includes(toolName)) {
+      const bg = activeBreakGlass();
+      if (bg) {
+        pendingOverride = { bypassedRuleId: 'TIER-001', approvalSource: breakGlassSource(bg) };
+      } else {
+        return {
+          allowed: false,
+          ruleId: 'TIER-001',
+          reason:
+            '[Red Queen] Tool "' + toolName + '" is denied for ' + tier +
+            '-tier BARs (score: ' + policy.compositeScore + '/100). ' +
+            'Improve governance scores or grant a break-glass approval first.',
+        };
+      }
+    }
+  }
 
   function approvalSourceLabel() {
     if (process.env.REDQUEEN_PLAN_APPROVED === 'true') { return 'REDQUEEN_PLAN_APPROVED'; }
@@ -405,27 +434,29 @@ function validate(input) {
   }
 
   if (tier === 'restricted' && toolName === 'Edit') {
+    const editBg = activeBreakGlass();
     const planApproved = process.env.REDQUEEN_PLAN_APPROVED === 'true' ||
-      toolInput.redqueenApproved === true;
+      toolInput.redqueenApproved === true || !!editBg;
     if (!planApproved) {
       return {
         allowed: false,
         ruleId: 'TIER-002',
         reason:
           '[Red Queen] Restricted-tier BARs are plan-first. Edit is blocked until ' +
-          'human approval is recorded (set REDQUEEN_PLAN_APPROVED=true for approved runs).',
+          'human approval is recorded (set REDQUEEN_PLAN_APPROVED=true or grant a break-glass).',
       };
     }
     // Approval flipped a deny into an allow. Capture the override so the
     // audit-log line records WHICH rule was bypassed and WHICH source
     // granted it. Note: REDQUEEN_TOOL_APPROVED alone does NOT bypass
-    // TIER-002 (restricted plan-first); only PLAN_APPROVED or the
-    // per-call toolInput flag does.
+    // TIER-002 (restricted plan-first); only PLAN_APPROVED, the per-call
+    // toolInput flag, or an active break-glass does.
     pendingOverride = {
       bypassedRuleId: 'TIER-002',
-      approvalSource: process.env.REDQUEEN_PLAN_APPROVED === 'true'
-        ? 'REDQUEEN_PLAN_APPROVED'
-        : 'toolInput.redqueenApproved',
+      approvalSource: editBg ? breakGlassSource(editBg)
+        : (process.env.REDQUEEN_PLAN_APPROVED === 'true'
+          ? 'REDQUEEN_PLAN_APPROVED'
+          : 'toolInput.redqueenApproved'),
     };
   }
 

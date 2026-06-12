@@ -497,6 +497,80 @@ describe('Config Scaffold', () => {
       }
     });
 
+    it('break-glass: an active grant flips the restricted TIER-001 Write deny to an audited allow', () => {
+      const redQueen = new RedQueenService();
+      // Test Bar Empty scores 0 → restricted tier → Write/Bash are TIER-001 denied.
+      const result = scaffoldAgentConfig(reader, 'Test Bar Empty', redQueen);
+      if ('error' in result) { throw new Error(`scaffold failed: ${result.error}`); }
+
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'redqueen-breakglass-'));
+      try {
+        writeScaffoldFiles(tmpDir, result.files);
+        const wrapperPath = path.join(tmpDir, '.redqueen/hooks/validate-tool.sh');
+        const approvalsPath = path.join(tmpDir, '.redqueen', 'approvals.json');
+        const writePayload = JSON.stringify({
+          tool_name: 'Write',
+          tool_input: { file_path: 'src/feature.ts', content: 'export const x = 1;' },
+        });
+        const runWrite = () => spawnSync(wrapperPath, { input: writePayload, encoding: 'utf8', cwd: tmpDir });
+
+        // 1. No grant → restricted Write is hard-denied (TIER-001).
+        const denied = runWrite();
+        expect(denied.status).toBe(2);
+        expect(denied.stderr).toContain('denied for restricted-tier');
+
+        // 2. An active (unexpired) grant flips it to an audited allow.
+        const future = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+        fs.writeFileSync(approvalsPath, JSON.stringify({ version: 1, approvals: [{ issue: 42, expiresAt: future }] }));
+        const allowed = runWrite();
+        expect(allowed.status).toBe(0);
+        expect(allowed.stdout).toContain('"permissionDecision":"allow"');
+
+        // The allow is recorded as an override against TIER-001 (break-glass#42).
+        const auditPath = path.join(tmpDir, '.redqueen', 'audit-log.jsonl');
+        const entries = fs.readFileSync(auditPath, 'utf8').trim().split('\n').map(l => JSON.parse(l));
+        const overrideEntry = entries.find(e => e.payload?.override === true);
+        expect(overrideEntry).toBeTruthy();
+        expect(overrideEntry.payload?.bypassedRuleId).toBe('TIER-001');
+        expect(overrideEntry.payload?.approvalSource).toBe('break-glass#42');
+
+        // 3. An EXPIRED grant does not authorize — back to deny.
+        const past = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+        fs.writeFileSync(approvalsPath, JSON.stringify({ version: 1, approvals: [{ issue: 42, expiresAt: past }] }));
+        const reDenied = runWrite();
+        expect(reDenied.status).toBe(2);
+        expect(reDenied.stderr).toContain('denied for restricted-tier');
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it('break-glass: the agent cannot forge a grant — writing .redqueen/approvals.json is CTRL-001', () => {
+      const redQueen = new RedQueenService();
+      const result = scaffoldAgentConfig(reader, 'Test Bar Empty', redQueen);
+      if ('error' in result) { throw new Error(`scaffold failed: ${result.error}`); }
+
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'redqueen-bg-forge-'));
+      try {
+        writeScaffoldFiles(tmpDir, result.files);
+        const wrapperPath = path.join(tmpDir, '.redqueen/hooks/validate-tool.sh');
+        // Even with an active grant present, writing into .redqueen/** is the
+        // governance harness — hard-denied (CTRL-001), never break-glassable.
+        const future = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+        fs.writeFileSync(path.join(tmpDir, '.redqueen', 'approvals.json'),
+          JSON.stringify({ version: 1, approvals: [{ issue: 42, expiresAt: future }] }));
+        const forge = spawnSync(wrapperPath, {
+          input: JSON.stringify({ tool_name: 'Write', tool_input: { file_path: '.redqueen/approvals.json', content: '{}' } }),
+          encoding: 'utf8',
+          cwd: tmpDir,
+        });
+        expect(forge.status).toBe(2);
+        expect(forge.stderr).toContain('governance-managed (read-only)');
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
     it('hook walks customRules and denies on regex match against file content', () => {
       const redQueen = new RedQueenService();
       const result = scaffoldAgentConfig(reader, 'Test Bar Good', redQueen);

@@ -26,6 +26,16 @@ export interface RepoInfo {
   remoteUrl: string;
 }
 
+/** A Red Queen break-glass grant (one entry in `.redqueen/approvals.json`). */
+export interface BreakGlassGrant {
+  issue: number;
+  tier?: string;
+  grantedBy?: string;
+  grantedAt?: string;
+  expiresAt: string;
+  reason?: string;
+}
+
 export interface IssueCreationRequest {
   title: string;
   rctroPrompt: RctroPrompt;

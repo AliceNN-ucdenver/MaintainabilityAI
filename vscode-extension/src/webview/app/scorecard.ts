@@ -21,6 +21,16 @@ interface ScorecardIssue {
   url: string;
 }
 
+/** Active break-glass grant (mirrors the host's BreakGlassGrant). */
+interface BreakGlassGrant {
+  issue: number;
+  tier?: string;
+  grantedBy?: string;
+  grantedAt?: string;
+  expiresAt: string;
+  reason?: string;
+}
+
 // ============================================================================
 // State
 // ============================================================================
@@ -77,6 +87,8 @@ const state = {
   issueFilter: 'open' as 'open' | 'all',
   issuesCollapsed: false,
   assigningIssue: null as number | null,
+  // Restricted-tier break-glass grants (.redqueen/approvals.json)
+  breakGlassGrants: [] as BreakGlassGrant[],
 };
 
 const rootEl = document.getElementById('scorecard-root')!;
@@ -147,6 +159,17 @@ const CHESHIRE_SVG = `<svg width="40" height="40" viewBox="0 0 128 128" fill="no
     .mi-empty { margin-top: 8px; font-size: 12px; color: var(--text-secondary, #999); padding: 6px 2px; }
     .mi-switch { display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer; }
     .mi-switch input { cursor: pointer; }
+
+    /* Restricted-tier break-glass */
+    .bg-section { margin-bottom: 12px; padding: 0; }
+    .bg-row { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid #f8514955; border-left: 3px solid #f85149; border-radius: 6px; background: rgba(248,81,73,0.07); }
+    .bg-row + .bg-row { margin-top: 6px; }
+    .bg-icon { font-size: 15px; flex: 0 0 auto; }
+    .bg-main { min-width: 0; flex: 1; font-size: 12px; }
+    .bg-link { color: var(--vscode-textLink-foreground); cursor: pointer; text-decoration: underline; }
+    .bg-meta { display: block; margin-top: 2px; font-size: 11px; color: var(--text-secondary, #aaa); }
+    .mi-pill-glass { background: rgba(248,81,73,0.20); color: #ff7b72; }
+    .mi-glass { border-color: #f8514988; color: #ff7b72; }
   `;
   document.head.appendChild(style);
 })();
@@ -237,6 +260,7 @@ function render() {
     ${renderGradeCard(d)}
     ${renderGovernanceSection()}
     ${renderMetricsGrid(d)}
+    ${renderBreakGlassBanner()}
     ${renderMaintenanceIssues()}
     ${renderOwaspBreakdown(d.owaspIssues)}
     ${renderSdlcCompleteness(d.sdlcCompleteness)}
@@ -386,9 +410,19 @@ function renderIssueRow(i: ScorecardIssue): string {
     .map(l => `<span class="mi-chip">${escapeHtml(l.name)}</span>`)
     .join('');
   const assigning = state.assigningIssue === i.number;
-  const action = phase.assignable
-    ? `<button class="btn-secondary btn-sm mi-assign" data-issue="${i.number}" ${assigning ? 'disabled' : ''}>${assigning ? 'Dispatching…' : '\u{1F43E} Assign Alice'}</button>`
-    : '';
+  // Restricted-tier BARs hard-deny Alice's Write/Bash (TIER-001). The assign
+  // button becomes a break-glass that commits a scoped, audited override first.
+  const restricted = state.governanceData?.effectiveTier === 'restricted';
+  let action = '';
+  if (phase.assignable) {
+    if (assigning) {
+      action = `<button class="btn-secondary btn-sm" disabled>Dispatching…</button>`;
+    } else if (restricted) {
+      action = `<button class="btn-secondary btn-sm mi-glass mi-breakglass" data-issue="${i.number}" title="Grant a scoped, audited restricted-tier override, then dispatch Alice">\u{1F513} Break glass &amp; assign</button>`;
+    } else {
+      action = `<button class="btn-secondary btn-sm mi-assign" data-issue="${i.number}">\u{1F43E} Assign Alice</button>`;
+    }
+  }
   return `
     <div class="mi-row">
       <div class="mi-main">
@@ -435,6 +469,40 @@ function renderMaintenanceIssues(): string {
   return `<div class="section mi-section">${header}${body}</div>`;
 }
 
+/** Human-readable "expires in …" for a break-glass grant. */
+function formatBreakGlassExpiry(iso: string): string {
+  const exp = Date.parse(iso);
+  if (isNaN(exp)) { return 'unknown'; }
+  const mins = Math.round((exp - Date.now()) / 60000);
+  if (mins <= 0) { return 'expired'; }
+  if (mins < 60) { return `expires in ${mins}m`; }
+  const hrs = Math.floor(mins / 60);
+  const rem = mins % 60;
+  return `expires in ${rem ? `${hrs}h ${rem}m` : `${hrs}h`}`;
+}
+
+/** Active restricted-tier override banner — one row per live grant + Revoke. */
+function renderBreakGlassBanner(): string {
+  const grants = state.breakGlassGrants;
+  if (!grants.length) { return ''; }
+  const repo = state.data?.repo || state.repo;
+  const rows = grants.map(g => {
+    const url = repo ? `https://github.com/${repo.owner}/${repo.repo}/issues/${g.issue}` : '';
+    const who = g.grantedBy ? `@${escapeHtml(g.grantedBy)}` : 'a maintainer';
+    return `
+      <div class="bg-row">
+        <span class="bg-icon">\u{1F513}</span>
+        <div class="bg-main">
+          <strong>Break-glass active</strong> for <a class="bg-link" data-url="${escapeHtml(url)}">#${g.issue}</a>
+          — restricted-tier override (TIER-001)
+          <span class="bg-meta">Granted by ${who} · ${escapeHtml(formatBreakGlassExpiry(g.expiresAt))} · every override is in the audit chain</span>
+        </div>
+        <button class="btn-secondary btn-sm bg-revoke" data-issue="${g.issue}">Revoke</button>
+      </div>`;
+  }).join('');
+  return `<div class="section bg-section">${rows}</div>`;
+}
+
 function reloadIssues(): void {
   state.issuesLoaded = false;
   render();
@@ -466,6 +534,30 @@ function attachMaintenanceIssues(): void {
       state.assigningIssue = n;
       render();
       vscode.postMessage({ type: 'assignAlice', issueNumber: n });
+    });
+  });
+  // Restricted-tier: break-glass first, then dispatch. The host runs the modal
+  // confirm, commits the grant, comments on the issue, and assigns Alice.
+  document.querySelectorAll('.mi-breakglass').forEach(el => {
+    el.addEventListener('click', (e) => {
+      const n = Number((e.currentTarget as HTMLElement).dataset.issue);
+      if (!n) { return; }
+      vscode.postMessage({ type: 'breakGlassAssign', issueNumber: n });
+    });
+  });
+  document.querySelectorAll('.bg-revoke').forEach(el => {
+    el.addEventListener('click', (e) => {
+      const n = Number((e.currentTarget as HTMLElement).dataset.issue);
+      if (!n) { return; }
+      (e.currentTarget as HTMLButtonElement).disabled = true;
+      vscode.postMessage({ type: 'revokeBreakGlass', issueNumber: n });
+    });
+  });
+  document.querySelectorAll('.bg-link').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.preventDefault();
+      const url = (e.currentTarget as HTMLElement).dataset.url;
+      if (url) { vscode.postMessage({ type: 'openUrl', url }); }
     });
   });
 }
@@ -1151,6 +1243,11 @@ function handleRabbitHoleMessage(message: { type: string; [k: string]: unknown }
     if (state.view === 'settings') { render(); }
     return true;
   }
+  if (message.type === 'breakGlassStatus') {
+    state.breakGlassGrants = (message.grants as BreakGlassGrant[]) || [];
+    render();
+    return true;
+  }
   return false;
 }
 
@@ -1276,4 +1373,5 @@ window.addEventListener('message', (event) => {
 // ============================================================================
 
 vscode.postMessage({ type: 'ready' });
+vscode.postMessage({ type: 'loadBreakGlass' });
 render();

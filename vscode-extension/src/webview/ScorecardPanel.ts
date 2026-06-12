@@ -168,6 +168,15 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
       case 'setAutoAssignAlice':
         await this.onSetAutoAssignAlice(message.enabled);
         break;
+      case 'loadBreakGlass':
+        await this.onLoadBreakGlass();
+        break;
+      case 'breakGlassAssign':
+        await this.onBreakGlassAssign(message.issueNumber);
+        break;
+      case 'revokeBreakGlass':
+        await this.onRevokeBreakGlass(message.issueNumber);
+        break;
       case 'approveAgentRun':
         await this.onApproveAgentRun(message.runId);
         break;
@@ -252,6 +261,7 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
     if (this.currentRepo) {
       this.checkForActiveIssues();
       void this.onLoadIssues('open');
+      void this.onLoadBreakGlass();
     }
     this.startPolling();
 
@@ -535,6 +545,62 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
     await this.onGetAutoAssignAlice();
   }
 
+  /** Load active break-glass grants from .redqueen/approvals.json (default branch). */
+  private async onLoadBreakGlass() {
+    if (!this.currentRepo) { this.postMessage({ type: 'breakGlassStatus', grants: [] }); return; }
+    try {
+      const grants = await this.githubService.getBreakGlassGrants(this.currentRepo.owner, this.currentRepo.repo);
+      const now = Date.now();
+      const active = grants.filter(g => { const e = Date.parse(g.expiresAt || ''); return !isNaN(e) && e > now; });
+      this.postMessage({ type: 'breakGlassStatus', grants: active });
+    } catch {
+      this.postMessage({ type: 'breakGlassStatus', grants: [] });
+    }
+  }
+
+  /** Restricted-tier break-glass: human-confirm → commit the grant to the
+   *  default branch → comment on the issue → dispatch Alice. */
+  private async onBreakGlassAssign(issueNumber: number) {
+    if (!this.currentRepo) { return; }
+    const choice = await vscode.window.showWarningMessage(
+      `Break-glass #${issueNumber}? This grants Alice a 2-hour restricted-tier override (TIER-001), committed to the default branch and recorded in the Red Queen audit chain.`,
+      { modal: true }, 'Break glass & dispatch',
+    );
+    if (choice !== 'Break glass & dispatch') { return; }
+    this.postMessage({ type: 'loading', active: true, message: `Granting break-glass for #${issueNumber}…` });
+    try {
+      const { owner, repo } = this.currentRepo;
+      let grantedBy = 'unknown';
+      try { grantedBy = (await this.githubService.getAuthenticatedUser()).login; } catch { /* best effort */ }
+      await this.githubService.grantBreakGlass(owner, repo, issueNumber, { hours: 2, grantedBy, reason: 'Restricted-tier maintenance remediation' }, Date.now());
+      await this.githubService.createIssueComment(owner, repo, issueNumber,
+        `🔓 **Break-glass granted** by @${grantedBy} — restricted-tier maintenance override (TIER-001) authorized for this remediation. Expires in 2h; every override is recorded in the audit chain.`);
+      await this.dispatchAlice(owner, repo, issueNumber);
+    } catch (err) {
+      this.postMessage({ type: 'error', message: `Break-glass failed: ${toErrorMessage(err)}` });
+    } finally {
+      this.postMessage({ type: 'loading', active: false });
+    }
+    await this.onLoadIssues(this.lastIssueFilter);
+    await this.checkForActiveIssues();
+    await this.onLoadBreakGlass();
+  }
+
+  /** Revoke a break-glass grant (clears the entry from approvals.json). */
+  private async onRevokeBreakGlass(issueNumber: number) {
+    if (!this.currentRepo) { return; }
+    this.postMessage({ type: 'loading', active: true, message: `Revoking break-glass for #${issueNumber}…` });
+    try {
+      await this.githubService.revokeBreakGlass(this.currentRepo.owner, this.currentRepo.repo, issueNumber);
+    } catch (err) {
+      this.postMessage({ type: 'error', message: `Revoke failed: ${toErrorMessage(err)}` });
+    } finally {
+      this.postMessage({ type: 'loading', active: false });
+    }
+    await this.onLoadBreakGlass();
+    await this.onLoadIssues(this.lastIssueFilter);
+  }
+
   /** Query GitHub for agent status (issues, PRs, workflow approval). */
   private async checkForActiveIssues() {
     if (!this.currentRepo) { return; }
@@ -602,9 +668,14 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
       try {
         await this.githubService.closeIssue(this.currentRepo.owner, this.currentRepo.repo, issueNumber);
       } catch { /* best effort — issue may already be closed */ }
+      // Auto-clear any break-glass grant for this issue now that it's merged.
+      try {
+        await this.githubService.revokeBreakGlass(this.currentRepo.owner, this.currentRepo.repo, issueNumber);
+      } catch { /* best effort — grant may already be cleared / expired */ }
     }
     await this.checkForActiveIssues();
     await this.onLoadIssues(this.lastIssueFilter);
+    await this.onLoadBreakGlass();
   }
 
   private async onRefresh() {
