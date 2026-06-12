@@ -357,6 +357,10 @@ PR → merge → issue auto-closes via the `Closes #N` + filename fallback).
 - Migrating historical alice-remediation issues; old issues stay as-is.
 - Multi-repo fan-out of maintenance tasks (the OKR fan-out engine already
   handles cross-repo implementation; this is single-repo maintenance).
+- Restricted-tier maintenance **break-glass** — letting a human authorize a
+  scoped, audited override so Alice can remediate a <50% BAR that would
+  otherwise hard-deny `Write`/`Bash`. Designed separately in
+  [`redqueen-break-glass.md`](redqueen-break-glass.md).
 
 ## Future cleanup — come back to this
 
