@@ -7,6 +7,7 @@ import { LlmService } from '../services/llm/LlmService';
 import { GitHubService, githubService } from '../services/GitHubService';
 import { promptPackService } from '../services/PromptPackService';
 import { TechStackDetector } from '../services/TechStackDetector';
+import { buildRepoContext } from '../services/RepoContextScanner';
 import { IssueMonitorService } from '../services/IssueMonitorService';
 import { readGovernanceDecision } from '../utils/governanceBridge';
 import { FolderStateService } from '../services/FolderStateService';
@@ -367,12 +368,21 @@ export class IssueCreatorPanel extends BasePanel<WebviewMessage, ExtensionMessag
         ? { ...detected, ...message.stackOverrides }
         : detected;
 
+      // Ground the RCTRO in the real code (Cheshire v2): scan the selected
+      // folder (tree + manifest + repo-metadata + description-relevant excerpts)
+      // so requirements name actual files/folders/frameworks. Best-effort —
+      // falls back to tech-stack-only grounding when there's no folder.
+      const repoContext = this.folderPath
+        ? buildRepoContext(this.folderPath, { description: message.description }) ?? undefined
+        : undefined;
+
       const rctro = await this.llmService.generateRctro(
         message.description,
         stack,
         contentStrings,
         undefined,
-        message.modelOverride
+        message.modelOverride,
+        repoContext
       );
 
       this.currentRctro = rctro;

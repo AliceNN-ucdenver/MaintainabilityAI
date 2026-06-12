@@ -1,5 +1,6 @@
 import type { LlmProvider, RctroPrompt, TechStack } from '../../types';
 import { configService } from '../ConfigService';
+import { TechStackDetector } from '../TechStackDetector';
 import { ClaudeProvider } from './ClaudeProvider';
 import { VsCodeLmProvider } from './VsCodeLmProvider';
 import { OpenAiProvider } from './OpenAiProvider';
@@ -93,11 +94,12 @@ export class LlmService {
     techStack: TechStack,
     promptPackContents: string[],
     existingRctro?: RctroPrompt,
-    modelOverride?: string
+    modelOverride?: string,
+    repoContext?: string
   ): Promise<RctroPrompt> {
     // Refresh provider in case settings changed
     this.provider = this.createProvider();
-    return this.provider.generateRctro(description, techStack, promptPackContents, existingRctro, modelOverride);
+    return this.provider.generateRctro(description, techStack, promptPackContents, existingRctro, modelOverride, repoContext);
   }
 
   getSystemPrompt(promptPackContents: string[]): string {
@@ -115,3 +117,33 @@ export class LlmService {
 }
 
 export { RCTRO_SYSTEM_PROMPT };
+
+/**
+ * Build the shared RCTRO system + user messages for every provider (VsCodeLm /
+ * Claude / OpenAI). Centralized so the `## Repository Context` grounding block
+ * lives in one place (and the providers don't duplicate the assembly).
+ */
+export function buildRctroPrompt(
+  description: string,
+  techStack: TechStack,
+  promptPackContents: string[],
+  existingRctro?: RctroPrompt,
+  repoContext?: string,
+): { systemPrompt: string; userContent: string } {
+  const stackContext = new TechStackDetector().formatForContext(techStack);
+  const systemPrompt = RCTRO_SYSTEM_PROMPT.replace(
+    '{promptPackContents}',
+    promptPackContents.length > 0
+      ? promptPackContents.join('\n\n---\n\n')
+      : '(No prompt packs selected — generate general security requirements)',
+  );
+  let userContent = `## Tech Stack\n${stackContext}`;
+  if (repoContext) {
+    userContent += `\n\n## Repository Context\nGround every Context/Requirement in these REAL files, folders, and frameworks — name actual paths; do not invent files.\n\n${repoContext}`;
+  }
+  userContent += `\n\n## Feature Description\n${description}`;
+  if (existingRctro) {
+    userContent += `\n\n## Previous RCTRO (refine this)\n${JSON.stringify(existingRctro, null, 2)}`;
+  }
+  return { systemPrompt, userContent };
+}

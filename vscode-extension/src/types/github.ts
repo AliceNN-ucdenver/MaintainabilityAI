@@ -78,7 +78,10 @@ export interface LlmProvider {
     techStack: TechStack,
     promptPackContents: string[],
     existingRctro?: RctroPrompt,
-    modelOverride?: string
+    modelOverride?: string,
+    /** Grounded `## Repository Context` block (file tree + manifest +
+     *  repo-metadata + relevant excerpts) so the RCTRO names real files. */
+    repoContext?: string
   ): Promise<RctroPrompt>;
 }
 
