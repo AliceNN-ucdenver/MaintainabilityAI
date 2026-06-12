@@ -45,6 +45,17 @@ export interface OwaspIssueSummary {
   openCount: number;
 }
 
+export interface FitnessTestResult {
+  category: string;
+  group: 'structural' | 'runtime';
+  status: 'present' | 'absent';
+  testPath?: string;
+  unit?: string;
+  floor?: number;
+  target?: number;
+  measured?: number;
+}
+
 export interface ScorecardData {
   grade: HealthGrade;
   compositeScore: number;
@@ -58,6 +69,7 @@ export interface ScorecardData {
   };
   sdlcCompleteness: SdlcCompletenessItem[];
   owaspIssues: OwaspIssueSummary[];
+  fitnessTests: FitnessTestResult[];
   pmatInstalled: boolean;
   repo: { owner: string; repo: string } | null;
   lastRefreshed: string;

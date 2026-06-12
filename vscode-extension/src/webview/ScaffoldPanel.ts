@@ -7,7 +7,6 @@ import {
   generateSecurityPolicy,
   generateMaintenanceAgent,
   generateCodeqlWorkflow,
-  generateFitnessFunctionsWorkflow,
   generateCiWorkflow,
   generateCodeqlToIssuesWorkflow,
   generateValidatePromptHashesWorkflow,
@@ -367,9 +366,6 @@ export class ScaffoldPanel extends BasePanel<Record<string, unknown>, Record<str
       filesToCreate.push({ relativePath: 'automation/generate-prompt-hashes.cjs', content: generatePromptHashGenerator(this.context.extensionPath) });
       // Empty hash manifest — user runs generate-prompt-hashes.js after adding prompt packs
       filesToCreate.push({ relativePath: 'automation/prompt-hashes.json', content: JSON.stringify({ _metadata: { generator: 'generate-prompt-hashes.js', algorithm: 'SHA-256' }, owasp: {} }, null, 2) + '\n' });
-    }
-    if (selectedIds.has('fitness')) {
-      filesToCreate.push({ relativePath: '.github/workflows/fitness-functions.yml', content: generateFitnessFunctionsWorkflow(stack, this.context.extensionPath) });
     }
     if (selectedIds.has('ci-workflow')) {
       filesToCreate.push({ relativePath: '.github/workflows/ci.yml', content: generateCiWorkflow(stack, this.context.extensionPath) });
@@ -1021,7 +1017,6 @@ const FILES = [
   { id: 'codeql', label: 'CodeQL Workflow', desc: '.github/workflows/codeql.yml', checked: true },
   { id: 'codeql-to-issues', label: 'CodeQL → Issues', desc: 'Workflow + automation scripts to create issues from CodeQL findings', checked: true },
   { id: 'ci-workflow', label: 'CI Workflow', desc: '.github/workflows/ci.yml — Build, test, and failure-to-issue reporting', checked: true },
-  { id: 'fitness', label: 'Fitness Functions', desc: '.github/workflows/fitness-functions.yml', checked: false },
   { id: 'pr-template', label: 'PR Template', desc: '.github/PULL_REQUEST_TEMPLATE.md', checked: true },
   { id: 'security', label: 'Security Policy', desc: '.github/SECURITY.md', checked: true },
   { id: 'prompt-packs', label: 'Prompt Packs', desc: '.cheshire/prompts/ — OWASP, maintainability, and STRIDE packs', checked: true },

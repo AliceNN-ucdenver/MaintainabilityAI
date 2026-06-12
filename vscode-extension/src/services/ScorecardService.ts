@@ -8,7 +8,7 @@ import { PmatService } from './PmatService';
 import type {
   ScorecardData, MetricResult, MetricStatus, HealthGrade,
   SdlcCompletenessItem, OwaspIssueSummary, RepoInfo, CoverageFileDetail,
-  OutdatedDependency,
+  OutdatedDependency, FitnessTestResult,
 } from '../types';
 
 const SDLC_FILES = [
@@ -16,7 +16,6 @@ const SDLC_FILES = [
   // maintenance-agent persona; the MCP `.mcp.json` layer is retired.
   { label: 'CI Workflow', path: '.github/workflows/ci.yml' },
   { label: 'CodeQL Workflow', path: '.github/workflows/codeql.yml' },
-  { label: 'Fitness Functions', path: '.github/workflows/fitness-functions.yml' },
   { label: 'Alice (Maintenance Agent)', path: '.github/agents/alice-maintenance-agent.agent.md' },
   { label: 'PR Template', path: '.github/PULL_REQUEST_TEMPLATE.md' },
   { label: 'Security Policy', path: '.github/SECURITY.md' },
@@ -112,6 +111,7 @@ export class ScorecardService {
       metrics,
       sdlcCompleteness: this.collectSdlcCompleteness(root),
       owaspIssues: this.extractOwaspResult(owaspIssues),
+      fitnessTests: this.collectFitnessTests(root),
       pmatInstalled,
       repo,
       lastRefreshed: new Date().toISOString(),
@@ -720,6 +720,57 @@ export class ScorecardService {
       present: fs.existsSync(path.join(workspaceRoot, f.path)),
       path: f.path,
     }));
+  }
+
+  // --------------------------------------------------------------------------
+  // Fitness Tests — detect committed fitness-function tests by convention.
+  // Detect the test, never run the gate; the ratchet numbers come from the
+  // committed tests/fitness/baselines.json (the test maintains them).
+  // --------------------------------------------------------------------------
+
+  /** Convention paths per category. Slice: `duplicate` only, registry-shaped. */
+  private static readonly FITNESS_CATEGORIES: ReadonlyArray<{
+    category: string; group: 'structural' | 'runtime'; unit: string; paths: string[];
+  }> = [
+    {
+      category: 'duplicate', group: 'structural', unit: '%',
+      paths: [
+        'tests/fitness/duplicate.test.ts', 'tests/fitness/duplicate.test.js',
+        'tests/fitness/duplicate.test.tsx', 'tests/fitness/test_duplicate.py',
+      ],
+    },
+  ];
+
+  collectFitnessTests(workspaceRoot?: string): FitnessTestResult[] {
+    workspaceRoot = workspaceRoot || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    if (!workspaceRoot) { return []; }
+    const root = workspaceRoot;
+    const baselines = this.readFitnessBaselines(root);
+
+    return ScorecardService.FITNESS_CATEGORIES.map(c => {
+      const testPath = c.paths.find(p => fs.existsSync(path.join(root, p)));
+      const b = baselines[c.category] || {};
+      return {
+        category: c.category,
+        group: c.group,
+        unit: c.unit,
+        status: testPath ? 'present' as const : 'absent' as const,
+        testPath,
+        floor: typeof b.floor === 'number' ? b.floor : undefined,
+        target: typeof b.target === 'number' ? b.target : undefined,
+        measured: typeof b.measured === 'number' ? b.measured : undefined,
+      };
+    });
+  }
+
+  /** Read the committed ratchet file (governance-managed, agent-read-only). */
+  private readFitnessBaselines(root: string): Record<string, { floor?: number; target?: number; measured?: number }> {
+    const p = path.join(root, 'tests', 'fitness', 'baselines.json');
+    if (!fs.existsSync(p)) { return {}; }
+    try {
+      const parsed = JSON.parse(fs.readFileSync(p, 'utf-8'));
+      return (parsed && typeof parsed === 'object') ? parsed : {};
+    } catch { return {}; }
   }
 
   // --------------------------------------------------------------------------

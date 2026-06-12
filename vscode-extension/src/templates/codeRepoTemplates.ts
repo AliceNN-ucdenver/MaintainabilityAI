@@ -125,16 +125,6 @@ export function generateCodeqlWorkflow(extensionPath: string): string {
   return readScaffoldFile(extensionPath, 'workflows', 'codeql.yml');
 }
 
-export function generateFitnessFunctionsWorkflow(stack: TechStack, extensionPath: string): string {
-  const cmds = getStackCommands(stack);
-  let yml = readScaffoldFile(extensionPath, 'workflows', 'fitness-functions.yml');
-  yml = yml.replace(/\{\{SETUP_STEPS\}\}/g, cmds.setup);
-  yml = yml.replace(/\{\{INSTALL_CMD\}\}/g, cmds.install);
-  yml = yml.replace(/\{\{TEST_COVERAGE_CMD\}\}/g, cmds.testCoverage);
-  yml = yml.replace(/\{\{TEST_FITNESS_CMD\}\}/g, cmds.testFitness);
-  return yml;
-}
-
 // ============================================================================
 // STACK-AWARE CI WORKFLOW
 // ============================================================================

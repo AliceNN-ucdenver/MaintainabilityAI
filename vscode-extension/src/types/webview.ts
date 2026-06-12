@@ -33,6 +33,8 @@ export type ScorecardWebviewMessage =
   // Inline Rabbit Hole sheet (replaces the IssueCreatorPanel jump):
   | { type: 'generateRctroInline'; description: string }
   | { type: 'dispatchRctroInline'; title: string; breakGlass?: boolean }
+  // Fitness tests — brief Alice to author a missing fitness function:
+  | { type: 'createFitnessTest'; category: string }
   // Maintenance-issues list:
   | { type: 'loadIssues'; filter: 'open' | 'all' }
   | { type: 'assignAlice'; issueNumber: number }

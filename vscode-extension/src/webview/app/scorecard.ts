@@ -3,7 +3,7 @@ import { renderAgentStatus, attachAgentStatusListeners, getAgentStatusStyles } f
 import type { AgentStatusInfo, AgentStatusPhase } from './agentStatus';
 import { escapeHtml, formatTimestamp } from './pillars/shared';
 import { deployStatusBadge } from './components/html';
-import type { VsCodeApi, MetricResult, SdlcCompletenessItem, OwaspIssueSummary, ScorecardData, ScorecardSnapshot, TrendDirection } from './types';
+import type { VsCodeApi, MetricResult, SdlcCompletenessItem, OwaspIssueSummary, ScorecardData, ScorecardSnapshot, TrendDirection, FitnessTestResult } from './types';
 
 declare function acquireVsCodeApi(): VsCodeApi;
 
@@ -173,6 +173,19 @@ const CHESHIRE_SVG = `<svg width="40" height="40" viewBox="0 0 128 128" fill="no
     .bg-meta { display: block; margin-top: 2px; font-size: 11px; color: var(--text-secondary, #aaa); }
     .mi-pill-glass { background: rgba(248,81,73,0.20); color: #ff7b72; }
     .mi-glass { border-color: #f8514988; color: #ff7b72; }
+
+    /* Fitness Tests */
+    .ft-list { margin-bottom: 16px; display: flex; flex-direction: column; gap: 4px; }
+    .ft-group { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary, #999); margin: 8px 0 2px; }
+    .ft-row { display: flex; align-items: center; gap: 10px; padding: 6px 9px; border: 1px solid var(--vscode-input-border, #333); border-radius: 6px; }
+    .ft-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
+    .ft-dot-on { background: #2ea043; }
+    .ft-dot-off { background: #6e7681; }
+    .ft-name { font-size: 12px; font-weight: 500; flex: 0 0 auto; min-width: 120px; }
+    .ft-path { font-size: 11px; color: var(--text-secondary, #9aa0a6); font-family: var(--vscode-editor-font-family, monospace); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ft-none { font-size: 11px; color: var(--text-secondary, #9aa0a6); font-style: italic; }
+    .ft-ratchet { font-size: 11px; color: var(--text-secondary, #bbb); white-space: nowrap; }
+    .ft-action { margin-left: auto; flex: 0 0 auto; }
   `;
   document.head.appendChild(style);
 })();
@@ -262,6 +275,7 @@ function render() {
     ${renderGradeCard(d)}
     ${renderGovernanceSection()}
     ${renderMetricsGrid(d)}
+    ${renderFitnessTests(d)}
     ${renderBreakGlassBanner()}
     ${renderAgentFallback()}
     ${renderMaintenanceIssues()}
@@ -280,6 +294,7 @@ function render() {
   attachFolderSelect();
   attachRabbitHoleSheet();
   attachMaintenanceIssues();
+  attachFitnessTests();
   attachAgentStatusListeners(
     (msg) => vscode.postMessage(msg),
     // Lifecycle one-clicks (approve-run / mark-pr-ready / merge-pr) — post to
@@ -823,6 +838,66 @@ function renderGovernanceSection(): string {
       </div>
     </div>
   `;
+}
+
+// ============================================================================
+// Fitness Tests — do executable fitness functions exist in the suite, per the
+// convention; absent ones offer "Assign Alice" to author them.
+// ============================================================================
+
+const FITNESS_LABELS: Record<string, string> = {
+  duplicate: 'Duplicate code', 'dead-code': 'Dead code', complexity: 'Complexity',
+  architecture: 'Import boundaries', performance: 'Performance', accessibility: 'Accessibility',
+};
+
+function renderFitnessTestRow(t: FitnessTestResult): string {
+  const name = FITNESS_LABELS[t.category] || t.category;
+  const present = t.status === 'present';
+  const u = t.unit ?? '';
+  // Ratchet bar (from the committed baselines.json the test maintains).
+  const bar = present && (t.measured != null || t.floor != null)
+    ? `<span class="ft-ratchet">${t.measured != null ? `${t.measured}${u} now` : ''}${t.floor != null ? ` · floor ${t.floor}${u}` : ''}${t.target != null ? ` · target ${t.target}${u}` : ''}</span>`
+    : '';
+  const path = present
+    ? `<span class="ft-path" title="convention path">${escapeHtml(t.testPath || '')}</span>`
+    : '<span class="ft-none">no fitness test</span>';
+  const action = present
+    ? '<span class="mi-pill mi-pill-active">present</span>'
+    : `<button class="btn-secondary btn-sm ft-assign" data-category="${escapeHtml(t.category)}">\u{1F43E} Assign Alice</button>`;
+  return `
+    <div class="ft-row">
+      <span class="ft-dot ${present ? 'ft-dot-on' : 'ft-dot-off'}"></span>
+      <span class="ft-name">${escapeHtml(name)}</span>
+      ${path}
+      ${bar}
+      <span class="ft-action">${action}</span>
+    </div>`;
+}
+
+function renderFitnessTests(d: ScorecardData): string {
+  const tests = d.fitnessTests || [];
+  if (tests.length === 0) { return ''; }
+  const structural = tests.filter(t => t.group === 'structural');
+  const runtime = tests.filter(t => t.group === 'runtime');
+  const group = (title: string, rows: FitnessTestResult[]): string =>
+    rows.length ? `<div class="ft-group">${title}</div>${rows.map(renderFitnessTestRow).join('')}` : '';
+
+  return `
+    <div class="section-header">Fitness Tests</div>
+    <div class="ft-list">
+      ${group('Structural', structural)}
+      ${group('Runtime / Evolutionary', runtime)}
+    </div>
+  `;
+}
+
+function attachFitnessTests(): void {
+  document.querySelectorAll('.ft-assign').forEach(el => {
+    el.addEventListener('click', (e) => {
+      const category = (e.currentTarget as HTMLElement).dataset.category;
+      if (category) { vscode.postMessage({ type: 'createFitnessTest', category }); }
+    });
+  });
 }
 
 function renderMetricsGrid(d: ScorecardData): string {

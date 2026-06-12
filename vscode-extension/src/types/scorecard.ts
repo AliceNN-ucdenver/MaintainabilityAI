@@ -92,6 +92,19 @@ export interface OwaspIssueSummary {
   openCount: number;
 }
 
+/** One row of the "Fitness Tests" section — does an executable fitness function
+ *  exist in the suite for this characteristic, and what ratchet backs it. */
+export interface FitnessTestResult {
+  category: string;                     // 'duplicate', 'dead-code', 'complexity', …
+  group: 'structural' | 'runtime';
+  status: 'present' | 'absent';         // 'stale' is a future refinement
+  testPath?: string;                    // matched convention file (repo-relative)
+  unit?: string;                        // '%', 'violations', …
+  floor?: number;                       // no-regression line (from tests/fitness/baselines.json)
+  target?: number;                      // aspirational goal
+  measured?: number;                    // last recorded measurement
+}
+
 export interface ScorecardData {
   grade: HealthGrade;
   compositeScore: number;
@@ -105,6 +118,7 @@ export interface ScorecardData {
   };
   sdlcCompleteness: SdlcCompletenessItem[];
   owaspIssues: OwaspIssueSummary[];
+  fitnessTests: FitnessTestResult[];
   pmatInstalled: boolean;
   repo: RepoInfo | null;
   lastRefreshed: string;

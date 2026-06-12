@@ -156,6 +156,9 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
       case 'dispatchRctroInline':
         await this.onDispatchRctroInline(message.title, message.breakGlass === true);
         break;
+      case 'createFitnessTest':
+        this.onCreateFitnessTest(message.category);
+        break;
       case 'loadIssues':
         await this.onLoadIssues(message.filter);
         break;
@@ -998,6 +1001,32 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
     };
 
     this.openRabbitHole('improve-dependencies', 'Improve dependency freshness', lines.join('\n'), depPacks);
+  }
+
+  /** Brief Alice to author a missing fitness-function test (slice: duplicate).
+   *  A tests-only, additive task — safe even at restricted tier. */
+  private onCreateFitnessTest(category: string) {
+    if (category !== 'duplicate') {
+      vscode.window.showInformationMessage(`Fitness test for "${category}" isn't wired yet — only "duplicate" so far.`);
+      return;
+    }
+    const lines: string[] = [];
+    lines.push('## Add a duplicate-code fitness test\n');
+    lines.push('Author an executable **fitness function** — a committed test that fails the build when code duplication regresses — following the framework convention. Tests only; do not change application source.\n');
+    lines.push('### Convention');
+    lines.push('- Put the test at `tests/fitness/duplicate.test.ts` (TS/JS) or the language idiom (`tests/fitness/test_duplicate.py`, `*_fitness_test.go`), with a `@fitness:duplicate` marker comment.');
+    lines.push('- Record the budget in `tests/fitness/baselines.json` under `"duplicate"`: `{ "floor": <current %>, "target": <goal %>, "measured": <current %> }`. `floor` is the no-regression line.');
+    lines.push('### What the test does');
+    lines.push('- Measure duplication with `pmat analyze duplicates --format json` (polyglot — works across TS/JS/Python/Go/Rust). Parse the duplication percentage.');
+    lines.push('- Read `floor` from `tests/fitness/baselines.json`. If the file or `duplicate` entry is missing, initialize it from the current measurement (the ratchet starts at today\'s value — "no worse").');
+    lines.push('- Assert `measured <= floor`, and update `"measured"`.');
+    lines.push('- Wire it into the normal test command so it runs on every PR.');
+    lines.push('### Rules');
+    lines.push('- NEVER loosen the gate to make the test pass — do not raise `floor`. `tests/fitness/baselines.json` is governance-managed; only a human/the pawl lowers it.');
+    lines.push('- Fix duplication by improving code, not by editing the budget.');
+
+    const packs = { owasp: [] as string[], maintainability: ['fitness-functions'] as string[], threatModeling: [] as string[] };
+    this.openRabbitHole('fitness-test', 'Add duplicate-code fitness test', lines.join('\n'), packs);
   }
 
   private async onReduceComplexity() {
