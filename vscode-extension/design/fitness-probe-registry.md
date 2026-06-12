@@ -1,188 +1,131 @@
 # Fitness Probe Registry — design sketch
 
-Status: draft for iteration.
+Status: draft (v2 — reframed to detect fitness *tests*, not current values).
 
-## Purpose
+## What it detects (and why it's NOT the dashboard)
 
-Detect, per **(ecosystem × category)**, whether a repo has an **enforced structural
-fitness gate** — *not* compute the metric value. Values (security, dependency
-freshness, coverage, complexity) already live on the Scorecard. This layer answers
-a different question: **"is there a gate that fails the build when this
-characteristic regresses?"**
+The Scorecard tiles show the **current value** of a characteristic (complexity now,
+tech-debt now) — a snapshot. This probe answers a different, structural question:
 
-## Scope
+> **Does the repo have an executable fitness-function *test* for this characteristic
+> — a committed test that fails the build when the characteristic regresses?**
 
-In scope (the new section):
+`present` / `stale` / `absent`, per category. When **absent**, the result is an
+actionable **"assign Alice to author it"** task.
 
-| group | categories |
-|---|---|
-| **Structural** (static, test-layer) | `duplicate`, `dead-code`, `complexity-gate`, `architecture` (import boundaries) |
-| **Evolutionary / Runtime** (dynamic, needs the app built/running) | `performance`, `accessibility` |
+## Why tests, not config thresholds
 
-Out of scope — already surfaced elsewhere, do **not** duplicate as probes:
+A committed fitness *test* (e.g. `expect(duplicationPct).toBeLessThan(3)`) beats a
+config threshold because it runs in the repo's **normal test suite** — the loop
+**agents already run and respond to**. When Alice/Copilot change code, a fitness-test
+failure is a named, local, actionable signal they self-correct against. So the tests
+aren't just measurement — they're **evolutionary pressure that keeps every future
+agent change in line.** Installing the missing tests is the highest-leverage
+maintenance task: do it once, and the agents behave better on every task after.
 
-- `security` → CodeQL checks
-- `dependency-freshness` → dashboard metric (behind/dormant)
-- `coverage` → dashboard metric
-
-> `complexity` is special: the **value** is a dashboard card; the **probe** detects
-> whether a complexity *gate* is enforced. Both can coexist (value + "gated?").
-
-## Key principle — detect the gate, don't run it
-
-Probes are **cheap, synchronous, filesystem-only**: parsed manifests + config
-files + flattened CI steps + the resolved test command. **No spawning tools, no
-network.** The repo's CI runs the gate; we only detect that an enforced gate
-exists. This keeps the scan fast, client-side, and polyglot.
-
-## Status taxonomy
+## The remediation loop
 
 ```
-enforced  — a blocking gate exists AND a CI step / the test command runs it
-declared  — a threshold/config exists, but nothing blocks the build on it
-absent    — no gate found
+probe finds no <category> fitness test
+   → assign Alice (a tests-only, additive task — safe even at restricted tier:
+     new files under tests/, no src/ behaviour change → Write covered by break-glass)
+   → Alice authors the test to the framework convention
+   → every future agent PR is now gated by it
 ```
 
-The `enforced` vs `declared` split is the honest signal: a `jest.coverageThreshold`
-that CI never runs with `--coverage` is only *declared*. A `.dependency-cruiser.js`
-that no `npm test` / CI step invokes is only *declared*.
+## The convention lever (what makes the polyglot problem tractable)
 
-## Interface (TypeScript sketch)
+Detecting "is this *arbitrary* test a fitness test?" across 6 languages is the hard,
+fuzzy problem. We sidestep most of it because **we also author the tests**: the
+framework prescribes WHERE fitness tests live and how they're marked, so —
+
+- detection is **convention-based** (cheap, precise): `tests/fitness/<category>.*`
+  (or the per-ecosystem idiom) + a marker tag.
+- Alice **scaffolds to the same convention**, so what we create we can always find.
+- pre-existing fitness tests outside the convention are a **best-effort bonus**
+  (content-signature heuristic + LLM residue), never the load-bearing path.
+
+## Detection layers (cheap → fuzzy)
+
+1. **Convention** — `tests/fitness/**`, `*.fitness.test.*`, `*ArchTest*`, a marker
+   comment/tag. Precise; covers everything we scaffold.
+2. **Content signature** — the language-agnostic discriminator: a test that reads a
+   **metric/aggregate** (pmat output, jscpd, coverage-summary, an import graph) and
+   asserts a **threshold/budget**, with **no domain inputs/outputs**. AST / regex.
+3. **LLM residue** — classify the ambiguous tail only.
+
+`stale` = a fitness test exists but the resolved test command doesn't run it (carries
+the old "declared vs enforced" insight into the test-centric framing).
+
+## What the test measures — PMAT is the polyglot backend
+
+A structural fitness test body is `(measure) + (assert threshold)`, and the
+measurement is **one polyglot tool we already use** — PMAT 3.3.0:
+
+| category | measure (polyglot) | the assertion Alice writes |
+|---|---|---|
+| duplicate | `pmat analyze duplicates --format json` | `dupPct < budget` |
+| dead-code | `pmat analyze dead-code --format json` | `deadItems ≤ baseline` |
+| complexity | `pmat analyze complexity --format json` | `maxCyclomatic ≤ 10` |
+| architecture | import graph (`dependency-cruiser` / `import-linter` / `pmat dag`) | `forbiddenEdges == 0` |
+| performance | bench / `size-limit` / lighthouse-ci | `p95 < budget` / `bundle ≤ budget` |
+| accessibility | `jest-axe` / `axe-core` (React) | `violations == 0` |
+
+PMAT covers the structural measures across TS/JS/Python/Go/Rust, so the test is the
+same shape in every language — only the harness differs. `pmat build-tdg` can even be
+the test body directly. Per-language tools (`jscpd`/`knip`/`vulture`) are fallbacks
+when PMAT isn't installed. Architecture and runtime categories have no PMAT value →
+their own harness.
+
+## Interface sketch
 
 ```ts
-// A repo may contain several ecosystems (React front + Go back).
 type EcosystemId = 'node-ts' | 'node-js' | 'react' | 'python' | 'go' | 'rust';
 
 type FitnessCategory =
-  // — structural (static, test-layer) —
-  | 'duplicate'       // copy-paste / structural duplication
-  | 'dead-code'       // unused exports / functions / deps
-  | 'complexity'      // cyclomatic / cognitive gate (value lives on the card)
-  | 'architecture'    // import boundaries / layer rules
-  // — evolutionary / runtime (dynamic) —
-  | 'performance'     // bundle / latency budgets vs a baseline
-  | 'accessibility';  // a11y rules / axe gate
+  | 'duplicate' | 'dead-code' | 'complexity' | 'architecture'   // structural (static)
+  | 'performance' | 'accessibility';                            // runtime / evolutionary
 
-type GateStatus = 'enforced' | 'declared' | 'absent';
+type FitnessTestStatus =
+  | 'present'   // a fitness test exists AND the suite runs it
+  | 'stale'     // exists but the test command doesn't run it
+  | 'absent';   // none found → assign Alice
 
-interface FitnessProbeResult {
+interface FitnessTestProbeResult {
   category: FitnessCategory;
   ecosystem: EcosystemId;
-  status: GateStatus;
-  tool?: string;          // 'jscpd' | 'knip' | 'dependency-cruiser' | 'import-linter' | …
-  evidence: string[];     // config files / CI steps / config keys that prove it
-  threshold?: string;     // the budget it enforces, when discoverable
-  detail?: string;        // human one-liner for the row
+  status: FitnessTestStatus;
+  testFiles: string[];                              // matches found
+  recipe?: { measure: string; assert: string };    // briefs Alice when absent
 }
 
-interface ProbeContext {
-  root: string;
-  manifests: ManifestIndex;             // parsed package.json / pyproject / go.mod / Cargo.toml
-  files: (glob: string) => string[];    // memoised repo file index (no fs hit per probe)
-  readText: (rel: string) => string | null;
-  ciSteps: CiStep[];                    // flattened `run:`/`uses:` from .github/workflows/*
-  testCommand: string | null;          // resolved `test` (npm / pytest / go test / cargo test)
-}
-
-interface FitnessProbe {
+interface FitnessTestProbe {
   category: FitnessCategory;
   ecosystem: EcosystemId;
-  run(ctx: ProbeContext): FitnessProbeResult;   // pure, fast, no I/O beyond ctx
-}
-
-// The registry is just a flat list; detection filters by detected ecosystems.
-const FITNESS_PROBES: FitnessProbe[] = [ /* cells below */ ];
-```
-
-A shared classifier keeps each probe a one-liner:
-
-```ts
-function classify(declared: boolean, enforced: boolean): GateStatus {
-  return declared && enforced ? 'enforced' : declared ? 'declared' : 'absent';
+  run(ctx: ProbeContext): FitnessTestProbeResult;   // filesystem-only, no spawning
 }
 ```
 
-## Registry cells (ecosystem × category)
+`ProbeContext` = parsed manifests + memoised file index + resolved test command —
+the same cheap, client-side contract; we read the repo, we don't run the gates.
 
-| category | node-ts / react | python | go | rust |
-|---|---|---|---|---|
-| **duplicate** | `jscpd` (`.jscpd.json` / pkg key) | `jscpd` · `pylint R0801` | `dupl` / golangci `dupl` | `jscpd` |
-| **dead-code** | `knip` · `ts-prune` · `depcheck` | `vulture` · `ruff F401/F811` | `staticcheck U1000` · golangci `unused` | rustc `dead_code` deny · clippy |
-| **complexity** | eslint `complexity`/`max-depth`=error | `ruff C901` · `xenon`/`radon` | golangci `gocyclo`/`gocognit` | clippy `cognitive_complexity` |
-| **architecture** | `dependency-cruiser` · eslint `boundaries`/`no-restricted-paths` · Nx | `import-linter` (`.importlinter`) · `tach` | `go-arch-lint` · golangci `depguard` · `internal/` | module `pub` boundaries · crate split |
-| **performance** | `size-limit`/`bundlesize` · lighthouse-ci budgets · vitest `bench` | `pytest-benchmark` | `testing.B` + regression | `criterion` + regression |
-| **accessibility** | `eslint-plugin-jsx-a11y`=error · `jest-axe`/`axe-core` · lighthouse a11y | — | — | — |
+## UI — the new section
 
-`jscpd` is polyglot, so `duplicate` can largely be one detector keyed off any
-ecosystem; everything else is genuinely per-language.
+Under Fitness Functions, a **Fitness Tests** section, two groups:
 
-### Example probes
+- **Structural** — duplicate · dead-code · complexity · import-boundaries
+- **Runtime / Evolutionary** — performance · accessibility
 
-```ts
-const duplicate_node: FitnessProbe = {
-  category: 'duplicate', ecosystem: 'node-ts',
-  run(ctx) {
-    const declared = ctx.files('.jscpd.json').length > 0
-      || /"jscpd"\s*:/.test(ctx.readText('package.json') ?? '');
-    const enforced = ctx.ciSteps.some(s => /jscpd/.test(s.run ?? ''))
-      || /jscpd/.test(ctx.testCommand ?? '');
-    return { category: 'duplicate', ecosystem: 'node-ts', tool: 'jscpd',
-             status: classify(declared, enforced), evidence: ['.jscpd.json'] };
-  },
-};
-
-const deadcode_python: FitnessProbe = {
-  category: 'dead-code', ecosystem: 'python',
-  run(ctx) {
-    const py = ctx.readText('pyproject.toml') ?? '';
-    const declared = /\[tool\.vulture\]/.test(py) || ctx.files('.vulture*').length > 0
-      || /select.*F401|F811/.test(py);   // ruff unused-import rules opted in
-    const enforced = ctx.ciSteps.some(s => /vulture|ruff/.test(s.run ?? ''));
-    return { category: 'dead-code', ecosystem: 'python', tool: 'vulture/ruff',
-             status: classify(declared, enforced), evidence: ['pyproject.toml'] };
-  },
-};
-
-const architecture_ts: FitnessProbe = {
-  category: 'architecture', ecosystem: 'node-ts',
-  run(ctx) {
-    const declared = ctx.files('.dependency-cruiser.{js,cjs,json}').length > 0
-      || /eslint-plugin-boundaries|import\/no-restricted-paths/.test(ctx.readText('package.json') ?? '');
-    const enforced = ctx.ciSteps.some(s => /depcruise|dependency-cruiser|eslint/.test(s.run ?? ''))
-      || /depcruise/.test(ctx.testCommand ?? '');
-    return { category: 'architecture', ecosystem: 'node-ts', tool: 'dependency-cruiser',
-             status: classify(declared, enforced), evidence: ['.dependency-cruiser.js'] };
-  },
-};
-```
-
-`detectCoverageCommand` in `ScorecardService` is already a one-category
-(`coverage`) × two-ecosystem (node/python) version of exactly this pattern — the
-work is to generalise it into the registry shape above.
-
-## Detection pipeline
-
-1. `detectEcosystems(root)` → `EcosystemId[]` (a set — polyglot repos return several).
-2. Run every probe whose `ecosystem` is in the set.
-3. Collapse per category across ecosystems: a category is `enforced` if **any**
-   ecosystem enforces it; keep per-ecosystem detail for the row's tooltip.
-
-## UI — a new section under Fitness Functions
-
-The existing metric cards stay (they show *values*). Add a **Fitness Gates**
-subsection with two groups:
-
-- **Structural** — duplicate · dead-code · complexity-gate · import-boundaries
-- **Evolutionary / Runtime** — performance · accessibility
-
-Each row: `category · tool · status chip (enforced/declared/absent) · evidence`.
+Each row: `category · status (present / stale / absent) · [Assign Alice]` when
+`absent` (or `[Wire into test command]` when `stale`). One click briefs Alice with
+the category `recipe` and the convention path.
 
 ## Open questions
 
-- One shared `duplicate` probe (jscpd is polyglot) vs per-ecosystem registration?
-- Complexity appears twice — value card **and** gate row. Keep both, labelled
-  "current" vs "gated"?
-- `absent` gates are a natural Cheshire **scaffold** target: one-click "add this
-  gate" writes the config + the blocking CI/test step. Big follow-on.
-- a11y is React-only today — gate it behind `react` ecosystem detection so it
-  doesn't show `absent` on a Go service.
+- The prescribed convention — `tests/fitness/<category>.test.*` + a marker tag? A
+  per-ecosystem idiom (`*_fitness_test.go`, `tests/fitness/test_*.py`)?
+- Thresholds: absolute (`dead-code == 0`) is brutal on legacy repos → **ratchet from
+  the current baseline** so the test locks in "no worse" and tightens over time.
+- One batched "add all missing fitness tests" task vs one issue per category.
+- Should `present` also light up the dashboard ("this characteristic is *protected*,
+  not just measured")?
