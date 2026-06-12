@@ -847,16 +847,18 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
     if (hasVitest) {
       return 'npx vitest run --coverage --coverage.reporter=json-summary --coverage.reporter=text --coverage.reportsDirectory=coverage';
     }
-    // mocha needs an external coverage tool
-    if (hasMocha && hasNyc) {
-      return 'npx nyc --report-dir=coverage --reporter=json-summary --reporter=text mocha --recursive --exit';
-    }
-    if (hasMocha && hasC8) {
-      return 'npx c8 -o coverage --reporter=json-summary --reporter=text mocha --recursive --exit';
-    }
+    // mocha needs an external coverage tool. Prefer the project's own `test`
+    // script (it knows the real spec glob and any build step — e.g. `tsc` then
+    // `dist/tests/**/*.test.js`) over a hardcoded `mocha --recursive`, which
+    // defaults to ./test and silently finds nothing when the project keeps
+    // tests under tests/ or compiles them to dist/.
     if (hasMocha) {
-      // No coverage tool installed — use c8 (zero-config V8 coverage)
-      return 'npx c8 -o coverage --reporter=json-summary --reporter=text mocha --recursive --exit';
+      const runner = allDeps['yarn'] ? 'yarn' : allDeps['pnpm'] ? 'pnpm' : 'npm';
+      const target = scripts['test'] ? `${runner} test` : 'mocha --recursive --exit';
+      const tool = hasNyc
+        ? 'npx nyc --report-dir=coverage --reporter=json-summary --reporter=text'
+        : 'npx c8 -o coverage --reporter=json-summary --reporter=text';
+      return `${tool} ${target}`;
     }
     // Standalone nyc or c8 with npm test
     if (hasNyc) {
