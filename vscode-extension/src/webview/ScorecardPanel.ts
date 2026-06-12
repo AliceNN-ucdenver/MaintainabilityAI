@@ -139,6 +139,15 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
       case 'createFeature':
         IssueCreatorPanel.createOrShow(this.context, '', undefined, this.currentRepo?.remoteUrl, undefined, this.selectedFolderPath);
         break;
+      case 'approveAgentRun':
+        await this.onApproveAgentRun(message.runId);
+        break;
+      case 'markAgentPrReady':
+        await this.onMarkAgentPrReady(message.prNumber);
+        break;
+      case 'mergeAgentPr':
+        await this.onMergeAgentPr(message.prNumber, message.issueNumber);
+        break;
       case 'checkAliceWorkflowStatus':
         await this.onCheckAliceWorkflowStatus();
         break;
@@ -439,6 +448,64 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
     } catch {
       // Best effort — don't block scorecard load
     }
+  }
+
+  // --------------------------------------------------------------------------
+  // Agent-status banner lifecycle one-clicks (mirror the BAR detail banner).
+  // Each acts via the GitHub API on the current repo, then re-detects the
+  // agent status so the banner reflects the new state without a manual refresh.
+  // --------------------------------------------------------------------------
+
+  private async onApproveAgentRun(runId: number) {
+    if (!this.currentRepo) { return; }
+    this.postMessage({ type: 'loading', active: true, message: 'Approving workflow run…' });
+    const ok = await this.githubService.approveWorkflowRun(this.currentRepo.owner, this.currentRepo.repo, runId);
+    this.postMessage({ type: 'loading', active: false });
+    if (!ok) {
+      // The extension token often lacks Actions:write, and only a maintainer
+      // can approve an `action_required` run — offer the GitHub run page.
+      const runUrl = `https://github.com/${this.currentRepo.owner}/${this.currentRepo.repo}/actions/runs/${runId}`;
+      const choice = await vscode.window.showWarningMessage(
+        `Couldn't approve run ${runId} from here (your token may lack Actions:write, or it's already running). Approve it on GitHub instead.`,
+        'Open run on GitHub',
+      );
+      if (choice === 'Open run on GitHub') {
+        await vscode.env.openExternal(vscode.Uri.parse(runUrl));
+      }
+    }
+    await this.checkForActiveIssues();
+  }
+
+  private async onMarkAgentPrReady(prNumber: number) {
+    if (!this.currentRepo) { return; }
+    this.postMessage({ type: 'loading', active: true, message: `Marking PR #${prNumber} ready…` });
+    const ok = await this.githubService.markPullRequestReadyForReview(this.currentRepo.owner, this.currentRepo.repo, prNumber);
+    this.postMessage({ type: 'loading', active: false });
+    if (!ok) {
+      this.postMessage({ type: 'error', message: `Could not mark PR #${prNumber} ready for review.` });
+    }
+    await this.checkForActiveIssues();
+  }
+
+  private async onMergeAgentPr(prNumber: number, issueNumber: number) {
+    if (!this.currentRepo) { return; }
+    this.postMessage({ type: 'loading', active: true, message: `Merging PR #${prNumber}…` });
+    const result = await this.githubService.mergePullRequest(this.currentRepo.owner, this.currentRepo.repo, prNumber);
+    this.postMessage({ type: 'loading', active: false });
+    if (!result.ok) {
+      this.postMessage({ type: 'error', message: `Merge failed for PR #${prNumber}: ${result.reason}` });
+      await this.checkForActiveIssues();
+      return;
+    }
+    // Close the dispatch issue by TRACKED number — the Copilot agent frequently
+    // omits `Closes #N` (the #224/#228 fix), so we don't rely on GitHub's
+    // auto-close. Idempotent; impl-provenance.yml is the durable merge gate.
+    if (issueNumber > 0) {
+      try {
+        await this.githubService.closeIssue(this.currentRepo.owner, this.currentRepo.repo, issueNumber);
+      } catch { /* best effort — issue may already be closed */ }
+    }
+    await this.checkForActiveIssues();
   }
 
   private async onRefresh() {

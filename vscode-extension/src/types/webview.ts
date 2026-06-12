@@ -92,6 +92,10 @@ export type ScorecardWebviewMessage =
   | { type: 'improveCoverage' }
   | { type: 'improveDeps' }
   | { type: 'createFeature' }
+  // Agent-status banner lifecycle one-clicks (mirrors the BAR detail banner).
+  | { type: 'approveAgentRun'; runId: number }
+  | { type: 'markAgentPrReady'; prNumber: number }
+  | { type: 'mergeAgentPr'; prNumber: number; issueNumber: number }
   | { type: 'checkAliceWorkflowStatus' }
   | { type: 'deployAliceWorkflow' }
   | { type: 'listModels' }

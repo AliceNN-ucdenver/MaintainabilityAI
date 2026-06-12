@@ -153,7 +153,7 @@ function render() {
       </div>
     </div>
 
-    ${renderAgentStatus(state.agentStatus)}
+    ${renderAgentStatus(state.agentStatus, { lifecycleActions: true })}
     ${renderSyncBanner()}
     ${renderCreateFeatureBanner()}
     ${renderPmatBanner(d)}
@@ -173,7 +173,21 @@ function render() {
   attachCreateFeature();
   attachSyncBanner();
   attachFolderSelect();
-  attachAgentStatusListeners((msg) => vscode.postMessage(msg));
+  attachAgentStatusListeners(
+    (msg) => vscode.postMessage(msg),
+    // Lifecycle one-clicks (approve-run / mark-pr-ready / merge-pr) — post to
+    // the panel, which acts via the GitHub API on the current repo and
+    // re-detects the agent status so the banner updates without a refresh.
+    (action, data) => {
+      if (action === 'approve-run' && data.runId) {
+        vscode.postMessage({ type: 'approveAgentRun', runId: Number(data.runId) });
+      } else if (action === 'mark-pr-ready' && data.prNumber) {
+        vscode.postMessage({ type: 'markAgentPrReady', prNumber: Number(data.prNumber) });
+      } else if (action === 'merge-pr' && data.prNumber) {
+        vscode.postMessage({ type: 'mergeAgentPr', prNumber: Number(data.prNumber), issueNumber: Number(data.issueNumber ?? 0) });
+      }
+    },
+  );
   attachSettingsGear();
 }
 
