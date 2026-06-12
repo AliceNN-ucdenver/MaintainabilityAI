@@ -87,6 +87,8 @@ const state = {
   issuesLoaded: false,
   issueFilter: 'open' as 'open' | 'all',
   issuesCollapsed: false,
+  // SDLC Completeness — collapsed by default so the 12 rows don't crowd the page.
+  sdlcCollapsed: true,
   assigningIssue: null as number | null,
   // Restricted-tier break-glass grants (.redqueen/approvals.json)
   breakGlassGrants: [] as BreakGlassGrant[],
@@ -1052,15 +1054,26 @@ function renderSdlcCompleteness(items: SdlcCompletenessItem[]): string {
   const pct = Math.round((present / items.length) * 100);
   const allPresent = present === items.length;
 
-  return `
-    <div class="section-header">SDLC Completeness</div>
-    <div class="sdlc-list">
-      <div class="sdlc-progress">
-        <div class="sdlc-bar">
-          <div class="sdlc-fill" style="width: ${pct}%;"></div>
-        </div>
+  const collapsed = state.sdlcCollapsed;
+  const chevron = collapsed ? '›' : '˅';
+
+  const header = `
+    <div class="section-header" style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+      <button class="mi-collapse" id="sdlc-collapse" title="${collapsed ? 'Expand' : 'Collapse'}">${chevron}</button>
+      <span>SDLC Completeness</span>
+      <div class="sdlc-progress" style="flex: 1; margin: 0;">
+        <div class="sdlc-bar"><div class="sdlc-fill" style="width: ${pct}%;"></div></div>
         <span class="sdlc-pct">${present}/${items.length} (${pct}%)</span>
       </div>
+    </div>`;
+
+  if (collapsed) {
+    return header;
+  }
+
+  return `
+    ${header}
+    <div class="sdlc-list">
       ${items.map(i => `
         <div class="sdlc-row">
           <span class="sdlc-check">${i.present ? '&#x2705;' : '&#x274C;'}</span>
@@ -1294,6 +1307,11 @@ function attachPmatInstall() {
 function attachActions() {
   document.getElementById('btn-scaffold')?.addEventListener('click', () => {
     vscode.postMessage({ type: 'openScaffold' });
+  });
+
+  document.getElementById('sdlc-collapse')?.addEventListener('click', () => {
+    state.sdlcCollapsed = !state.sdlcCollapsed;
+    render();
   });
 
   document.getElementById('btn-open-repo')?.addEventListener('click', () => {
