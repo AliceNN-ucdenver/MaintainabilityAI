@@ -19,6 +19,7 @@ import {
 } from '../templates/codeRepoTemplates';
 import { promptPackService } from '../services/PromptPackService';
 import { readRepoMetadata } from '../services/RepoMetadata';
+import { FITNESS_TOOLS, FITNESS_CATEGORY_IDS } from '../services/fitnessTools';
 import { MeshService } from '../services/MeshService';
 import { findBarForRepoUrl } from '../utils/governanceBridge';
 import { MeshReader } from '../core/mesh-reader';
@@ -233,7 +234,7 @@ export class ScaffoldPanel extends BasePanel<Record<string, unknown>, Record<str
         const config = msg.config as {
           folder: string;
           files: string[];
-          stackConfig: { language: string; testing: string; packageManager: string };
+          stackConfig: { language: string; testing: string; packageManager: string; fitness?: Record<string, string> };
           createRepo: boolean;
           repoName: string;
           repoDescription: string;
@@ -255,6 +256,7 @@ export class ScaffoldPanel extends BasePanel<Record<string, unknown>, Record<str
         moduleSystem: metadata.module_system || '',
         testing: metadata.testing || '',
         packageManager: metadata.package_manager || '',
+        fitness: metadata.fitness || undefined,
         source: 'metadata',
       });
       return;
@@ -332,7 +334,7 @@ export class ScaffoldPanel extends BasePanel<Record<string, unknown>, Record<str
   private async runScaffold(config: {
     folder: string;
     files: string[];
-    stackConfig: { language: string; testing: string; packageManager: string };
+    stackConfig: { language: string; testing: string; packageManager: string; fitness?: Record<string, string> };
     createRepo: boolean;
     repoName: string;
     repoDescription: string;
@@ -384,8 +386,9 @@ export class ScaffoldPanel extends BasePanel<Record<string, unknown>, Record<str
       filesToCreate.push({ relativePath: '.github/copilot-setup-steps.yml', content: generateCopilotSetupSteps(stack, this.context.extensionPath) });
     }
 
-    // Always write repo-metadata.yml
-    filesToCreate.push({ relativePath: '.github/repo-metadata.yml', content: generateRepoMetadata(stack) });
+    // Always write repo-metadata.yml — including the fitness-tool selections
+    // (or the curated defaults for the language when none were changed).
+    filesToCreate.push({ relativePath: '.github/repo-metadata.yml', content: generateRepoMetadata(stack, undefined, config.stackConfig.fitness) });
 
     this.postMessage({ type: 'step', id: 'generate', status: 'done', message: `${filesToCreate.length} files ready` });
 
@@ -939,6 +942,10 @@ export class ScaffoldPanel extends BasePanel<Record<string, unknown>, Record<str
         <option value="pip">pip</option>
       </select>
     </div>
+    <div class="field" id="fitnessField" style="grid-column: 1 / -1;">
+      <label>Fitness Tools <span style="color: var(--muted); font-weight: normal; font-size: 11px;">— written to repo-metadata; Alice uses these when she writes fitness tests</span></label>
+      <div id="fitnessTable"></div>
+    </div>
   </div>
 </div>
 
@@ -1044,6 +1051,45 @@ let selectedFolder = '';
 let repoUrl = '';
 let isComponentMode = false;
 
+// Fitness-tool selector — curated tool per (category × language), written to
+// repo-metadata.yml and read back by the fitness-test recipe.
+const FITNESS_TOOLS = ${JSON.stringify(FITNESS_TOOLS)};
+const FITNESS_CATEGORY_IDS = ${JSON.stringify(FITNESS_CATEGORY_IDS)};
+function fitnessBaseLang(v) {
+  if (v.indexOf('TypeScript') >= 0) { return 'TypeScript'; }
+  if (v.indexOf('JavaScript') >= 0) { return 'JavaScript'; }
+  if (['Python', 'Go', 'Rust', 'Java'].indexOf(v) >= 0) { return v; }
+  return 'TypeScript';
+}
+function renderFitnessTable() {
+  const host = document.getElementById('fitnessTable');
+  if (!host) { return; }
+  const lang = fitnessBaseLang(document.getElementById('langSelect').value);
+  let html = '';
+  FITNESS_CATEGORY_IDS.forEach(function (cat) {
+    const cell = (FITNESS_TOOLS[cat] || {})[lang];
+    if (!cell) { return; }
+    const opts = cell.options.map(function (o) {
+      return '<option value="' + o + '"' + (o === cell['default'] ? ' selected' : '') + '>' + o + '</option>';
+    }).join('');
+    const note = cell.note ? ' <span style="color:var(--muted);font-size:11px;">(' + cell.note + ')</span>' : '';
+    html += '<div style="display:flex;align-items:center;gap:8px;margin:3px 0;">'
+      + '<span style="width:130px;font-size:12px;text-transform:capitalize;">' + cat.replace('-', ' ') + '</span>'
+      + '<select id="fit-' + cat + '">' + opts + '</select>' + note + '</div>';
+  });
+  host.innerHTML = html || '<span style="color:var(--muted);font-size:12px;">No fitness tools mapped for this language yet.</span>';
+}
+function collectFitness() {
+  const f = {};
+  FITNESS_CATEGORY_IDS.forEach(function (cat) {
+    const s = document.getElementById('fit-' + cat);
+    if (s) { f[cat] = s.value; }
+  });
+  return f;
+}
+document.getElementById('langSelect').addEventListener('change', renderFitnessTable);
+renderFitnessTable();
+
 // Render file checkboxes
 const fileGrid = document.getElementById('fileGrid');
 FILES.forEach(f => {
@@ -1138,6 +1184,7 @@ document.getElementById('runBtn').addEventListener('click', () => {
         language: document.getElementById('langSelect').value,
         testing: document.getElementById('testSelect').value,
         packageManager: document.getElementById('pmSelect').value,
+        fitness: collectFitness(),
       },
       createRepo: createRepo,
       repoName: document.getElementById('repoName').value,
@@ -1269,6 +1316,14 @@ window.addEventListener('message', (event) => {
         else if (lang === 'JavaScript' && mod === 'ESM') { langVal = 'JavaScript (ESM)'; }
         else if (lang === 'JavaScript') { langVal = 'JavaScript (CommonJS)'; }
         if (langVal) { langEl.value = langVal; }
+      }
+      renderFitnessTable();
+      // Re-apply any saved tool choices from repo-metadata over the defaults.
+      if (msg.fitness) {
+        Object.keys(msg.fitness).forEach(function (cat) {
+          const s = document.getElementById('fit-' + cat);
+          if (s) { s.value = msg.fitness[cat]; }
+        });
       }
 
       if (msg.testing) {
