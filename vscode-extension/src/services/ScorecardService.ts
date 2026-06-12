@@ -21,7 +21,10 @@ const SDLC_FILES = [
   { label: 'PR Template', path: '.github/PULL_REQUEST_TEMPLATE.md' },
   { label: 'Security Policy', path: '.github/SECURITY.md' },
   { label: 'Repo Metadata', path: '.github/repo-metadata.yml' },
-  { label: 'Prompt Packs', path: 'prompts/owasp' },
+  // Code repos carry packs under .cheshire/prompts/ (Cheshire side); the mesh
+  // side uses .caterpillar/prompts/. The old top-level prompts/owasp path was
+  // never deployed to scaffolded repos, so this always reported "missing".
+  { label: 'Prompt Packs', path: '.cheshire/prompts' },
   // Red Queen governance files
   { label: 'Red Queen Policy', path: '.redqueen/policy.json' },
   { label: 'Red Queen Decision', path: '.redqueen/decision.json' },

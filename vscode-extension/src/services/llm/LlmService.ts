@@ -33,6 +33,7 @@ Generate a structured prompt with these 5 sections:
 - Include test files in the output section
 - Be specific: don't say "add validation" — specify the exact Zod schema or regex pattern
 - CRITICAL: Do NOT invent quantitative metrics. Never state a letter grade, score (e.g. "C+, 68/100"), percentage (e.g. "12.4% duplication"), nesting depth, line/block count, or defect/duplicate count unless that exact figure is present in the provided Repository Context or Tech Stack. When the context lacks a measured number, describe the structure qualitatively ("large inline-script blocks", "deeply nested shell logic", "repeated checkout/setup steps") instead of fabricating a precise value.
+- Scope work to application code and tests. Do NOT make changes to CI/CD or workflow files (anything under \`.github/workflows/\`) a Requirement, and do not list them in Output, unless the user's description explicitly asks to modify CI. If a CI gate (fitness function, coverage gate, dependency-freshness check) would help, mention it briefly as a follow-up suggestion in the Task — never as a deliverable the agent must implement.
 - Generate valid JSON matching the RctroPrompt interface
 
 ## Reference Prompt Packs
