@@ -3,10 +3,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { requireTool } from '../services/PrerequisiteChecker';
 import {
-  generateClaudeMd,
   generatePrTemplate,
   generateSecurityPolicy,
-  generateAliceRemediationWorkflow,
+  generateMaintenanceAgent,
   generateCodeqlWorkflow,
   generateFitnessFunctionsWorkflow,
   generateCiWorkflow,
@@ -17,6 +16,7 @@ import {
   generateProcessCodeqlResults,
   generateRepoMetadata,
   generateCopilotSetupSteps,
+  pruneDeprecatedCodeFiles,
 } from '../templates/codeRepoTemplates';
 import { promptPackService } from '../services/PromptPackService';
 import { readRepoMetadata } from '../services/RepoMetadata';
@@ -355,11 +355,8 @@ export class ScaffoldPanel extends BasePanel<Record<string, unknown>, Record<str
     const selectedIds = new Set(config.files);
     const filesToCreate: Array<{ relativePath: string; content: string }> = [];
 
-    if (selectedIds.has('claude-md')) {
-      filesToCreate.push({ relativePath: 'CLAUDE.md', content: generateClaudeMd(stack) });
-    }
-    if (selectedIds.has('alice-remediation')) {
-      filesToCreate.push({ relativePath: '.github/workflows/alice-remediation.yml', content: generateAliceRemediationWorkflow(this.context.extensionPath) });
+    if (selectedIds.has('maintenance-agent')) {
+      filesToCreate.push({ relativePath: '.github/agents/alice-maintenance-agent.agent.md', content: generateMaintenanceAgent(this.context.extensionPath) });
     }
     if (selectedIds.has('codeql')) {
       filesToCreate.push({ relativePath: '.github/workflows/codeql.yml', content: generateCodeqlWorkflow(this.context.extensionPath) });
@@ -414,6 +411,16 @@ export class ScaffoldPanel extends BasePanel<Record<string, unknown>, Record<str
     }
 
     this.postMessage({ type: 'step', id: 'write', status: 'done', message: `${created} files written` });
+
+    // Step 3a: prune Cheshire v2-deprecated files so already-scaffolded repos
+    // converge — drops CLAUDE.md + alice-remediation.yml (replaced by the Alice
+    // persona) and the retired MCP layer (.mcp.json, mcp-runner.js,
+    // copilot-governance-steps.yml). Best-effort; the subsequent git add -A
+    // stages the deletions for the scaffold commit.
+    const pruned = pruneDeprecatedCodeFiles(workspaceRoot);
+    if (pruned.length > 0) {
+      this.postMessage({ type: 'step', id: 'write', status: 'done', message: `${created} files written · pruned ${pruned.length} deprecated` });
+    }
 
     // Step 3b: Governance files from Red Queen
     if (selectedIds.has('governance')) {
@@ -1064,8 +1071,7 @@ export class ScaffoldPanel extends BasePanel<Record<string, unknown>, Record<str
 const vscode = acquireVsCodeApi();
 
 const FILES = [
-  { id: 'claude-md', label: 'CLAUDE.md', desc: 'Claude Code agent instructions', checked: true },
-  { id: 'alice-remediation', label: 'Alice Remediation', desc: '.github/workflows/alice-remediation.yml', checked: true },
+  { id: 'maintenance-agent', label: 'Alice (Maintenance Agent)', desc: '.github/agents/alice-maintenance-agent.agent.md — Custom Copilot persona that takes on maintenance issues (CodeQL, coverage, complexity, tech-debt)', checked: true },
   { id: 'codeql', label: 'CodeQL Workflow', desc: '.github/workflows/codeql.yml', checked: true },
   { id: 'codeql-to-issues', label: 'CodeQL → Issues', desc: 'Workflow + automation scripts to create issues from CodeQL findings', checked: true },
   { id: 'ci-workflow', label: 'CI Workflow', desc: '.github/workflows/ci.yml — Build, test, and failure-to-issue reporting', checked: true },

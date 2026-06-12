@@ -1,17 +1,19 @@
 /**
- * Agent configuration scaffolding for the Red Queen MCP server.
+ * Agent configuration scaffolding for The Red Queen's deterministic governance.
  *
- * Generates .mcp.json, .claude/settings.json, AGENTS.md, and related
- * config files for code repos. The governance mesh is the single source
- * of truth — templates live in .redqueen/ within the mesh, and this
- * module interpolates BAR-specific context (scores, tier, constraints).
+ * Generates the baked policy + enforcement files for governed code repos:
+ * .redqueen/policy.json + decision.json (the tier + rules compiled FROM the
+ * mesh at scaffold time), .claude/settings.json + .github/hooks/redqueen.json
+ * (the PreToolUse hooks), .redqueen/hooks/validate-tool.{sh,js} (the enforcer),
+ * impl-provenance.yml (the merge-time chain proof), and AGENTS.md. The mesh is
+ * the source of truth at SCAFFOLD time; at runtime the repo is self-contained —
+ * no MCP server, no live mesh, no token.
  *
- * Update the mesh templates once → re-scaffold to all repos.
+ * Update the mesh → re-scaffold to re-bake the policy into all repos.
  */
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
-import { execFileSync } from 'child_process';
 import { MeshReader } from '../core/mesh-reader';
 import { generateStaticPolicy } from './policy-engine';
 import type { BarSummary, GovernanceTier } from '../types';
@@ -77,140 +79,6 @@ export { computeTier };
 // ============================================================================
 // File generators
 // ============================================================================
-
-function generateMcpJson(meshPath: string, customTemplate?: string): string {
-  // If the mesh has a custom template, use it
-  if (customTemplate) {
-    return customTemplate.replace(/\{\{MESH_PATH\}\}/g, meshPath);
-  }
-
-  // Default template — committed repos launch a local runner. The runner
-  // resolves the live mesh from env, CI checkout, or manifest defaults before
-  // starting the npm MCP package. This keeps config portable without copying
-  // the governance mesh into every code repo.
-  return JSON.stringify({
-    mcpServers: {
-      redqueen: {
-        command: 'node',
-        args: ['.redqueen/mcp-runner.js'],
-      },
-    },
-  }, null, 2) + '\n';
-}
-
-function generateMcpRunnerJs(): string {
-  return `#!/usr/bin/env node
-/**
- * The Red Queen MCP Runner
- *
- * Repo-local launcher for the live governance mesh. The code repo keeps a
- * self-contained governance harness; the governance mesh remains the source of
- * truth and is resolved locally at runtime.
- */
-'use strict';
-
-const fs = require('fs');
-const path = require('path');
-const { spawn } = require('child_process');
-
-const repoRoot = path.resolve(__dirname, '..');
-const manifestPath = path.join(repoRoot, '.redqueen', 'config-manifest.yaml');
-const envKeys = ['RED_QUEEN_MESH_PATH', 'GOVERNANCE_MESH_PATH', 'MESH_PATH'];
-
-function readManifestValue(key) {
-  if (!fs.existsSync(manifestPath)) { return null; }
-  const prefix = key + ':';
-  const lines = fs.readFileSync(manifestPath, 'utf8').split(/\\r?\\n/);
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (trimmed.startsWith(prefix)) {
-      return trimmed.slice(prefix.length).trim().replace(/^["']|["']$/g, '');
-    }
-  }
-  return null;
-}
-
-function resolvePath(value) {
-  if (!value) { return null; }
-  const cleaned = String(value).trim().replace(/^["']|["']$/g, '');
-  if (!cleaned) { return null; }
-  return path.isAbsolute(cleaned) ? cleaned : path.resolve(repoRoot, cleaned);
-}
-
-function isGovernanceMesh(candidate) {
-  return Boolean(candidate && fs.existsSync(path.join(candidate, 'mesh.yaml')));
-}
-
-function addCandidate(candidates, source, value) {
-  const resolved = resolvePath(value);
-  if (resolved) {
-    candidates.push({ source, path: resolved });
-  }
-}
-
-function resolveMeshPath() {
-  const candidates = [];
-  for (const key of envKeys) {
-    addCandidate(candidates, key, process.env[key]);
-  }
-
-  addCandidate(candidates, 'repo checkout', '${DEFAULT_MESH_CHECKOUT_PATH}');
-  addCandidate(
-    candidates,
-    'manifest',
-    readManifestValue('mesh_checkout_path') || readManifestValue('mesh_path')
-  );
-
-  const seen = new Set();
-  const checked = [];
-  for (const candidate of candidates) {
-    if (seen.has(candidate.path)) { continue; }
-    seen.add(candidate.path);
-    checked.push(candidate);
-    if (isGovernanceMesh(candidate.path)) {
-      return { resolved: candidate, checked };
-    }
-  }
-
-  return { resolved: null, checked };
-}
-
-const result = resolveMeshPath();
-if (!result.resolved) {
-  process.stderr.write('[Red Queen] Unable to resolve governance mesh.\\n');
-  process.stderr.write('[Red Queen] Tried:\\n');
-  for (const candidate of result.checked) {
-    process.stderr.write('  - ' + candidate.source + ': ' + candidate.path + '\\n');
-  }
-  process.stderr.write('[Red Queen] Set RED_QUEEN_MESH_PATH or checkout the mesh to ./governance-mesh.\\n');
-  process.exit(1);
-}
-
-const command = process.platform === 'win32' ? 'npx.cmd' : 'npx';
-const args = [
-  '-y',
-  '@maintainabilityai/redqueen-mcp',
-  '--mesh-path',
-  result.resolved.path,
-  ...process.argv.slice(2),
-];
-
-const child = spawn(command, args, {
-  cwd: repoRoot,
-  stdio: 'inherit',
-  env: { ...process.env, RED_QUEEN_MESH_PATH: result.resolved.path },
-});
-
-child.on('error', (err) => {
-  process.stderr.write('[Red Queen] Failed to start MCP server: ' + err.message + '\\n');
-  process.exit(1);
-});
-
-child.on('exit', (code) => {
-  process.exit(code === null ? 1 : code);
-});
-`;
-}
 
 function generateClaudeSettings(tier: GovernanceTier): string {
   const matchers: Record<GovernanceTier, string> = {
@@ -863,7 +731,6 @@ export function writeScaffoldFiles(outputDir: string, files: Record<string, stri
     if (!fs.existsSync(dir)) { fs.mkdirSync(dir, { recursive: true }); }
     fs.writeFileSync(fullPath, content, 'utf8');
     if (
-      filePath === '.redqueen/mcp-runner.js' ||
       filePath === '.redqueen/hooks/validate-tool.sh' ||
       filePath === '.redqueen/hooks/validate-tool.js'
     ) {
@@ -874,55 +741,6 @@ export function writeScaffoldFiles(outputDir: string, files: Record<string, stri
   return written;
 }
 
-function readManifestValue(manifest: string, key: string): string | undefined {
-  const prefix = `${key}:`;
-  for (const line of manifest.split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (trimmed.startsWith(prefix)) {
-      return trimmed.slice(prefix.length).trim().replace(/^["']|["']$/g, '');
-    }
-  }
-  return undefined;
-}
-
-function resolveRepoRelativePath(repoPath: string, value: string | undefined): string | undefined {
-  if (!value) { return undefined; }
-  const cleaned = value.trim().replace(/^["']|["']$/g, '');
-  if (!cleaned) { return undefined; }
-  return path.isAbsolute(cleaned) ? cleaned : path.resolve(repoPath, cleaned);
-}
-
-function resolveScaffoldMeshPath(repoPath: string): { path?: string; source?: string; checked: Array<{ source: string; path: string }> } {
-  const candidates: Array<{ source: string; value?: string }> = [
-    { source: 'RED_QUEEN_MESH_PATH', value: process.env.RED_QUEEN_MESH_PATH },
-    { source: 'GOVERNANCE_MESH_PATH', value: process.env.GOVERNANCE_MESH_PATH },
-    { source: 'MESH_PATH', value: process.env.MESH_PATH },
-    { source: 'repo checkout', value: DEFAULT_MESH_CHECKOUT_PATH },
-  ];
-
-  const manifestPath = path.join(repoPath, '.redqueen/config-manifest.yaml');
-  if (fs.existsSync(manifestPath)) {
-    const manifest = fs.readFileSync(manifestPath, 'utf8');
-    candidates.push({
-      source: 'manifest',
-      value: readManifestValue(manifest, 'mesh_checkout_path') || readManifestValue(manifest, 'mesh_path'),
-    });
-  }
-
-  const checked: Array<{ source: string; path: string }> = [];
-  const seen = new Set<string>();
-  for (const candidate of candidates) {
-    const resolved = resolveRepoRelativePath(repoPath, candidate.value);
-    if (!resolved || seen.has(resolved)) { continue; }
-    seen.add(resolved);
-    checked.push({ source: candidate.source, path: resolved });
-    if (fs.existsSync(path.join(resolved, 'mesh.yaml'))) {
-      return { path: resolved, source: candidate.source, checked };
-    }
-  }
-
-  return { checked };
-}
 
 export function validateScaffoldedRepo(repoPath: string): ScaffoldDoctorResult {
   const errors: ScaffoldDoctorIssue[] = [];
@@ -955,12 +773,10 @@ export function validateScaffoldedRepo(repoPath: string): ScaffoldDoctorResult {
   }
 
   const requiredFiles = [
-    '.mcp.json',
     '.claude/settings.json',
     'AGENTS.md',
     '.redqueen/decision.json',
     '.redqueen/policy.json',
-    '.redqueen/mcp-runner.js',
     '.redqueen/hooks/validate-tool.js',
     '.redqueen/hooks/validate-tool.sh',
     '.github/hooks/redqueen.json',
@@ -979,36 +795,6 @@ export function validateScaffoldedRepo(repoPath: string): ScaffoldDoctorResult {
     if ((mode & 0o111) === 0) {
       add('error', 'Hook wrapper is not executable. Run chmod +x or resync governance files.', '.redqueen/hooks/validate-tool.sh');
     }
-  }
-
-  const runnerPath = path.join(repoPath, '.redqueen/mcp-runner.js');
-  if (fs.existsSync(runnerPath)) {
-    const runner = fs.readFileSync(runnerPath, 'utf8');
-    if (!runner.includes('@maintainabilityai/redqueen-mcp') || !runner.includes('RED_QUEEN_MESH_PATH')) {
-      add('error', 'MCP runner must launch @maintainabilityai/redqueen-mcp and resolve RED_QUEEN_MESH_PATH.', '.redqueen/mcp-runner.js');
-    }
-  }
-
-  const mcp = readJson('.mcp.json') as {
-    mcpServers?: { redqueen?: { command?: string; args?: string[]; env?: Record<string, string> } };
-  } | null;
-  const redqueen = mcp?.mcpServers?.redqueen;
-  if (redqueen) {
-    const args = redqueen.args || [];
-    const usesRunner = redqueen.command === 'node' && args.includes('.redqueen/mcp-runner.js');
-    if (!usesRunner) {
-      add('error', 'MCP config must launch the repo-local .redqueen/mcp-runner.js.', '.mcp.json');
-    }
-  }
-
-  const meshResolution = resolveScaffoldMeshPath(repoPath);
-  if (!meshResolution.path) {
-    const tried = meshResolution.checked.map(c => `${c.source}: ${c.path}`).join('; ');
-    add(
-      'error',
-      `Unable to resolve governance mesh for MCP runner. Set RED_QUEEN_MESH_PATH or checkout the mesh to ${DEFAULT_MESH_CHECKOUT_PATH}. Tried: ${tried || 'no paths'}.`,
-      '.redqueen/mcp-runner.js',
-    );
   }
 
   const claude = readJson('.claude/settings.json') as {
@@ -1060,10 +846,7 @@ export function validateScaffoldedRepo(repoPath: string): ScaffoldDoctorResult {
 
   if (exists('.redqueen/config-manifest.yaml')) {
     const manifest = fs.readFileSync(path.join(repoPath, '.redqueen/config-manifest.yaml'), 'utf8');
-    if (!readManifestValue(manifest, 'mesh_checkout_path')) {
-      add('warning', 'Config manifest does not declare mesh_checkout_path for portable MCP resolution.', '.redqueen/config-manifest.yaml');
-    }
-    for (const relativePath of ['.mcp.json', '.redqueen/mcp-runner.js', '.claude/settings.json', '.github/hooks/redqueen.json']) {
+    for (const relativePath of ['.claude/settings.json', '.github/hooks/redqueen.json', '.redqueen/policy.json']) {
       if (!manifest.includes(`path: "${relativePath}"`)) {
         add('warning', `Config manifest does not fingerprint ${relativePath}.`, '.redqueen/config-manifest.yaml');
       }
@@ -1077,25 +860,6 @@ export function validateScaffoldedRepo(repoPath: string): ScaffoldDoctorResult {
     errors,
     warnings,
   };
-}
-
-function generateCopilotSetupStepsGovernance(meshRepo: string): string {
-  return `# Red Queen governance setup steps for Copilot coding agent
-# Add these steps to your .github/copilot-setup-steps.yml
-
-steps:
-  - name: Checkout governance mesh
-    uses: actions/checkout@v4
-    with:
-      repository: ${meshRepo}
-      path: governance-mesh
-      token: \${{ secrets.COPILOT_MCP_MESH_TOKEN }}
-
-  - name: Start Red Queen MCP Server
-    run: |
-      node .redqueen/mcp-runner.js &
-      sleep 2
-`;
 }
 
 // ============================================================================
@@ -1567,19 +1331,22 @@ export function scaffoldAgentConfig(
     tier = computeTier(bar);
   }
 
-  const meshPath = reader.path;
   const files: Record<string, string> = {};
   // Non-fatal warnings surfaced to the caller (e.g. the greenfield
   // code-design seed could not be grounded from the mesh).
   const warnings: string[] = [];
 
-  // Check for custom templates in .redqueen/ within the mesh
-  const customMcpTemplate = reader.readMeshFile('.redqueen/mcp-config.template.json');
+  // NOTE: the MCP "live mesh tools" layer (.mcp.json + .redqueen/mcp-runner.js
+  // + .github/copilot-governance-steps.yml) has been RETIRED. It launched the
+  // @maintainabilityai/redqueen-mcp server against a runtime-resolved mesh, but
+  // governed code repos never resolve the mesh locally and nothing wired the
+  // COPILOT_MCP_MESH_TOKEN it needed. Governance is now fully deterministic:
+  // the baked .redqueen/policy.json + PreToolUse hook enforce at the tool-call
+  // boundary, and impl-provenance.yml proves the chain at merge — no runtime
+  // mesh, MCP server, or token. (Deferred to a future enhancement; see
+  // design/cheshire-cat-maintenance-agent.md "Retire the MCP layer".)
 
   // Generate files — use policy-driven generators when available
-  files['.mcp.json'] = generateMcpJson(meshPath, customMcpTemplate || undefined);
-  files['.redqueen/mcp-runner.js'] = generateMcpRunnerJs();
-
   if (decision && redQueen) {
     const policy = redQueen.loadPolicy(reader);
     files['.claude/settings.json'] = redQueen.generateSettings(decision);
@@ -1661,27 +1428,9 @@ export function scaffoldAgentConfig(
   // design and the delivery path is symmetric. buildCodeDesignSeed remains
   // exported as the shared builder the fan-out calls.
 
-  // Read mesh portfolio config for the org/repo reference
-  const portfolio = reader.readPortfolioConfig();
-  if (portfolio) {
-    // Resolve mesh repo: explicit repo field → detect from git remote → fallback to org/governance-mesh
-    let meshRepo = `${portfolio.org}/governance-mesh`;
-    if (portfolio.repo) {
-      // If repo field contains a slash, use as-is; otherwise prepend org
-      meshRepo = portfolio.repo.includes('/') ? portfolio.repo : `${portfolio.org}/${portfolio.repo}`;
-    } else {
-      // Try to detect from git remote — only if meshPath is a standalone git repo
-      if (fs.existsSync(path.join(meshPath, '.git'))) {
-        try {
-          const remoteUrl = execFileSync('git', ['remote', 'get-url', 'origin'], { cwd: meshPath, encoding: 'utf8' }).toString().trim();
-          const parsed = remoteUrl.match(/github\.com[:/]([^/]+\/[^/.]+)/);
-          if (parsed) { meshRepo = parsed[1]; }
-        } catch { /* git not available or no remote */ }
-      }
-    }
-    files['.github/copilot-governance-steps.yml'] = generateCopilotSetupStepsGovernance(meshRepo);
-
-  }
+  // (The mesh-repo resolution + .github/copilot-governance-steps.yml emission
+  // were removed with the MCP layer — that snippet existed only to checkout the
+  // mesh and launch the MCP runner in CI.)
 
   // Generate config manifest with SHA-256 fingerprints
   const manifest: ConfigManifest = {

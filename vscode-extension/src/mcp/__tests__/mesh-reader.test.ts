@@ -273,28 +273,24 @@ describe('Config Scaffold', () => {
       expect(result.barId).toBe('APP-TEST-001');
 
       // Check all expected files are generated
-      expect(result.files['.mcp.json']).toBeDefined();
-      expect(result.files['.redqueen/mcp-runner.js']).toBeDefined();
       expect(result.files['.claude/settings.json']).toBeDefined();
       expect(result.files['AGENTS.md']).toBeDefined();
       expect(result.files['.redqueen/hooks/validate-tool.js']).toBeDefined();
+      expect(result.files['.github/hooks/redqueen.json']).toBeDefined();
       expect(result.files['.redqueen/policy.json']).toBeDefined();
       expect(result.files['.redqueen/config-manifest.yaml']).toBeDefined();
     });
 
-    it('.mcp.json contains redqueen server config', () => {
+    it('does NOT scaffold the retired MCP "live mesh tools" layer', () => {
+      // Cheshire v2: the MCP server config + runner + the manual-merge
+      // governance-steps snippet are retired in favor of the baked
+      // deterministic policy. They must no longer be emitted.
       const result = scaffoldAgentConfig(reader, 'Test Bar Good');
       if ('error' in result) { return; }
 
-      const mcpJson = JSON.parse(result.files['.mcp.json']);
-      expect(mcpJson.mcpServers.redqueen).toBeDefined();
-      expect(mcpJson.mcpServers.redqueen.command).toBe('node');
-      expect(mcpJson.mcpServers.redqueen.args).toEqual(['.redqueen/mcp-runner.js']);
-
-      const runner = result.files['.redqueen/mcp-runner.js'];
-      expect(runner).toContain('RED_QUEEN_MESH_PATH');
-      expect(runner).toContain('./governance-mesh');
-      expect(runner).toContain('@maintainabilityai/redqueen-mcp');
+      expect(result.files['.mcp.json']).toBeUndefined();
+      expect(result.files['.redqueen/mcp-runner.js']).toBeUndefined();
+      expect(result.files['.github/copilot-governance-steps.yml']).toBeUndefined();
     });
 
     it('AGENTS.md reflects governance tier', () => {
@@ -330,13 +326,13 @@ describe('Config Scaffold', () => {
       expect('error' in result).toBe(true);
     });
 
-    it('copilot governance steps use org from mesh.yaml', () => {
+    it('no longer emits the copilot-governance-steps MCP snippet', () => {
+      // Retired with the MCP layer — it checked out the mesh + launched the
+      // MCP runner in CI (the only COPILOT_MCP_MESH_TOKEN consumer).
       const result = scaffoldAgentConfig(reader, 'Test Bar Good');
       if ('error' in result) { return; }
 
-      const copilotSteps = result.files['.github/copilot-governance-steps.yml'];
-      expect(copilotSteps).toContain('test-org/governance-mesh');
-      expect(copilotSteps).toContain('node .redqueen/mcp-runner.js');
+      expect(result.files['.github/copilot-governance-steps.yml']).toBeUndefined();
     });
 
     it('generates policy.json with static rules', () => {
@@ -446,8 +442,6 @@ describe('Config Scaffold', () => {
 
         const wrapperMode = fs.statSync(path.join(tmpDir, '.redqueen/hooks/validate-tool.sh')).mode;
         expect(wrapperMode & 0o111).not.toBe(0);
-        const runnerMode = fs.statSync(path.join(tmpDir, '.redqueen/mcp-runner.js')).mode;
-        expect(runnerMode & 0o111).not.toBe(0);
 
         const doctor = validateScaffoldedRepo(tmpDir);
         expect(doctor.ok).toBe(true);

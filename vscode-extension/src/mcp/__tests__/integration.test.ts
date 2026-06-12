@@ -393,7 +393,9 @@ describe('Red Queen MCP Server Integration', () => {
       expect(['autonomous', 'supervised', 'restricted']).toContain(data.tier);
       expect(data.barId).toBe('APP-TEST-001');
       expect(data.fileCount).toBeGreaterThanOrEqual(5);
-      expect(data.files.some((f: { path: string }) => f.path === '.mcp.json')).toBe(true);
+      // MCP "live mesh tools" layer retired (Cheshire v2) — no .mcp.json.
+      expect(data.files.some((f: { path: string }) => f.path === '.mcp.json')).toBe(false);
+      expect(data.files.some((f: { path: string }) => f.path === '.github/hooks/redqueen.json')).toBe(true);
       expect(data.files.some((f: { path: string }) => f.path === 'AGENTS.md')).toBe(true);
       expect(data.files.some((f: { path: string }) => f.path === '.redqueen/policy.json')).toBe(true);
       expect(data.manifest.tier).toBe(data.tier); // manifest tier matches decision tier
