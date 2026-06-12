@@ -947,35 +947,49 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
     const behind = outdated.filter(d => d.kind === 'behind');
     const dormant = outdated.filter(d => d.kind === 'dormant');
 
-    // Only "behind" packages are actionable — a newer version exists. "Dormant"
-    // packages are already on the latest release (just an old one), so an
-    // upgrade can't fix them; surface them but never file an upgrade task.
-    if (behind.length === 0) {
-      const msg = dormant.length
-        ? `No upgradable dependencies. ${dormant.length} package(s) are dormant — already on the latest version, but it's >1yr old, so there's nothing newer to upgrade to. Evaluate replacements manually if it matters.`
-        : 'No dependencies with a newer version available in the last scan — nothing to pre-fill. Refresh the scorecard to re-scan (needs npm registry access).';
-      vscode.window.showInformationMessage(msg);
+    // "behind" = a newer version exists (a version bump fixes it). "dormant" =
+    // already on latest, but latest is >1yr old, so the remediation is to
+    // evaluate a maintained replacement — a change only IF one exists. Both are
+    // actionable, so the task is filed when either is present.
+    if (behind.length === 0 && dormant.length === 0) {
+      vscode.window.showInformationMessage('No dependencies need attention in the last scan — nothing to pre-fill. Refresh the scorecard to re-scan (needs npm registry access).');
       return;
     }
 
     const lines: string[] = [];
-    lines.push('## Dependency Freshness — Upgrades Available\n');
-    lines.push(`${behind.length} package(s) have a newer version available:\n`);
-    lines.push('| Package | Installed | Latest |');
-    lines.push('|---------|-----------|--------|');
-    for (const dep of behind) {
-      lines.push(`| \`${dep.name}\` | ${dep.installedVersion ?? dep.currentVersion} | ${dep.latestVersion ?? '?'} |`);
-    }
-    lines.push('');
-    if (dormant.length) {
-      lines.push(`> ${dormant.length} other package(s) are dormant (already on the latest release, no newer version) and are intentionally excluded — do not upgrade them.`);
+    lines.push('## Dependency Freshness\n');
+
+    if (behind.length) {
+      lines.push(`### Upgrades available (${behind.length})\n`);
+      lines.push('A newer version exists — bump to the latest compatible version.\n');
+      lines.push('| Package | Installed | Latest |');
+      lines.push('|---------|-----------|--------|');
+      for (const dep of behind) {
+        lines.push(`| \`${dep.name}\` | ${dep.installedVersion ?? dep.currentVersion} | ${dep.latestVersion ?? '?'} |`);
+      }
       lines.push('');
     }
+
+    if (dormant.length) {
+      lines.push(`### Dormant — no newer release (${dormant.length})\n`);
+      lines.push('Already on the latest version, but it is >1yr old, so there is nothing newer to upgrade to. For each, evaluate whether a maintained, actively-released alternative exists and migrate ONLY if it is a clear drop-in (same capability, supported, low migration risk). If no good replacement exists, leave the package unchanged and note why. Do NOT bump the dormant package itself — it is already latest.\n');
+      lines.push('| Package | Version | Days since last release |');
+      lines.push('|---------|---------|-------------------------|');
+      for (const dep of dormant) {
+        lines.push(`| \`${dep.name}\` | ${dep.installedVersion ?? dep.currentVersion} | ${dep.ageDays} |`);
+      }
+      lines.push('');
+    }
+
     lines.push('### Instructions');
-    lines.push('- Upgrade each package above to its latest compatible version');
-    lines.push('- Run the full test suite after each update to ensure nothing breaks');
-    lines.push('- If a major version bump is required, review the changelog for breaking changes');
-    lines.push('- Ensure all tests pass before marking complete');
+    if (behind.length) {
+      lines.push('- Upgrade each "Upgrades available" package to its latest compatible version; for any major-version bump, review the changelog for breaking changes first.');
+    }
+    if (dormant.length) {
+      lines.push('- For each "Dormant" package, research whether a maintained replacement exists; if a clear drop-in does, migrate to it, otherwise leave it and document the decision.');
+    }
+    lines.push('- Run the full test suite after each change to ensure nothing breaks.');
+    lines.push('- Ensure all tests pass before marking complete.');
 
     const depPacks = {
       owasp: ['A06_vulnerable_components'] as string[],
