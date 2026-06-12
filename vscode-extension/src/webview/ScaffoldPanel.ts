@@ -21,6 +21,7 @@ import {
 import { promptPackService } from '../services/PromptPackService';
 import { readRepoMetadata } from '../services/RepoMetadata';
 import { MeshService } from '../services/MeshService';
+import { findBarForRepoUrl } from '../utils/governanceBridge';
 import { MeshReader } from '../core/mesh-reader';
 import { RedQueenService } from '../services/RedQueenService';
 import { scaffoldAgentConfig, writeScaffoldFiles } from '../mcp/config-scaffold';
@@ -430,13 +431,30 @@ export class ScaffoldPanel extends BasePanel<Record<string, unknown>, Record<str
         const meshPath = this.okrContext?.meshPath || MeshService.getMeshPath();
         if (meshPath) {
           this.postMessage({ type: 'step', id: 'governance', status: 'running', message: 'Generating governance files...' });
-          // Determine BAR name: from component context, existing decision.json, or first BAR in mesh
+          // Determine BAR name: component context → existing decision.json →
+          // auto-detect from the repo's git remote URL against the mesh.
           let barName = this.componentContext?.barName;
           if (!barName) {
             try {
               const existingDecision = JSON.parse(fs.readFileSync(path.join(workspaceRoot, '.redqueen', 'decision.json'), 'utf8'));
               barName = existingDecision?.barName;
             } catch { /* no existing decision */ }
+          }
+          if (!barName) {
+            // Mirror the Scorecard: match the repo's git remote URL to a mesh
+            // BAR's app.yaml repos. Lets a direct "add missing files" scaffold
+            // resolve the BAR without a componentContext or prior decision.json.
+            try {
+              let remoteUrl = this.componentContext?.repoUrl;
+              if (!remoteUrl) {
+                const { stdout } = await execFileAsync('git', ['remote', 'get-url', 'origin'], { cwd: workspaceRoot });
+                remoteUrl = stdout.trim();
+              }
+              if (remoteUrl) {
+                const detected = findBarForRepoUrl(meshPath, remoteUrl);
+                if (detected) { barName = detected.barName; }
+              }
+            } catch { /* no git remote / detection failed */ }
           }
           if (barName) {
             const reader = new MeshReader(meshPath);

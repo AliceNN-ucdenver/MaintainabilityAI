@@ -1,9 +1,9 @@
 /**
  * Governance Bridge — reads `.redqueen/decision.json` from code repos.
  *
- * Enables code-repo panels (Scorecard, Rabbit Hole) to display governance
- * context without a live connection to the governance mesh. The decision.json
- * is written by `scaffoldAgentConfig()` when RedQueenService is available.
+ * Enables the code-repo Security Scorecard to display governance context
+ * without a live connection to the governance mesh. The decision.json is
+ * written by `scaffoldAgentConfig()` when RedQueenService is available.
  */
 
 import * as fs from 'fs';
