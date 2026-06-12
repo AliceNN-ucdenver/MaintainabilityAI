@@ -1003,29 +1003,31 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
     this.openRabbitHole('improve-dependencies', 'Improve dependency freshness', lines.join('\n'), depPacks);
   }
 
-  /** Per-category recipe used to brief Alice. The measure is a polyglot PMAT
-   *  command (or a boundary check for architecture); the assertion is `≤ floor`. */
-  private static readonly FITNESS_RECIPES: Record<string, { label: string; measure: string; assert: string; extra?: string }> = {
+  /** Per-category recipe used to brief Alice. The `tool` is a FAST, native,
+   *  package-manager-installable analyzer — NEVER PMAT (which compiles a Rust
+   *  binary and would run for minutes on every CI run). PMAT is a local /
+   *  authoring-time analyzer only; the committed test must not depend on it. */
+  private static readonly FITNESS_RECIPES: Record<string, { label: string; tool: string; assert: string; extra?: string }> = {
     duplicate: {
       label: 'duplicate-code',
-      measure: '`pmat analyze duplicates --format json` (polyglot — TS/JS/Python/Go/Rust)',
+      tool: '`jscpd` (fast npm devDependency): run `npx jscpd --silent --reporters json --output <tmp>` and read `statistics.total.percentage`. Non-JS repos: Python `pylint --disable=all --enable=duplicate-code`, Go `dupl`.',
       assert: 'the duplication percentage is `<= floor`',
     },
     'dead-code': {
       label: 'dead-code',
-      measure: '`pmat analyze dead-code --format json`',
-      assert: 'the count of dead/unreachable items is `<= floor`',
+      tool: 'the language-native detector — JS/TS: `knip` or `ts-prune`; Python: `vulture`; Go: `staticcheck` (U1000). All install in seconds.',
+      assert: 'the count of unused exports/symbols is `<= floor`',
     },
     complexity: {
       label: 'complexity',
-      measure: '`pmat analyze complexity --format json`',
-      assert: 'the max cyclomatic complexity is `<= floor` (aim for a target of ≤ 10)',
+      tool: 'a fast native check — JS/TS: ESLint `complexity` rule or `ts-complex`; Python: `radon cc` / `ruff` `C901`; Go: `gocyclo`.',
+      assert: 'the max cyclomatic complexity is `<= floor` (aim for ≤ 10)',
     },
     architecture: {
       label: 'import-boundary',
-      measure: 'an import-boundary check (`dependency-cruiser` / `import-linter` / `pmat dag`)',
+      tool: 'a native boundary checker — JS/TS: `dependency-cruiser`; Python: `import-linter`.',
       assert: 'the number of forbidden cross-layer imports is `== 0`',
-      extra: 'First define the allowed import boundaries (which layer may import which) in the test, then assert that no edge violates them.',
+      extra: 'Define the allowed import boundaries (which layer may import which) in the tool config, then assert no edge violates them.',
     },
   };
 
@@ -1041,15 +1043,18 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
     const lines: string[] = [];
     lines.push(`## Add a ${r.label} fitness test\n`);
     lines.push('Author an executable **fitness function** — a committed test that fails the build when this characteristic regresses — following the framework convention. Tests only; do not change application source.\n');
+    lines.push('### Tooling — MUST be fast and native');
+    lines.push(`- Use ${r.tool}`);
+    lines.push('- **Do NOT use PMAT, the `pmat` package, or any tool that compiles from source / downloads a Rust binary at test time.** The test must run in seconds on every PR, not minutes. Add the chosen tool as a normal devDependency (committed to the lockfile) — never vendor a `.tgz`.');
     lines.push('### Convention');
     lines.push(`- Put the test in a \`fitness/\` directory wherever this repo keeps tests (e.g. \`tests/fitness/\`, \`test/fitness/\`, \`src/__tests__/fitness/\`), named for the category: \`${category}.test.*\` (JS/TS), \`test_${slug}.py\`, or \`${slug}_fitness_test.go\`. Add a \`@fitness:${category}\` marker comment.`);
-    lines.push(`- Record the budget in a \`baselines.json\` beside the fitness tests, under \`"${category}"\`: \`{ "floor": <current>, "target": <goal>, "measured": <current> }\`. \`floor\` is the no-regression line.`);
-    lines.push('### What the test does');
-    lines.push(`- Measure with ${r.measure}.`);
-    lines.push('- Read `floor` from `baselines.json`. If the file/entry is missing, initialize it from the current measurement (the ratchet starts at today\'s value — "no worse").');
-    lines.push(`- Assert ${r.assert}, and update \`"measured"\`.`);
+    lines.push(`- Keep the ratchet in a \`baselines.json\` beside the fitness tests, under \`"${category}"\`: \`{ "floor": <number>, "target": <number>, "measured": <number> }\`.`);
+    lines.push('### What the test does — self-bootstrapping floor');
+    lines.push('- Run the tool and read the current value.');
+    lines.push(`- Read \`floor\` from \`baselines.json\`. **If the file or \`"${category}"\` entry is missing, CREATE it and set \`floor\` (and \`target\`) to the value you just measured** — the ratchet starts at today's value ("no worse"). Always update \`"measured"\`.`);
+    lines.push(`- Assert ${r.assert}.`);
     if (r.extra) { lines.push(`- ${r.extra}`); }
-    lines.push('- Wire it into the normal test command so it runs on every PR.');
+    lines.push('- Run the test yourself to confirm it passes on the bootstrapped floor, then wire it into the normal test command so it runs on every PR.');
     lines.push('### Rules');
     lines.push('- NEVER loosen the gate to make the test pass — do not raise `floor`. `baselines.json` is governance-managed; only a human/the pawl lowers it.');
     lines.push('- Fix regressions by improving code, not by editing the budget.');

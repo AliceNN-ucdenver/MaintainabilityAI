@@ -57,25 +57,29 @@ framework prescribes WHERE fitness tests live and how they're marked, so —
 `stale` = a fitness test exists but the resolved test command doesn't run it (carries
 the old "declared vs enforced" insight into the test-centric framing).
 
-## What the test measures — PMAT is the polyglot backend
+## What the test measures — fast NATIVE tools, NOT PMAT
 
-A structural fitness test body is `(measure) + (assert threshold)`, and the
-measurement is **one polyglot tool we already use** — PMAT 3.3.0:
+A structural fitness test body is `(measure) + (assert threshold)`. The measurement
+**must use a fast, package-manager-installable tool** that runs in seconds on every
+PR. **It must NOT call PMAT.** PMAT 3.3.0 is a Rust binary that compiles/downloads on
+install — a PMAT-in-the-test design would compile PMAT *on every CI run* (minutes to
+hours). (Live lesson: a first attempt at this had the agent burn its whole session
+trying to `npm pack pmat` and committed a 1 MB `pmat-1.0.3.tgz` instead of a test.)
 
-| category | measure (polyglot) | the assertion Alice writes |
+| category | tool in the test (fast, native) | the assertion |
 |---|---|---|
-| duplicate | `pmat analyze duplicates --format json` | `dupPct < budget` |
-| dead-code | `pmat analyze dead-code --format json` | `deadItems ≤ baseline` |
-| complexity | `pmat analyze complexity --format json` | `maxCyclomatic ≤ 10` |
-| architecture | import graph (`dependency-cruiser` / `import-linter` / `pmat dag`) | `forbiddenEdges == 0` |
-| performance | bench / `size-limit` / lighthouse-ci | `p95 < budget` / `bundle ≤ budget` |
-| accessibility | `jest-axe` / `axe-core` (React) | `violations == 0` |
+| duplicate | `jscpd` (npm) · Python `pylint duplicate-code` · Go `dupl` | `dupPct ≤ floor` |
+| dead-code | `knip`/`ts-prune` · Python `vulture` · Go `staticcheck` | `unused ≤ floor` |
+| complexity | ESLint `complexity`/`ts-complex` · `radon`/`ruff C901` · `gocyclo` | `maxCyclomatic ≤ floor` |
+| architecture | `dependency-cruiser` · Python `import-linter` | `forbiddenEdges == 0` |
+| performance | `size-limit`/lighthouse-ci · `pytest-benchmark` | `p95/bundle ≤ budget` |
+| accessibility | `jest-axe`/`axe-core` (React) | `violations == 0` |
 
-PMAT covers the structural measures across TS/JS/Python/Go/Rust, so the test is the
-same shape in every language — only the harness differs. `pmat build-tdg` can even be
-the test body directly. Per-language tools (`jscpd`/`knip`/`vulture`) are fallbacks
-when PMAT isn't installed. Architecture and runtime categories have no PMAT value →
-their own harness.
+**Where PMAT does belong:** *local / authoring-time only* — the extension can run its
+local `pmat` (already installed, fast on a dev box) to pick the strategy or suggest a
+starting floor. But the committed test never shells out to it. In practice the test
+**self-bootstraps the floor**: first run measures the current value and writes it as
+`floor` if `baselines.json` is missing — no precomputation needed.
 
 ## Interface sketch
 
