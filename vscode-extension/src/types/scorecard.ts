@@ -160,6 +160,11 @@ export interface CoverageFileDetail {
 
 export interface OutdatedDependency {
   name: string;
-  ageDays: number;
-  currentVersion: string;
+  ageDays: number;            // days since the latest version was published
+  currentVersion: string;     // version range declared in package.json
+  installedVersion?: string;  // resolved version from the lockfile (if found)
+  latestVersion?: string;     // latest version on the npm registry
+  /** `behind` = a newer version exists (an upgrade can fix it);
+   *  `dormant` = already on latest, but latest is >1yr old (advisory only). */
+  kind: 'behind' | 'dormant';
 }

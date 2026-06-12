@@ -944,26 +944,35 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
 
   private onImproveDeps() {
     const outdated = this.scorecardService.getOutdatedDeps();
-    if (outdated.length === 0) {
-      // getOutdatedDeps() returns the last Dependency-Freshness scan's result
-      // (folder-correct, set by collectAll). Empty = the Dependency Freshness
-      // tile is "all up to date", OR the npm age-check couldn't reach the
-      // registry — refresh the scorecard to re-scan.
-      vscode.window.showInformationMessage('No dependencies older than 90 days in the last scan — nothing to pre-fill. Refresh the scorecard to re-scan (needs npm registry access).');
+    const behind = outdated.filter(d => d.kind === 'behind');
+    const dormant = outdated.filter(d => d.kind === 'dormant');
+
+    // Only "behind" packages are actionable — a newer version exists. "Dormant"
+    // packages are already on the latest release (just an old one), so an
+    // upgrade can't fix them; surface them but never file an upgrade task.
+    if (behind.length === 0) {
+      const msg = dormant.length
+        ? `No upgradable dependencies. ${dormant.length} package(s) are dormant — already on the latest version, but it's >1yr old, so there's nothing newer to upgrade to. Evaluate replacements manually if it matters.`
+        : 'No dependencies with a newer version available in the last scan — nothing to pre-fill. Refresh the scorecard to re-scan (needs npm registry access).';
+      vscode.window.showInformationMessage(msg);
       return;
     }
 
     const lines: string[] = [];
-    lines.push('## Dependency Freshness — Outdated Packages\n');
-    lines.push(`${outdated.length} package(s) have not been updated in over 90 days:\n`);
-    lines.push('| Package | Current Version | Days Since Last Publish |');
-    lines.push('|---------|----------------|------------------------|');
-    for (const dep of outdated) {
-      lines.push(`| \`${dep.name}\` | ${dep.currentVersion} | ${dep.ageDays} days |`);
+    lines.push('## Dependency Freshness — Upgrades Available\n');
+    lines.push(`${behind.length} package(s) have a newer version available:\n`);
+    lines.push('| Package | Installed | Latest |');
+    lines.push('|---------|-----------|--------|');
+    for (const dep of behind) {
+      lines.push(`| \`${dep.name}\` | ${dep.installedVersion ?? dep.currentVersion} | ${dep.latestVersion ?? '?'} |`);
     }
     lines.push('');
+    if (dormant.length) {
+      lines.push(`> ${dormant.length} other package(s) are dormant (already on the latest release, no newer version) and are intentionally excluded — do not upgrade them.`);
+      lines.push('');
+    }
     lines.push('### Instructions');
-    lines.push('- Update each package to the latest compatible version');
+    lines.push('- Upgrade each package above to its latest compatible version');
     lines.push('- Run the full test suite after each update to ensure nothing breaks');
     lines.push('- If a major version bump is required, review the changelog for breaking changes');
     lines.push('- Ensure all tests pass before marking complete');

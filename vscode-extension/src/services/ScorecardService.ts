@@ -46,6 +46,28 @@ const OWASP_LABELS = [
   { category: 'A10_ssrf', label: 'owasp/A10', displayName: 'SSRF' },
 ];
 
+interface NpmPackageInfo { ageDays: number; latestVersion: string; }
+
+/** Extract a bare `major.minor.patch` from a version or range, or '' if none. */
+function coerceVersion(range: string): string {
+  const m = String(range).match(/(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)/);
+  return m ? m[1] : '';
+}
+
+/** True when `latest` is a higher major.minor.patch than `installed`. */
+function isBehind(installed: string, latest: string): boolean {
+  const a = coerceVersion(installed);
+  const b = coerceVersion(latest);
+  if (!a || !b) { return false; }
+  const pa = a.split('.').map(n => parseInt(n, 10) || 0);
+  const pb = b.split('.').map(n => parseInt(n, 10) || 0);
+  for (let i = 0; i < 3; i++) {
+    if ((pb[i] || 0) > (pa[i] || 0)) { return true; }
+    if ((pb[i] || 0) < (pa[i] || 0)) { return false; }
+  }
+  return false;
+}
+
 export class ScorecardService {
   private lastOutdatedDeps: OutdatedDependency[] = [];
 
@@ -153,54 +175,57 @@ export class ScorecardService {
       return this.unknownMetric('Dependency Freshness', 'No package.json found');
     }
 
-    // Always use npm registry to check dependency freshness
     try {
       const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
-      const allDeps = { ...pkg.dependencies, ...pkg.devDependencies };
+      const allDeps: Record<string, string> = { ...pkg.dependencies, ...pkg.devDependencies };
       const depNames = Object.keys(allDeps).slice(0, 20);
 
       if (depNames.length === 0) {
         return { status: 'green', label: 'Dependency Freshness', value: 'No dependencies', score: 100, lastUpdated: new Date().toISOString() };
       }
 
-      const results = await Promise.allSettled(
-        depNames.map(name => this.fetchNpmPackageAge(name))
-      );
+      const installed = this.readLockfileVersions(workspaceRoot);
+      const results = await Promise.allSettled(depNames.map(name => this.fetchNpmPackageInfo(name)));
 
       const outdated: OutdatedDependency[] = [];
-      let oldestAge = 0;
-      let oldestName = '';
-
       for (let i = 0; i < results.length; i++) {
-        if (results[i].status === 'fulfilled') {
-          const ageDays = (results[i] as PromiseFulfilledResult<number>).value;
-          if (ageDays > 90) {
-            outdated.push({
-              name: depNames[i],
-              ageDays,
-              currentVersion: allDeps[depNames[i]] || '',
-            });
-          }
-          if (ageDays > oldestAge) {
-            oldestAge = ageDays;
-            oldestName = depNames[i];
-          }
+        if (results[i].status !== 'fulfilled') { continue; }
+        const { ageDays, latestVersion } = (results[i] as PromiseFulfilledResult<NpmPackageInfo>).value;
+        const name = depNames[i];
+        const declared = allDeps[name] || '';
+        const installedVersion = installed.get(name) || coerceVersion(declared);
+
+        if (installedVersion && latestVersion && isBehind(installedVersion, latestVersion)) {
+          // A newer version exists — an upgrade can actually fix this.
+          outdated.push({ name, ageDays, currentVersion: declared, installedVersion, latestVersion, kind: 'behind' });
+        } else if (ageDays > 365) {
+          // Already on the latest version, but the package itself is dormant
+          // (>1yr since its last release). No upgrade can fix it — advisory only.
+          outdated.push({ name, ageDays, currentVersion: declared, installedVersion, latestVersion, kind: 'dormant' });
         }
       }
 
-      this.lastOutdatedDeps = outdated.sort((a, b) => b.ageDays - a.ageDays);
+      const behind = outdated.filter(d => d.kind === 'behind');
+      const dormant = outdated.filter(d => d.kind === 'dormant');
+      // Actionable upgrades first (newest gap on top), then dormant advisories.
+      this.lastOutdatedDeps = [...behind.sort((a, b) => b.ageDays - a.ageDays), ...dormant.sort((a, b) => b.ageDays - a.ageDays)];
 
-      const freshPercent = depNames.length > 0 ? ((depNames.length - outdated.length) / depNames.length) * 100 : 100;
-      const score = Math.round(freshPercent);
+      // Score penalizes only actionable upgrades; dormant-at-latest is unfixable.
+      const score = Math.round(((depNames.length - behind.length) / depNames.length) * 100);
+      const parts: string[] = [];
+      if (behind.length) { parts.push(`${behind.length} behind`); }
+      if (dormant.length) { parts.push(`${dormant.length} dormant`); }
 
       return {
         status: this.scoreToStatus(score),
         label: 'Dependency Freshness',
-        value: outdated.length === 0
-          ? `All ${depNames.length} deps up to date`
-          : `${outdated.length} of ${depNames.length} outdated (>90 days)`,
+        value: parts.length ? `${parts.join(', ')} of ${depNames.length}` : `All ${depNames.length} deps current`,
         score,
-        details: oldestName ? `Oldest: ${oldestName} (${oldestAge} days)` : undefined,
+        details: behind.length
+          ? `Upgrade: ${behind[0].name} ${behind[0].installedVersion} → ${behind[0].latestVersion}`
+          : dormant.length
+            ? `Dormant: ${dormant[0].name} (${dormant[0].ageDays} days since last release)`
+            : undefined,
         lastUpdated: new Date().toISOString(),
       };
     } catch {
@@ -208,7 +233,31 @@ export class ScorecardService {
     }
   }
 
-  private fetchNpmPackageAge(name: string): Promise<number> {
+  /** Resolve top-level installed versions from package-lock.json (v1/v2/v3). */
+  private readLockfileVersions(workspaceRoot: string): Map<string, string> {
+    const map = new Map<string, string>();
+    const lockPath = path.join(workspaceRoot, 'package-lock.json');
+    if (!fs.existsSync(lockPath)) { return map; }
+    try {
+      const lock = JSON.parse(fs.readFileSync(lockPath, 'utf-8'));
+      // npm v2/v3: packages keyed by "node_modules/<name>" (top-level only).
+      if (lock.packages && typeof lock.packages === 'object') {
+        for (const [key, val] of Object.entries(lock.packages as Record<string, { version?: string }>)) {
+          const m = key.match(/^node_modules\/((?:@[^/]+\/)?[^/]+)$/);
+          if (m && val?.version) { map.set(m[1], val.version); }
+        }
+      }
+      // npm v1 fallback: dependencies[<name>].version.
+      if (map.size === 0 && lock.dependencies && typeof lock.dependencies === 'object') {
+        for (const [name, val] of Object.entries(lock.dependencies as Record<string, { version?: string }>)) {
+          if (val?.version) { map.set(name, val.version); }
+        }
+      }
+    } catch { /* ignore a malformed lockfile — fall back to declared ranges */ }
+    return map;
+  }
+
+  private fetchNpmPackageInfo(name: string): Promise<NpmPackageInfo> {
     return new Promise((resolve, reject) => {
       // Use the lightweight search API (~1KB response) instead of full packument (5+ MB)
       const url = `https://registry.npmjs.org/-/v1/search?text=${encodeURIComponent(name)}&size=1`;
@@ -219,13 +268,11 @@ export class ScorecardService {
           try {
             const data = JSON.parse(body);
             const pkg = data.objects?.[0]?.package;
-            if (!pkg || pkg.name !== name) { resolve(0); return; }
-            const dateStr = pkg.date;
-            if (!dateStr) { resolve(0); return; }
-            const ageDays = Math.floor(
-              (Date.now() - new Date(dateStr).getTime()) / (24 * 60 * 60 * 1000)
-            );
-            resolve(Math.max(0, ageDays));
+            if (!pkg || pkg.name !== name) { resolve({ ageDays: 0, latestVersion: '' }); return; }
+            const ageDays = pkg.date
+              ? Math.max(0, Math.floor((Date.now() - new Date(pkg.date).getTime()) / (24 * 60 * 60 * 1000)))
+              : 0;
+            resolve({ ageDays, latestVersion: pkg.version || '' });
           } catch { reject(new Error('parse error')); }
         });
       });
