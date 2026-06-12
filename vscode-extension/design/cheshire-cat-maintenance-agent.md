@@ -357,3 +357,33 @@ PR → merge → issue auto-closes via the `Closes #N` + filename fallback).
 - Migrating historical alice-remediation issues; old issues stay as-is.
 - Multi-repo fan-out of maintenance tasks (the OKR fan-out engine already
   handles cross-repo implementation; this is single-repo maintenance).
+
+## Future cleanup — come back to this
+
+- **The research-runner's `llm-router` / `callLlm` generation path is dormant
+  in production** (surfaced 2026-06-12 while removing the dead Anthropic client).
+  Confirmed by tracing the whole chain:
+  - `callLlm` is called only by the four LLM nodes (`planQueries`,
+    `runGapAnalysis`, `synthesizePrd`, `runExpertReview`).
+  - Those nodes are driven only by `runArcheologist` / `runPrd`.
+  - `runArcheologist` / `runPrd` are called only by `cli.ts` (the
+    `archeologist` / `prd` subcommands).
+  - **No deployed workflow invokes those subcommands.** The mesh agent
+    workflows (`market-research-agent.yml`, `prd-agent.yml`,
+    `code-design-agent.yml`) run the `research-runner` binary only for the
+    deterministic skill rails — `skill-audit-verify-chain` and
+    `skill-pocket-watch` — neither of which touches `llm-router`. The actual
+    research/PRD/design *generation* is done by the Copilot Coding Agent
+    persona (`.github/agents/<name>.agent.md`), dispatched by Looking Glass via
+    `assignCustomCopilotAgent` (the workflows' Job 1 only sanity-checks that the
+    `.agent.md` file is deployed; they explicitly do NOT dispatch).
+  - So `llm-router` + `callLlm` + the four nodes + `runArcheologist` / `runPrd`
+    are reachable only via a manual `npx research-runner archeologist|prd` or
+    the test suite — not on any CI path.
+- **Decision needed:** either (a) retire the dormant CLI `archeologist`/`prd`
+  generation pipeline + nodes + `llm-router` entirely (research generation has
+  moved to the Copilot agents), keeping only the `skill-*` subcommands the
+  workflows actually use; or (b) keep it as a supported local/CLI escape hatch
+  and document that it is intentionally off the deployed path. Don't half-retire
+  — pick one. (The Anthropic removal already trimmed it; this is the larger
+  question of whether the whole LLM-generation half of the runner should go.)
