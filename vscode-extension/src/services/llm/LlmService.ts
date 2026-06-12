@@ -32,6 +32,7 @@ Generate a structured prompt with these 5 sections:
 - Reference specific OWASP patterns from the provided prompt packs
 - Include test files in the output section
 - Be specific: don't say "add validation" — specify the exact Zod schema or regex pattern
+- CRITICAL: Do NOT invent quantitative metrics. Never state a letter grade, score (e.g. "C+, 68/100"), percentage (e.g. "12.4% duplication"), nesting depth, line/block count, or defect/duplicate count unless that exact figure is present in the provided Repository Context or Tech Stack. When the context lacks a measured number, describe the structure qualitatively ("large inline-script blocks", "deeply nested shell logic", "repeated checkout/setup steps") instead of fabricating a precise value.
 - Generate valid JSON matching the RctroPrompt interface
 
 ## Reference Prompt Packs
@@ -139,7 +140,7 @@ export function buildRctroPrompt(
   );
   let userContent = `## Tech Stack\n${stackContext}`;
   if (repoContext) {
-    userContent += `\n\n## Repository Context\nGround every Context/Requirement in these REAL files, folders, and frameworks — name actual paths; do not invent files.\n\n${repoContext}`;
+    userContent += `\n\n## Repository Context\nGround every Context/Requirement in these REAL files, folders, and frameworks — name actual paths; do not invent files, and do not invent metrics (grades, percentages, complexity, nesting depth, or line/defect counts) that are not shown here.\n\n${repoContext}`;
   }
   userContent += `\n\n## Feature Description\n${description}`;
   if (existingRctro) {
