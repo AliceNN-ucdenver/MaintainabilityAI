@@ -728,27 +728,26 @@ export class ScorecardService {
   // committed tests/fitness/baselines.json (the test maintains them).
   // --------------------------------------------------------------------------
 
-  /** Convention paths per category. Slice: `duplicate` only, registry-shaped. */
+  /** Structural fitness categories. Detection is by convention (any `fitness/`
+   *  dir + an idiomatic filename), so it's generic across repo layouts. */
   private static readonly FITNESS_CATEGORIES: ReadonlyArray<{
-    category: string; group: 'structural' | 'runtime'; unit: string; paths: string[];
+    category: string; group: 'structural' | 'runtime'; unit: string;
   }> = [
-    {
-      category: 'duplicate', group: 'structural', unit: '%',
-      paths: [
-        'tests/fitness/duplicate.test.ts', 'tests/fitness/duplicate.test.js',
-        'tests/fitness/duplicate.test.tsx', 'tests/fitness/test_duplicate.py',
-      ],
-    },
+    { category: 'duplicate', group: 'structural', unit: '%' },
+    { category: 'dead-code', group: 'structural', unit: '' },
+    { category: 'complexity', group: 'structural', unit: '' },
+    { category: 'architecture', group: 'structural', unit: '' },
   ];
 
   collectFitnessTests(workspaceRoot?: string): FitnessTestResult[] {
     workspaceRoot = workspaceRoot || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     if (!workspaceRoot) { return []; }
     const root = workspaceRoot;
+    const fitnessDirs = this.findFitnessDirs(root);
     const baselines = this.readFitnessBaselines(root);
 
     return ScorecardService.FITNESS_CATEGORIES.map(c => {
-      const testPath = c.paths.find(p => fs.existsSync(path.join(root, p)));
+      const testPath = this.findFitnessTest(root, fitnessDirs, c.category);
       const b = baselines[c.category] || {};
       return {
         category: c.category,
@@ -761,6 +760,46 @@ export class ScorecardService {
         measured: typeof b.measured === 'number' ? b.measured : undefined,
       };
     });
+  }
+
+  /** Every `fitness/` directory in the repo (any depth), skipping junk dirs —
+   *  so the convention works wherever a repo keeps its tests. */
+  private findFitnessDirs(root: string): string[] {
+    const out: string[] = [];
+    const IGNORE = new Set(['node_modules', '.git', 'dist', 'out', 'build', 'coverage', '.next', 'target', 'vendor', '.venv']);
+    const walk = (dir: string, depth: number): void => {
+      if (depth > 6) { return; }
+      let entries: import('fs').Dirent[];
+      try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+      for (const e of entries) {
+        if (!e.isDirectory() || IGNORE.has(e.name) || e.name.startsWith('.')) { continue; }
+        const full = path.join(dir, e.name);
+        if (e.name === 'fitness') { out.push(full); }
+        walk(full, depth + 1);
+      }
+    };
+    walk(root, 0);
+    return out;
+  }
+
+  /** A fitness test for <category> = a file named for it inside any `fitness/`
+   *  dir, across the JS/TS/Python/Go/Rust idioms. Repo-relative path or undefined. */
+  private findFitnessTest(root: string, fitnessDirs: string[], category: string): string | undefined {
+    const slug = category.replace(/-/g, '_');
+    const names = [
+      `${category}.test.ts`, `${category}.test.tsx`, `${category}.test.js`, `${category}.test.mjs`,
+      `${slug}.test.ts`, `${slug}.test.js`,
+      `test_${slug}.py`, `${slug}_test.py`,
+      `${slug}_fitness_test.go`, `fitness_${slug}_test.go`,
+      `${slug}.rs`,
+    ];
+    for (const dir of fitnessDirs) {
+      for (const n of names) {
+        const full = path.join(dir, n);
+        if (fs.existsSync(full)) { return path.relative(root, full); }
+      }
+    }
+    return undefined;
   }
 
   /** Read the committed ratchet file (governance-managed, agent-read-only). */

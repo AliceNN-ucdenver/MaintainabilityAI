@@ -1003,30 +1003,59 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
     this.openRabbitHole('improve-dependencies', 'Improve dependency freshness', lines.join('\n'), depPacks);
   }
 
-  /** Brief Alice to author a missing fitness-function test (slice: duplicate).
-   *  A tests-only, additive task — safe even at restricted tier. */
+  /** Per-category recipe used to brief Alice. The measure is a polyglot PMAT
+   *  command (or a boundary check for architecture); the assertion is `≤ floor`. */
+  private static readonly FITNESS_RECIPES: Record<string, { label: string; measure: string; assert: string; extra?: string }> = {
+    duplicate: {
+      label: 'duplicate-code',
+      measure: '`pmat analyze duplicates --format json` (polyglot — TS/JS/Python/Go/Rust)',
+      assert: 'the duplication percentage is `<= floor`',
+    },
+    'dead-code': {
+      label: 'dead-code',
+      measure: '`pmat analyze dead-code --format json`',
+      assert: 'the count of dead/unreachable items is `<= floor`',
+    },
+    complexity: {
+      label: 'complexity',
+      measure: '`pmat analyze complexity --format json`',
+      assert: 'the max cyclomatic complexity is `<= floor` (aim for a target of ≤ 10)',
+    },
+    architecture: {
+      label: 'import-boundary',
+      measure: 'an import-boundary check (`dependency-cruiser` / `import-linter` / `pmat dag`)',
+      assert: 'the number of forbidden cross-layer imports is `== 0`',
+      extra: 'First define the allowed import boundaries (which layer may import which) in the test, then assert that no edge violates them.',
+    },
+  };
+
+  /** Brief Alice to author a missing fitness-function test. A tests-only,
+   *  additive task — safe even at restricted tier (Write under a fitness/ dir). */
   private onCreateFitnessTest(category: string) {
-    if (category !== 'duplicate') {
-      vscode.window.showInformationMessage(`Fitness test for "${category}" isn't wired yet — only "duplicate" so far.`);
+    const r = ScorecardPanel.FITNESS_RECIPES[category];
+    if (!r) {
+      vscode.window.showInformationMessage(`Fitness test for "${category}" isn't wired yet.`);
       return;
     }
+    const slug = category.replace(/-/g, '_');
     const lines: string[] = [];
-    lines.push('## Add a duplicate-code fitness test\n');
-    lines.push('Author an executable **fitness function** — a committed test that fails the build when code duplication regresses — following the framework convention. Tests only; do not change application source.\n');
+    lines.push(`## Add a ${r.label} fitness test\n`);
+    lines.push('Author an executable **fitness function** — a committed test that fails the build when this characteristic regresses — following the framework convention. Tests only; do not change application source.\n');
     lines.push('### Convention');
-    lines.push('- Put the test at `tests/fitness/duplicate.test.ts` (TS/JS) or the language idiom (`tests/fitness/test_duplicate.py`, `*_fitness_test.go`), with a `@fitness:duplicate` marker comment.');
-    lines.push('- Record the budget in `tests/fitness/baselines.json` under `"duplicate"`: `{ "floor": <current %>, "target": <goal %>, "measured": <current %> }`. `floor` is the no-regression line.');
+    lines.push(`- Put the test in a \`fitness/\` directory wherever this repo keeps tests (e.g. \`tests/fitness/\`, \`test/fitness/\`, \`src/__tests__/fitness/\`), named for the category: \`${category}.test.*\` (JS/TS), \`test_${slug}.py\`, or \`${slug}_fitness_test.go\`. Add a \`@fitness:${category}\` marker comment.`);
+    lines.push(`- Record the budget in a \`baselines.json\` beside the fitness tests, under \`"${category}"\`: \`{ "floor": <current>, "target": <goal>, "measured": <current> }\`. \`floor\` is the no-regression line.`);
     lines.push('### What the test does');
-    lines.push('- Measure duplication with `pmat analyze duplicates --format json` (polyglot — works across TS/JS/Python/Go/Rust). Parse the duplication percentage.');
-    lines.push('- Read `floor` from `tests/fitness/baselines.json`. If the file or `duplicate` entry is missing, initialize it from the current measurement (the ratchet starts at today\'s value — "no worse").');
-    lines.push('- Assert `measured <= floor`, and update `"measured"`.');
+    lines.push(`- Measure with ${r.measure}.`);
+    lines.push('- Read `floor` from `baselines.json`. If the file/entry is missing, initialize it from the current measurement (the ratchet starts at today\'s value — "no worse").');
+    lines.push(`- Assert ${r.assert}, and update \`"measured"\`.`);
+    if (r.extra) { lines.push(`- ${r.extra}`); }
     lines.push('- Wire it into the normal test command so it runs on every PR.');
     lines.push('### Rules');
-    lines.push('- NEVER loosen the gate to make the test pass — do not raise `floor`. `tests/fitness/baselines.json` is governance-managed; only a human/the pawl lowers it.');
-    lines.push('- Fix duplication by improving code, not by editing the budget.');
+    lines.push('- NEVER loosen the gate to make the test pass — do not raise `floor`. `baselines.json` is governance-managed; only a human/the pawl lowers it.');
+    lines.push('- Fix regressions by improving code, not by editing the budget.');
 
     const packs = { owasp: [] as string[], maintainability: ['fitness-functions'] as string[], threatModeling: [] as string[] };
-    this.openRabbitHole('fitness-test', 'Add duplicate-code fitness test', lines.join('\n'), packs);
+    this.openRabbitHole('fitness-test', `Add ${r.label} fitness test`, lines.join('\n'), packs);
   }
 
   private async onReduceComplexity() {

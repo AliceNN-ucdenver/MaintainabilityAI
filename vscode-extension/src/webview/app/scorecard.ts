@@ -493,9 +493,9 @@ function renderIssueRow(i: ScorecardIssue): string {
       if (assigning) {
         action = `<button class="btn-secondary btn-sm" disabled>Dispatching…</button>`;
       } else if (restricted) {
-        action = `<button class="btn-secondary btn-sm mi-glass mi-breakglass" data-issue="${i.number}" title="Grant a scoped, audited restricted-tier override, then dispatch Alice">\u{1F513} Break glass &amp; assign</button>`;
+        action = `<button class="btn-secondary btn-sm mi-glass mi-breakglass" data-issue="${i.number}" title="Grant a scoped, audited restricted-tier override, then dispatch Alice">${assignAliceLabel()}</button>`;
       } else {
-        action = `<button class="btn-secondary btn-sm mi-assign" data-issue="${i.number}">\u{1F43E} Assign Alice</button>`;
+        action = `<button class="btn-secondary btn-sm mi-assign" data-issue="${i.number}">${assignAliceLabel()}</button>`;
       }
     }
     right = `<span class="mi-pill ${phase.cls}">${phase.label}</span>${action}`;
@@ -850,6 +850,15 @@ const FITNESS_LABELS: Record<string, string> = {
   architecture: 'Import boundaries', performance: 'Performance', accessibility: 'Accessibility',
 };
 
+/** Shared tier-aware label for EVERY "dispatch to Alice" entry point. Restricted
+ *  repos hard-deny the agent's Write/Bash, so they need a break-glass override —
+ *  centralized here so new assign surfaces don't forget the tier check. */
+function assignAliceLabel(): string {
+  return state.governanceData?.effectiveTier === 'restricted'
+    ? '\u{1F513} Break glass & assign'
+    : '\u{1F43E} Assign Alice';
+}
+
 function renderFitnessTestRow(t: FitnessTestResult): string {
   const name = FITNESS_LABELS[t.category] || t.category;
   const present = t.status === 'present';
@@ -861,9 +870,10 @@ function renderFitnessTestRow(t: FitnessTestResult): string {
   const path = present
     ? `<span class="ft-path" title="convention path">${escapeHtml(t.testPath || '')}</span>`
     : '<span class="ft-none">no fitness test</span>';
+  const restricted = state.governanceData?.effectiveTier === 'restricted';
   const action = present
     ? '<span class="mi-pill mi-pill-active">present</span>'
-    : `<button class="btn-secondary btn-sm ft-assign" data-category="${escapeHtml(t.category)}">\u{1F43E} Assign Alice</button>`;
+    : `<button class="btn-secondary btn-sm ft-assign${restricted ? ' mi-glass' : ''}" data-category="${escapeHtml(t.category)}">${assignAliceLabel()}</button>`;
   return `
     <div class="ft-row">
       <span class="ft-dot ${present ? 'ft-dot-on' : 'ft-dot-off'}"></span>
