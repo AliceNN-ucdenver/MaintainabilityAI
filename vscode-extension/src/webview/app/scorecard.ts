@@ -1,6 +1,6 @@
 // Scorecard webview frontend — renders Security Scorecard dashboard
 import { renderAgentStatus, attachAgentStatusListeners, getAgentStatusStyles } from './agentStatus';
-import type { AgentStatusInfo } from './agentStatus';
+import type { AgentStatusInfo, AgentStatusPhase } from './agentStatus';
 import { escapeHtml, formatTimestamp } from './pillars/shared';
 import { deployStatusBadge } from './components/html';
 import type { VsCodeApi, MetricResult, SdlcCompletenessItem, OwaspIssueSummary, ScorecardData, ScorecardSnapshot, TrendDirection } from './types';
@@ -155,6 +155,9 @@ const CHESHIRE_SVG = `<svg width="40" height="40" viewBox="0 0 128 128" fill="no
     .mi-pill-open { background: rgba(56,139,253,0.18); color: #79c0ff; }
     .mi-pill-active { background: rgba(168,85,247,0.20); color: #d2a8ff; }
     .mi-pill-closed { background: rgba(120,120,120,0.18); color: #9aa0a6; }
+    .mi-pill-wait { background: rgba(234,179,8,0.18); color: #eab308; }
+    .mi-pill-fail { background: rgba(248,81,73,0.18); color: #ff7b72; }
+    .mi-pr { font-size: 11px; white-space: nowrap; color: var(--vscode-textLink-foreground); cursor: pointer; text-decoration: none; }
     .btn-sm { font-size: 11px; padding: 3px 9px; }
     .mi-empty { margin-top: 8px; font-size: 12px; color: var(--text-secondary, #999); padding: 6px 2px; }
     .mi-switch { display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer; }
@@ -252,7 +255,6 @@ function render() {
       </div>
     </div>
 
-    ${renderAgentStatus(state.agentStatus, { lifecycleActions: true })}
     ${renderRabbitHoleSheet()}
     ${renderSyncBanner()}
     ${renderCreateFeatureBanner()}
@@ -261,6 +263,7 @@ function render() {
     ${renderGovernanceSection()}
     ${renderMetricsGrid(d)}
     ${renderBreakGlassBanner()}
+    ${renderAgentFallback()}
     ${renderMaintenanceIssues()}
     ${renderOwaspBreakdown(d.owaspIssues)}
     ${renderSdlcCompleteness(d.sdlcCompleteness)}
@@ -418,26 +421,69 @@ function maintenanceIssuePhase(i: ScorecardIssue): { label: string; cls: string;
   return { label: 'Open', cls: 'mi-pill-open', assignable: true };
 }
 
+/** Compact phase pill for the issue the agent is actively working. */
+function agentPhasePill(phase: AgentStatusPhase): { label: string; cls: string } {
+  switch (phase) {
+    case 'awaiting-approval': return { label: 'Awaiting approval', cls: 'mi-pill-wait' };
+    case 'planning': return { label: 'Planning', cls: 'mi-pill-active' };
+    case 'plan-review': return { label: 'Plan ready', cls: 'mi-pill-wait' };
+    case 'implementing': return { label: 'Implementing', cls: 'mi-pill-active' };
+    case 'pr-review': return { label: 'PR review', cls: 'mi-pill-wait' };
+    case 'pr-checks-failing': return { label: 'Checks failing', cls: 'mi-pill-fail' };
+    case 'complete': return { label: 'Complete', cls: 'mi-pill-open' };
+  }
+}
+
+/** Right side of the row for the agent's active issue: PR link + live phase +
+ *  one-click lifecycle buttons. The buttons carry the same data-agent-action
+ *  attributes the standalone banner used, so attachAgentStatusListeners() wires
+ *  them unchanged — no separate banner needed. */
+function renderRowAgentStatus(s: AgentStatusInfo): string {
+  const pill = agentPhasePill(s.phase);
+  const btns: string[] = [];
+  if (s.phase === 'awaiting-approval' && s.workflowRun?.runId != null) {
+    btns.push(`<button class="btn-secondary btn-sm" data-agent-action="approve-run" data-run-id="${s.workflowRun.runId}">✓ Approve &amp; run</button>`);
+  }
+  if (s.pr && s.pr.state === 'open' && s.pr.draft) {
+    btns.push(`<button class="btn-secondary btn-sm" data-agent-action="mark-pr-ready" data-pr-number="${s.pr.number}">Mark PR ready</button>`);
+  }
+  if (s.pr && s.pr.state === 'open' && !s.pr.draft) {
+    btns.push(`<button class="btn-primary btn-sm" data-agent-action="merge-pr" data-pr-number="${s.pr.number}" data-issue-number="${s.issue.number}">Merge</button>`);
+  }
+  const prLink = s.pr ? `<a class="mi-pr agent-status-link" data-url="${escapeHtml(s.pr.url)}">PR #${s.pr.number}</a>` : '';
+  return `${prLink}<span class="mi-pill ${pill.cls}">${escapeHtml(pill.label)}</span>${btns.join('')}`;
+}
+
 function renderIssueRow(i: ScorecardIssue): string {
-  const phase = maintenanceIssuePhase(i);
   const chips = i.labels
     .filter(l => !MI_NOISE_LABELS.has(l.name))
     .slice(0, 4)
     .map(l => `<span class="mi-chip">${escapeHtml(l.name)}</span>`)
     .join('');
-  const assigning = state.assigningIssue === i.number;
-  // Restricted-tier BARs hard-deny Alice's Write/Bash (TIER-001). The assign
-  // button becomes a break-glass that commits a scoped, audited override first.
-  const restricted = state.governanceData?.effectiveTier === 'restricted';
-  let action = '';
-  if (phase.assignable) {
-    if (assigning) {
-      action = `<button class="btn-secondary btn-sm" disabled>Dispatching…</button>`;
-    } else if (restricted) {
-      action = `<button class="btn-secondary btn-sm mi-glass mi-breakglass" data-issue="${i.number}" title="Grant a scoped, audited restricted-tier override, then dispatch Alice">\u{1F513} Break glass &amp; assign</button>`;
-    } else {
-      action = `<button class="btn-secondary btn-sm mi-assign" data-issue="${i.number}">\u{1F43E} Assign Alice</button>`;
+
+  // When the agent is actively working THIS issue, the row shows its live phase
+  // + lifecycle buttons inline (replacing the dropped top banner).
+  const agent = state.agentStatus && state.agentStatus.issue?.number === i.number ? state.agentStatus : null;
+  let right: string;
+  if (agent) {
+    right = renderRowAgentStatus(agent);
+  } else {
+    const phase = maintenanceIssuePhase(i);
+    const assigning = state.assigningIssue === i.number;
+    // Restricted-tier BARs hard-deny Alice's Write/Bash (TIER-001). The assign
+    // button becomes a break-glass that commits a scoped, audited override first.
+    const restricted = state.governanceData?.effectiveTier === 'restricted';
+    let action = '';
+    if (phase.assignable) {
+      if (assigning) {
+        action = `<button class="btn-secondary btn-sm" disabled>Dispatching…</button>`;
+      } else if (restricted) {
+        action = `<button class="btn-secondary btn-sm mi-glass mi-breakglass" data-issue="${i.number}" title="Grant a scoped, audited restricted-tier override, then dispatch Alice">\u{1F513} Break glass &amp; assign</button>`;
+      } else {
+        action = `<button class="btn-secondary btn-sm mi-assign" data-issue="${i.number}">\u{1F43E} Assign Alice</button>`;
+      }
     }
+    right = `<span class="mi-pill ${phase.cls}">${phase.label}</span>${action}`;
   }
   return `
     <div class="mi-row">
@@ -445,11 +491,18 @@ function renderIssueRow(i: ScorecardIssue): string {
         <a class="mi-title" data-url="${escapeHtml(i.url)}">#${i.number} ${escapeHtml(i.title)}</a>
         ${chips ? `<div class="mi-chips">${chips}</div>` : ''}
       </div>
-      <div class="mi-right">
-        <span class="mi-pill ${phase.cls}">${phase.label}</span>
-        ${action}
-      </div>
+      <div class="mi-right">${right}</div>
     </div>`;
+}
+
+/** The agent card now lives inside its issue's row; show the standalone card
+ *  only when that row isn't on screen (list collapsed, filtered out, or not yet
+ *  loaded) so the lifecycle buttons are never unreachable. */
+function renderAgentFallback(): string {
+  const s = state.agentStatus;
+  if (!s) { return ''; }
+  const visibleInList = !state.issuesCollapsed && state.issues.some(i => i.number === s.issue?.number);
+  return visibleInList ? '' : renderAgentStatus(s, { lifecycleActions: true });
 }
 
 function renderMaintenanceIssues(): string {
@@ -652,7 +705,7 @@ function renderCreateFeatureBanner(): string {
   return `
     <div class="create-feature-banner">
       <div style="display: flex; align-items: center; gap: 10px;">
-        <span style="font-size: 18px;">&#x1F407;</span>
+        <span style="font-size: 18px;">&#x1F43E;</span>
         <div>
           <strong>Create Feature</strong>
           <span class="text-muted" style="margin-left: 8px; font-size: 12px; color: var(--text-secondary);">Define a new feature with AI-generated implementation prompts</span>
@@ -1242,6 +1295,23 @@ function handleRabbitHoleMessage(message: { type: string; [k: string]: unknown }
     state.rabbitHole.phase = 'done';
     state.rabbitHole.issueUrl = message.url as string;
     state.rabbitHole.issueNumber = message.number as number;
+    // Optimistically surface the new issue immediately — GitHub's list API can
+    // lag a freshly-created issue, so prepend it now; the host's onLoadIssues
+    // reconciles when the API catches up.
+    const num = message.number as number;
+    if (num && !state.issues.some(i => i.number === num)) {
+      state.issues.unshift({
+        number: num,
+        title: state.rabbitHole.previewTitle || state.rabbitHole.heading,
+        state: 'open',
+        labels: [],
+        assignee: 'Copilot',
+        updatedAt: '',
+        commentsCount: 0,
+        url: message.url as string,
+      });
+      state.issuesLoaded = true;
+    }
     render();
     return true;
   }
