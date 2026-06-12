@@ -154,7 +154,7 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
         await this.onGenerateRctroInline(message.description);
         break;
       case 'dispatchRctroInline':
-        await this.onDispatchRctroInline(message.title);
+        await this.onDispatchRctroInline(message.title, message.breakGlass === true);
         break;
       case 'loadIssues':
         await this.onLoadIssues(message.filter);
@@ -1149,23 +1149,47 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
 
   /** File the issue and dispatch the Alice maintenance agent by name (with a
    *  generic copilot fallback). The banner then drives approve → ready → merge. */
-  private async onDispatchRctroInline(title: string) {
+  private async onDispatchRctroInline(title: string, breakGlass = false) {
     const request = this.pendingIssueRequest;
     if (!request) {
       this.postMessage({ type: 'error', message: 'Generate the RCTRO before dispatching.' });
       return;
     }
-    this.postMessage({ type: 'loading', active: true, message: 'Filing issue & dispatching Alice…' });
+    const { owner, repo } = request.repo;
+
+    // Restricted-tier break-glass: confirm BEFORE filing so a cancel leaves
+    // nothing behind. The issue doesn't exist yet, so unlike the row-based
+    // path we grant after createIssue() returns its number.
+    let grantedBy = '';
+    if (breakGlass) {
+      const choice = await vscode.window.showWarningMessage(
+        'Break-glass dispatch? This files the issue, then grants Alice a 2-hour restricted-tier override (TIER-001), committed to the default branch and recorded in the Red Queen audit chain.',
+        { modal: true }, 'Break glass & dispatch',
+      );
+      if (choice !== 'Break glass & dispatch') {
+        this.postMessage({ type: 'error', message: 'Break-glass dispatch cancelled.' });
+        return;
+      }
+      try { grantedBy = (await this.githubService.getAuthenticatedUser()).login; } catch { grantedBy = 'unknown'; }
+    }
+
+    this.postMessage({ type: 'loading', active: true, message: breakGlass ? 'Filing issue & granting break-glass…' : 'Filing issue & dispatching Alice…' });
     try {
       if (title.trim()) { request.title = title.trim(); }
       const result = await this.githubService.createIssue(request);
-      await this.dispatchAlice(request.repo.owner, request.repo.repo, result.number);
+      if (breakGlass) {
+        await this.githubService.grantBreakGlass(owner, repo, result.number, { hours: 2, grantedBy, reason: 'Restricted-tier maintenance remediation' }, Date.now());
+        await this.githubService.createIssueComment(owner, repo, result.number,
+          `🔓 **Break-glass granted** by @${grantedBy} — restricted-tier maintenance override (TIER-001) authorized for this remediation. Expires in 2h; every override is recorded in the audit chain.`);
+      }
+      await this.dispatchAlice(owner, repo, result.number);
 
       this.postMessage({ type: 'rabbitHoleDispatched', url: result.url, number: result.number });
       this.pendingRabbitHole = null;
       this.pendingIssueRequest = null;
       await this.checkForActiveIssues();
       await this.onLoadIssues(this.lastIssueFilter);
+      if (breakGlass) { await this.onLoadBreakGlass(); }
     } catch (err) {
       this.postMessage({ type: 'error', message: toErrorMessage(err) });
     } finally {

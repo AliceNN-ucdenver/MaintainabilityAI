@@ -316,13 +316,22 @@ function renderRabbitHoleSheet(): string {
       </div>
       <div style="margin-top: 10px;"><button id="btn-rh-close" class="btn-secondary">Close</button></div>`;
   } else if (rh.phase === 'preview') {
+    // Restricted-tier repos hard-deny Alice's Write/Bash (TIER-001), so offer a
+    // break-glass dispatch as the primary action; plain dispatch stays available
+    // to capture the deny path on purpose.
+    const restricted = state.governanceData?.effectiveTier === 'restricted';
+    const dispatchButtons = restricted
+      ? `<button id="btn-rh-breakglass" class="btn-primary mi-glass" title="Grant a 2h TIER-001 override, then file + dispatch">&#128275; Break glass &amp; dispatch</button>
+         <button id="btn-rh-dispatch" class="btn-secondary" title="Dispatch without an override — restricted tier will deny Write/Bash">&#128126; Dispatch anyway</button>`
+      : `<button id="btn-rh-dispatch" class="btn-primary">&#128126; Dispatch to Alice</button>`;
     phaseBody = `
       <label class="rh-label">Issue title</label>
       <input id="rh-title" type="text" class="rh-input" value="${escapeHtml(rh.previewTitle)}" />
       <label class="rh-label" style="margin-top: 10px;">Grounded RCTRO preview <span class="text-muted">(this exact body is filed)</span></label>
       <pre class="rh-preview">${escapeHtml(rh.previewBody)}</pre>
+      ${restricted ? `<div class="text-muted" style="margin-top: 8px; font-size: 11px;">&#128275; This repo is <strong>restricted</strong> tier — Alice's Write/Bash are denied (TIER-001) unless you break glass.</div>` : ''}
       <div class="rh-actions">
-        <button id="btn-rh-dispatch" class="btn-primary">&#128126; Dispatch to Alice</button>
+        ${dispatchButtons}
         <button id="btn-rh-regenerate" class="btn-secondary">Regenerate</button>
         <button id="btn-rh-cancel" class="btn-secondary">Cancel</button>
       </div>`;
@@ -372,6 +381,13 @@ function attachRabbitHoleSheet(): void {
     const title = state.rabbitHole.previewTitle;
     render();
     vscode.postMessage({ type: 'dispatchRctroInline', title });
+  });
+  document.getElementById('btn-rh-breakglass')?.addEventListener('click', () => {
+    if (!state.rabbitHole) { return; }
+    state.rabbitHole.phase = 'dispatching';
+    const title = state.rabbitHole.previewTitle;
+    render();
+    vscode.postMessage({ type: 'dispatchRctroInline', title, breakGlass: true });
   });
   document.getElementById('btn-rh-cancel')?.addEventListener('click', () => {
     state.rabbitHole = null;
