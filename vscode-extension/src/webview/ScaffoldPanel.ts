@@ -1069,13 +1069,16 @@ function renderFitnessTable() {
   FITNESS_CATEGORY_IDS.forEach(function (cat) {
     const cell = (FITNESS_TOOLS[cat] || {})[lang];
     if (!cell) { return; }
-    const opts = cell.options.map(function (o) {
-      return '<option value="' + o + '"' + (o === cell['default'] ? ' selected' : '') + '>' + o + '</option>';
-    }).join('');
+    // Editable combobox: pre-filled default + curated suggestions as a datalist,
+    // but any tool can be typed in to override (single-option rows aren't locked).
+    const listId = 'fitlist-' + cat;
+    const opts = cell.options.map(function (o) { return '<option value="' + o + '"></option>'; }).join('');
     const note = cell.note ? ' <span style="color:var(--muted);font-size:11px;">(' + cell.note + ')</span>' : '';
     html += '<div style="display:flex;align-items:center;gap:8px;margin:3px 0;">'
       + '<span style="width:130px;font-size:12px;text-transform:capitalize;">' + cat.replace('-', ' ') + '</span>'
-      + '<select id="fit-' + cat + '">' + opts + '</select>' + note + '</div>';
+      + '<input id="fit-' + cat + '" list="' + listId + '" value="' + cell['default'] + '" spellcheck="false" style="min-width:180px;" />'
+      + '<datalist id="' + listId + '">' + opts + '</datalist>'
+      + note + '</div>';
   });
   host.innerHTML = html || '<span style="color:var(--muted);font-size:12px;">No fitness tools mapped for this language yet.</span>';
 }
