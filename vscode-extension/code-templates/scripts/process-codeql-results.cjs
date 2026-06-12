@@ -3,15 +3,19 @@
 /**
  * CodeQL SARIF Results Processor
  *
- * Processes CodeQL SARIF results and creates GitHub issues with
- * embedded MaintainabilityAI prompts for security vulnerabilities.
+ * Processes CodeQL SARIF results into GitHub issues, then dispatches the
+ * Alice maintenance agent (a custom Copilot persona) to remediate them.
+ *
+ * Cheshire v2: issues NO LONGER embed prompt-pack bodies or an @claude
+ * remediation zone. The body names the flagged file + the local
+ * `.cheshire/prompts/` packs + `.github/repo-metadata.yml`, and Alice reads
+ * them herself and grounds the fix in the real code (no remote fetch, no
+ * 65 KB truncation risk).
  */
 
 const { Octokit } = require('@octokit/rest');
-const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
-const crypto = require('crypto');
 
 // ============================================================================
 // CONFIGURATION
@@ -19,14 +23,15 @@ const crypto = require('crypto');
 
 const config = {
   githubToken: process.env.GITHUB_TOKEN,
-  promptRepo: process.env.PROMPT_REPO || 'AliceNN-ucdenver/MaintainabilityAI',
-  promptBranch: process.env.PROMPT_BRANCH || 'main',
   severityThreshold: process.env.SEVERITY_THRESHOLD || 'high',
   maxIssuesPerRun: parseInt(process.env.MAX_ISSUES_PER_RUN || '10', 10),
   enableMaintainability: process.env.ENABLE_MAINTAINABILITY === 'true',
   enableThreatModel: process.env.ENABLE_THREAT_MODEL === 'true',
   autoAssign: (process.env.AUTO_ASSIGN || '').split(',').filter(Boolean),
   excludedPaths: (process.env.EXCLUDED_PATHS || '').split(',').filter(Boolean),
+  // The custom Copilot persona dispatched to remediate each finding. Set by
+  // the codeql-to-issues workflow; defaults to the scaffolded Alice agent.
+  maintenanceAgent: process.env.MAINTENANCE_AGENT || 'alice-maintenance-agent',
   owner: process.env.GITHUB_REPOSITORY_OWNER || (process.env.GITHUB_REPOSITORY || '/').split('/')[0],
   repo: (process.env.GITHUB_REPOSITORY || '/').split('/')[1],
   sarifPath: process.env.SARIF_PATH || 'results.sarif',
@@ -73,61 +78,6 @@ function log(level, message, metadata = {}) {
   fs.appendFileSync(logFile, JSON.stringify({ timestamp, level, message: sanitized, ...metadata }) + '\n');
   const prefix = { INFO: 'i', WARN: '!', ERROR: 'x', SUCCESS: '+' }[level] || '-';
   console.log(`[${prefix}] ${sanitized}`);
-}
-
-// ============================================================================
-// PROMPT CACHE & INTEGRITY
-// ============================================================================
-
-const promptCache = new Map();
-const promptHashesPath = path.join(__dirname, 'prompt-hashes.json');
-let promptHashes = {};
-try {
-  promptHashes = JSON.parse(fs.readFileSync(promptHashesPath, 'utf8'));
-  log('SUCCESS', 'Loaded prompt hash manifest');
-} catch (error) {
-  log('ERROR', 'Failed to load prompt-hashes.json — cannot verify integrity');
-  process.exit(1);
-}
-
-const ALLOWED_DOMAINS = ['raw.githubusercontent.com'];
-
-function verifyPromptUrl(urlString) {
-  try {
-    const url = new URL(urlString);
-    if (url.protocol !== 'https:') { return false; }
-    return ALLOWED_DOMAINS.includes(url.hostname);
-  } catch { return false; }
-}
-
-function verifyPromptIntegrity(content, expectedHash) {
-  const actualHash = `sha256:${crypto.createHash('sha256').update(content).digest('hex')}`;
-  return actualHash === expectedHash;
-}
-
-async function fetchPrompt(category, file) {
-  const cacheKey = `${category}/${file}`;
-  if (promptCache.has(cacheKey)) { return promptCache.get(cacheKey); }
-
-  const expectedHash = promptHashes[category]?.[file];
-  if (!expectedHash) { return null; }
-
-  const url = `https://raw.githubusercontent.com/${config.promptRepo}/${config.promptBranch}/examples/promptpack/${category}/${file}`;
-  if (!verifyPromptUrl(url)) { return null; }
-
-  try {
-    const response = await axios.get(url, { timeout: 10000, validateStatus: (s) => s === 200 });
-    const content = response.data;
-    if (!verifyPromptIntegrity(content, expectedHash)) {
-      log('ERROR', `Prompt integrity verification FAILED: ${cacheKey}`);
-      return null;
-    }
-    promptCache.set(cacheKey, content);
-    return content;
-  } catch (error) {
-    promptCache.set(cacheKey, null);
-    return null;
-  }
 }
 
 // ============================================================================
@@ -345,39 +295,24 @@ function createIssueBody(g, prompts) {
     body += `\`\`\`${lang}\n${occ.codeSnippet || '(No snippet)'}\n\`\`\`\n\n**Issue**: ${occ.message}\n\n`;
   });
 
-  // OWASP prompts
-  if (prompts.owaspPrompts?.length > 0) {
-    body += `<details>\n<summary>OWASP Security Guidance (${prompts.owaspPrompts.length} guide${prompts.owaspPrompts.length > 1 ? 's' : ''})</summary>\n\n`;
-    for (const p of prompts.owaspPrompts) {
-      body += `<details>\n<summary>${p.filename}</summary>\n\n${p.content}\n\n</details>\n\n`;
-    }
-    body += `</details>\n\n`;
-  }
+  // task-kind label so the Alice persona routes this to its codeql-finding flow.
+  body += `**Task kind**: \`codeql-finding\`\n\n`;
 
-  // Maintainability prompts
-  if (prompts.maintainabilityPrompts?.length > 0) {
-    body += `<details>\n<summary>Maintainability Guidance (${prompts.maintainabilityPrompts.length} guide${prompts.maintainabilityPrompts.length > 1 ? 's' : ''})</summary>\n\n`;
-    for (const p of prompts.maintainabilityPrompts) {
-      body += `<details>\n<summary>${p.filename}</summary>\n\n${p.content}\n\n</details>\n\n`;
-    }
-    body += `</details>\n\n`;
-  }
-
-  // Prompt pack file references
-  body += `---\n\n## Prompt Packs\n\n`;
-  body += `This repository contains scaffolded prompt packs in \`.cheshire/prompts/\` with detailed implementation guidance.\n`;
-  body += `Read the following files for security-first remediation instructions:\n\n`;
+  // Grounding — Alice reads the packs + repo-metadata + the real code herself.
+  // We REFERENCE the local packs by path; we never embed their bodies (avoids
+  // the 65 KB issue-truncation risk and keeps the agent reading source-of-truth).
+  body += `---\n\n## Remediation — grounded in this repo\n\n`;
+  body += `Before changing anything, read (do not assume):\n\n`;
+  body += `1. \`.github/repo-metadata.yml\` — the language, test runner, and conventions of this repo.\n`;
+  body += `2. The flagged file itself, **\`${g.filePath}\`**, plus its callers and tests.\n`;
+  body += `3. The security packs that apply to this finding (the methodology, not boilerplate):\n`;
   if (prompts.owaspKey && prompts.owaspKey !== 'unmapped') {
-    body += `- \`.cheshire/prompts/owasp/${prompts.owaspKey}.md\` — OWASP security guidance for this vulnerability category\n`;
+    body += `   - \`.cheshire/prompts/owasp/${prompts.owaspKey}.md\` — OWASP guidance for this category\n`;
   }
-  body += `- \`.cheshire/prompts/default.md\` — Security-first baseline (always applicable)\n`;
-  body += `- \`.cheshire/prompts/maintainability/maintainability.md\` — Maintainability guidance\n`;
-  body += `- \`.cheshire/prompts/threat-modeling/stride.md\` — STRIDE threat model analysis\n\n`;
-
-  // Remediation zone
-  body += `---\n\n## Claude Remediation Zone\n\n`;
-  body += `To request a remediation plan, post this comment:\n\n`;
-  body += `\`\`\`\n@claude Read the prompt packs in .cheshire/prompts/ for security guidance, then provide a remediation plan for all ${count} occurrence${count > 1 ? 's' : ''} of this vulnerability in ${g.filePath}. Follow the RCTRO (Role/Context/Task/Requirements/Output) patterns from the prompt packs.\n\`\`\`\n\n---\n\n`;
+  body += `   - \`.cheshire/prompts/default.md\` — security-first baseline (always applies)\n`;
+  body += `   - \`.cheshire/prompts/maintainability/maintainability.md\` — maintainability guidance\n`;
+  body += `   - \`.cheshire/prompts/threat-modeling/stride.md\` — STRIDE threat analysis\n\n`;
+  body += `Then fix all ${count} occurrence${count > 1 ? 's' : ''} in \`${g.filePath}\`, name the real files/functions you touched, and open a PR whose first line is \`Closes #<this issue>\`. Do not add mocks, disable tests, or weaken the check to pass — your changes are governed by the baked Red Queen policy + PreToolUse hook.\n\n`;
 
   // Metadata
   body += `<details>\n<summary>Additional Metadata</summary>\n\n`;
@@ -416,6 +351,62 @@ function generateLabels(g, owaspInfo) {
   return labels;
 }
 
+let cachedDefaultBranch = null;
+async function getDefaultBranch() {
+  if (cachedDefaultBranch) { return cachedDefaultBranch; }
+  try {
+    const { data } = await octokit.rest.repos.get({ owner: config.owner, repo: config.repo });
+    cachedDefaultBranch = data.default_branch || 'main';
+  } catch { cachedDefaultBranch = 'main'; }
+  return cachedDefaultBranch;
+}
+
+/**
+ * Dispatch the Alice maintenance agent (a custom Copilot persona) to remediate
+ * a freshly-created finding. Mirrors the extension's assignCustomCopilotAgent:
+ * the `agent_assignment` extension on the assignees endpoint flips the issue to
+ * the Copilot Coding Agent AND names the `.github/agents/<name>.agent.md`
+ * persona to load. Falls back to a plain `copilot-swe-agent[bot]` assignment +
+ * an `@copilot use agent <name>` comment when the custom-agent extension isn't
+ * available on the repo. Best-effort — never throws (a dispatch failure must
+ * not abort issue processing).
+ */
+async function dispatchMaintenanceAgent(issueNumber) {
+  const agent = config.maintenanceAgent;
+  const baseBranch = await getDefaultBranch();
+  try {
+    await octokit.request('POST /repos/{owner}/{repo}/issues/{issue_number}/assignees', {
+      owner: config.owner, repo: config.repo, issue_number: issueNumber,
+      assignees: ['copilot-swe-agent[bot]'],
+      agent_assignment: {
+        target_repo: `${config.owner}/${config.repo}`,
+        base_branch: baseBranch,
+        custom_agent: agent,
+        custom_instructions: '',
+        model: '',
+      },
+      headers: { 'X-GitHub-Api-Version': '2022-11-28' },
+    });
+    log('SUCCESS', `Dispatched ${agent} to issue #${issueNumber}`);
+    return true;
+  } catch (error) {
+    log('WARN', `Custom-agent dispatch failed for #${issueNumber} (${error.message}); falling back to @copilot mention`);
+    try {
+      await octokit.rest.issues.addAssignees({
+        owner: config.owner, repo: config.repo, issue_number: issueNumber,
+        assignees: ['copilot-swe-agent[bot]'],
+      });
+    } catch (assignErr) { log('WARN', `Fallback assignee add failed for #${issueNumber}: ${assignErr.message}`); }
+    try {
+      await octokit.rest.issues.createComment({
+        owner: config.owner, repo: config.repo, issue_number: issueNumber,
+        body: `@copilot use agent ${agent} — read \`.github/repo-metadata.yml\` and \`.cheshire/prompts/\`, then remediate this finding grounded in the real code.`,
+      });
+    } catch (commentErr) { log('WARN', `Fallback comment failed for #${issueNumber}: ${commentErr.message}`); }
+    return false;
+  }
+}
+
 async function createOrUpdateIssue(g, issueBody, labels) {
   const title = createIssueTitle(g);
   const existing = await findExistingIssue(g);
@@ -425,14 +416,17 @@ async function createOrUpdateIssue(g, issueBody, labels) {
       owner: config.owner, repo: config.repo, issue_number: existing.number, body: issueBody, labels
     });
     log('SUCCESS', `Updated issue #${existing.number}`);
-    return { action: 'updated' };
+    return { action: 'updated', issueNumber: existing.number };
   } else {
     const { data: issue } = await octokit.rest.issues.create({
       owner: config.owner, repo: config.repo, title, body: issueBody, labels,
       ...(config.autoAssign.length > 0 ? { assignees: config.autoAssign } : {})
     });
     log('SUCCESS', `Created issue #${issue.number}: ${title}`);
-    return { action: 'created' };
+    // Auto-dispatch Alice on NEW findings only — re-running CodeQL must not
+    // re-dispatch an already-assigned issue.
+    await dispatchMaintenanceAgent(issue.number);
+    return { action: 'created', issueNumber: issue.number };
   }
 }
 
@@ -470,16 +464,13 @@ async function main() {
     }
 
     try {
+      // OWASP category + key come from the LOCAL prompt-mappings.json (no
+      // remote fetch / embed). The body references the .cheshire/prompts/ packs
+      // by path; Alice reads them herself.
       const prompts = {
         owaspKey: owaspInfo?.key || 'unmapped',
         owaspCategory: owaspInfo?.name || `Security Finding (${g.ruleId})`,
-        owaspPrompts: [],
-        maintainabilityPrompts: []
       };
-      if (owaspInfo) {
-        const owaspContent = await fetchPrompt('owasp', owaspInfo.prompt_file);
-        if (owaspContent) { prompts.owaspPrompts.push({ filename: owaspInfo.prompt_file, content: owaspContent }); }
-      }
 
       const issueBody = createIssueBody(g, prompts);
       const labels = generateLabels(g, owaspInfo);

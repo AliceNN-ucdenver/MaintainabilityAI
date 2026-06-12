@@ -35,7 +35,7 @@ jobs:
         node-version: '20'
 
     - name: Install dependencies
-      run: npm install --no-save @octokit/rest axios
+      run: npm install --no-save @octokit/rest
       working-directory: .
 
     - name: Download CodeQL SARIF
@@ -80,7 +80,7 @@ jobs:
         fi
         ls -la codeql-results.sarif
 
-    - name: Process CodeQL Results
+    - name: Process CodeQL Results & dispatch Alice
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GITHUB_REPOSITORY: ${{ github.repository }}
@@ -89,10 +89,9 @@ jobs:
         SARIF_PATH: 'codeql-results.sarif'
         SEVERITY_THRESHOLD: ${{ github.event.inputs.severity_threshold || 'high' }}
         MAX_ISSUES_PER_RUN: ${{ github.event.inputs.max_issues_per_run || '10' }}
-        ENABLE_MAINTAINABILITY: 'true'
-        ENABLE_THREAT_MODEL: 'true'
-        PROMPT_REPO: 'AliceNN-ucdenver/MaintainabilityAI'
-        PROMPT_BRANCH: 'main'
+        # The custom Copilot persona auto-dispatched onto each new finding.
+        # Matches the scaffolded .github/agents/<name>.agent.md.
+        MAINTENANCE_AGENT: 'alice-maintenance-agent'
       run: node automation/process-codeql-results.cjs
 
     - name: Upload processing logs
