@@ -2,7 +2,6 @@
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "entry": [
     "src/mcp/server.ts",
-    "src/webview/app/main.ts",
     "src/webview/app/scorecard.ts",
     "src/webview/app/lookingGlass.ts"
   ],

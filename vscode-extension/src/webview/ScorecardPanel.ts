@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import type { ScorecardWebviewMessage, ScorecardExtensionMessage, RepoInfo, ScorecardData, IssueCreationRequest, PromptPackSelection } from '../types';
+import type { ScorecardWebviewMessage, ScorecardExtensionMessage, RepoInfo, ScorecardData, IssueCreationRequest, PromptPackSelection, RabbitHolePrefill } from '../types';
 import { toErrorMessage } from '../utils/errors';
 import { GitHubService, githubService } from '../services/GitHubService';
 import { AgentStatusService } from '../services/AgentStatusService';
@@ -44,8 +44,10 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
   private llmService: LlmService | undefined;
   private pendingRabbitHole: { taskKind: string; packs: PromptPackSelection; targetFiles?: string[] } | null = null;
   private pendingIssueRequest: IssueCreationRequest | null = null;
+  // Prefill the inline sheet on first render (Create Issue command / post-scaffold).
+  private pendingRabbitHolePrefill: RabbitHolePrefill | null = null;
 
-  public static createOrShow(context: vscode.ExtensionContext, folderPath?: string) {
+  public static createOrShow(context: vscode.ExtensionContext, folderPath?: string, prefill?: RabbitHolePrefill) {
     const column = vscode.window.activeTextEditor
       ? vscode.window.activeTextEditor.viewColumn
       : undefined;
@@ -55,6 +57,10 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
       // Switch to the requested folder if provided
       if (folderPath) {
         ScorecardPanel.currentPanel.onSwitchFolder(folderPath);
+      }
+      // Panel already live → the webview is ready, so open the sheet directly.
+      if (prefill) {
+        ScorecardPanel.currentPanel.openRabbitHole(prefill.taskKind, prefill.heading, prefill.description, prefill.packs);
       }
       return;
     }
@@ -74,6 +80,7 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
 
     const inst = new ScorecardPanel(panel, context);
     if (folderPath) { inst.selectedFolderPath = folderPath; }
+    if (prefill) { inst.pendingRabbitHolePrefill = prefill; }
     ScorecardPanel.currentPanel = inst;
   }
 
@@ -235,6 +242,14 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
       this.checkForActiveIssues();
     }
     this.startPolling();
+
+    // Open the inline Rabbit Hole sheet if this panel was launched with a
+    // prefill (Create Issue command / post-component-scaffold handoff).
+    if (this.pendingRabbitHolePrefill) {
+      const p = this.pendingRabbitHolePrefill;
+      this.pendingRabbitHolePrefill = null;
+      this.openRabbitHole(p.taskKind, p.heading, p.description, p.packs);
+    }
   }
 
   private startPolling() {

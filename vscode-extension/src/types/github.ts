@@ -62,15 +62,6 @@ export interface GitHubIssueListItem {
   url: string;
 }
 
-export interface AvailableModel {
-  id: string;           // e.g., "copilot-codex"
-  family: string;       // e.g., "codex" — used as the value for selectChatModels
-  name: string;         // e.g., "Codex"
-  vendor: string;       // e.g., "copilot"
-  version: string;      // e.g., "5.3"
-  maxInputTokens: number;
-}
-
 export interface LlmProvider {
   readonly name: string;
   generateRctro(
@@ -84,16 +75,6 @@ export interface LlmProvider {
     repoContext?: string
   ): Promise<RctroPrompt>;
 }
-
-// ============================================================================
-// Workflow Phase Types
-// ============================================================================
-
-export type WorkflowPhase = 'input' | 'review' | 'submit' | 'assign' | 'monitor' | 'complete';
-
-export type PhaseStatus = 'pending' | 'active' | 'completed' | 'error';
-
-export type AgentAssignment = 'claude' | 'copilot' | 'skip';
 
 export interface IssueComment {
   id: number;

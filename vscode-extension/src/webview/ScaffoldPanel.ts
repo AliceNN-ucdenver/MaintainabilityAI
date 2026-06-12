@@ -25,7 +25,7 @@ import { MeshReader } from '../core/mesh-reader';
 import { RedQueenService } from '../services/RedQueenService';
 import { scaffoldAgentConfig, writeScaffoldFiles } from '../mcp/config-scaffold';
 import type { ComponentScaffoldContext } from '../types';
-import { IssueCreatorPanel } from './IssueCreatorPanel';
+import { ScorecardPanel } from './ScorecardPanel';
 import { execFileAsync } from '../utils/exec';
 import { BasePanel } from './BasePanel';
 import { getSharedStyles } from './styles';
@@ -201,9 +201,6 @@ export class ScaffoldPanel extends BasePanel<Record<string, unknown>, Record<str
 
       case 'createComponentFeature': {
         if (this.componentContext) {
-          const sc = msg.stackConfig as { language: string; testing: string; packageManager: string } | undefined;
-          const stack = sc ? this.buildStackFromConfig(sc) : undefined;
-
           // Add the scaffolded folder to workspace if not already present.
           // In the White Rabbit flow the folder IS the workspace (opened before scaffold),
           // so this is a no-op. For direct scaffold usage it ensures the folder is visible.
@@ -219,13 +216,15 @@ export class ScaffoldPanel extends BasePanel<Record<string, unknown>, Record<str
             }
           }
 
-          IssueCreatorPanel.createOrShow(
-            this.context,
-            this.componentContext.description,
-            this.componentContext.packs,
-            this.componentContext.repoUrl,
-            stack,
-          );
+          // Cheshire v2: open the Scorecard's inline Rabbit Hole sheet
+          // pre-filled with the component's BAR context + packs (replacing the
+          // retired IssueCreatorPanel). The Scorecard detects the stack itself.
+          ScorecardPanel.createOrShow(this.context, folderPath || undefined, {
+            taskKind: 'rctro-feature',
+            heading: 'Create feature',
+            description: this.componentContext.description,
+            packs: this.componentContext.packs,
+          });
         }
         break;
       }

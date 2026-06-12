@@ -28,32 +28,6 @@ export function readRepoMetadata(workspaceRoot: string): RepoMetadata | null {
   }
 }
 
-export function writeRepoMetadata(workspaceRoot: string, meta: RepoMetadata): void {
-  const filePath = path.join(workspaceRoot, METADATA_PATH);
-  const dir = path.dirname(filePath);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-  fs.writeFileSync(filePath, serializeMetadataYaml(meta), 'utf8');
-}
-
-export function mergeMetadata(existing: RepoMetadata | null, overrides: Partial<RepoMetadata>): RepoMetadata {
-  const base = existing || {};
-  const merged: RepoMetadata = { ...base };
-
-  if (overrides.language !== undefined) { merged.language = overrides.language; }
-  if (overrides.module_system !== undefined) { merged.module_system = overrides.module_system; }
-  if (overrides.testing !== undefined) { merged.testing = overrides.testing; }
-  if (overrides.package_manager !== undefined) { merged.package_manager = overrides.package_manager; }
-  if (overrides.framework !== undefined) { merged.framework = overrides.framework; }
-  if (overrides.database !== undefined) { merged.database = overrides.database; }
-  if (overrides.llm) {
-    merged.llm = { ...merged.llm, ...overrides.llm };
-  }
-
-  return merged;
-}
-
 export function serializeMetadataYaml(meta: RepoMetadata): string {
   const lines: string[] = ['# Project metadata — written by MaintainabilityAI'];
 

@@ -34,10 +34,8 @@ const EXCLUDED_DIRS = new Set(['__tests__', 'fixtures']);
 const ENTRY_POINTS = [
   'extension.ts',
   'mcp/server.ts',
-  'webview/app/main.ts',
   'webview/app/scorecard.ts',
   'webview/app/lookingGlass.ts',
-  'webview/app/oraculum.ts',
 ];
 
 // Ratchet budgets: current hotspots are explicit so new complexity cannot hide.

@@ -10,7 +10,6 @@ const requiredFiles = [
   'CHANGELOG.md',
   'dist/extension.js',
   'dist/mcp-server.js',
-  'dist/webview/main.js',
   'dist/webview/scorecard.js',
   'dist/webview/lookingGlass.js',
   'assets/icon.png',

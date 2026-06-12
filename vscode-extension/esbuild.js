@@ -68,7 +68,6 @@ const mcpServerConfig = {
 const configs = [
   extensionConfig,
   mcpServerConfig,
-  webviewEntry('src/webview/app/main.ts', 'main.js'),
   webviewEntry('src/webview/app/scorecard.ts', 'scorecard.js'),
   webviewEntry('src/webview/app/lookingGlass.ts', 'lookingGlass.js', { jsx: 'automatic', plugins: [inlineCssPlugin] }),
 ];

@@ -18,60 +18,6 @@ export interface VsCodeApi {
 }
 
 // ============================================================================
-// Prompt / Issue Creator Types
-// ============================================================================
-
-export interface PromptPackInfo {
-  id: string;
-  category: string;
-  name: string;
-  filename: string;
-}
-
-export interface RctroPrompt {
-  title?: string;
-  role: string;
-  context: string;
-  task: string;
-  requirements: { title: string; details: string[]; validation: string }[];
-  output: string;
-}
-
-export interface IssueComment {
-  id: number;
-  author: string;
-  authorAvatarUrl: string;
-  body: string;
-  createdAt: string;
-  updatedAt: string;
-  isBot: boolean;
-}
-
-export interface LinkedPullRequest {
-  number: number;
-  title: string;
-  url: string;
-  state: 'open' | 'closed' | 'merged';
-  branch: string;
-  checksStatus: 'pending' | 'passing' | 'failing' | 'unknown';
-  mergeable: boolean;
-  draft: boolean;
-  reviewRequested: boolean;
-}
-
-export interface GitHubIssueListItem {
-  number: number;
-  title: string;
-  state: 'open' | 'closed';
-  labels: { name: string; color: string }[];
-  assignee: string | null;
-  createdAt: string;
-  updatedAt: string;
-  commentsCount: number;
-  url: string;
-}
-
-// ============================================================================
 // Scorecard Types
 // ============================================================================
 

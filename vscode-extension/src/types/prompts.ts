@@ -67,14 +67,3 @@ export interface MaintainabilityTrigger {
   prompt_file: string;
   keywords: string[];
 }
-
-// ============================================================================
-// Issue Templates
-// ============================================================================
-
-export interface IssueTemplate {
-  id: string;
-  name: string;
-  defaultPacks: PromptPackSelection;
-  descriptionHint: string;
-}

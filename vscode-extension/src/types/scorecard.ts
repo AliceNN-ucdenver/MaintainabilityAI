@@ -39,6 +39,16 @@ export interface ComponentScaffoldContext {
   governanceTier?: string;        // Phase 6 — governance tier from Red Queen orchestration
 }
 
+/** Pre-fill for the Scorecard's inline Rabbit Hole sheet — used by the
+ *  "Create Issue" command and the post-component-scaffold handoff (Cheshire v2,
+ *  replacing the IssueCreatorPanel). */
+export interface RabbitHolePrefill {
+  taskKind: string;
+  heading: string;
+  description: string;
+  packs: PromptPackSelection;
+}
+
 /** Persisted to globalState before workspace switch so activate() can resume the flow. */
 export interface WhiteRabbitBreadcrumb {
   targetFolder: string;

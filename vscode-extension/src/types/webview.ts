@@ -1,9 +1,4 @@
-import type { RctroPrompt, PromptPackSelection, PromptPackInfo } from './prompts';
-import type {
-  TechStack, RepoInfo, AgentAssignment, IssueComment,
-  LinkedPullRequest, GitHubIssueListItem, AvailableModel,
-  WorkflowPhase, PhaseStatus,
-} from './github';
+import type { RepoInfo } from './github';
 import type {
   AgentStatusInfo, ScorecardData, ScorecardSnapshot, TrendDirection,
 } from './scorecard';
@@ -17,63 +12,6 @@ import type {
 } from './governance';
 import type { OkrCard, OkrPhaseProgress, OkrStatus } from './okr';
 import type { CopilotEnvStatus } from '../services/AgentDeploymentService';
-
-// ============================================================================
-// Webview Message Protocol (IssueCreator / Rabbit Hole)
-// ============================================================================
-
-export type WebviewMessage =
-  | { type: 'ready' }
-  | { type: 'generate'; description: string; packs: PromptPackSelection; template?: string; stackOverrides?: Partial<TechStack>; modelOverride?: string }
-  | { type: 'regenerate'; feedback: string; currentRctro: RctroPrompt }
-  | { type: 'submit'; rctro: RctroPrompt; title: string }
-  | { type: 'detectStack' }
-  | { type: 'loadPromptPacks' }
-  | { type: 'selectTemplate'; templateId: string }
-  // Phase 2-6 messages
-  | { type: 'acceptRctro' }
-  | { type: 'rejectRctro'; feedback: string }
-  | { type: 'assignAgent'; agent: AgentAssignment }
-  | { type: 'startMonitoring' }
-  | { type: 'stopMonitoring' }
-  | { type: 'checkoutBranch'; branch: string }
-  | { type: 'openUrl'; url: string }
-  | { type: 'approveAgent'; agent?: 'claude' | 'copilot' }
-  | { type: 'replanAgent'; feedback: string; agent?: 'claude' | 'copilot' }
-  | { type: 'listModels' }
-  | { type: 'saveMetadata'; metadata: { language: string; module_system: string; testing: string; package_manager: string; modelFamily?: string } }
-  | { type: 'loadIssues'; page?: number }
-  | { type: 'selectIssue'; issueNumber: number; issueUrl: string }
-  | { type: 'syncRepo' }
-  | { type: 'backToHub' }
-  | { type: 'switchFolder'; folderPath: string };
-
-export type ExtensionMessage =
-  | { type: 'rctroGenerated'; rctro: RctroPrompt; markdown: string }
-  | { type: 'stackDetected'; stack: TechStack; metadata?: import('../services/RepoMetadata').RepoMetadata }
-  | { type: 'issueCreated'; url: string; number: number }
-  | { type: 'error'; message: string }
-  | { type: 'loading'; active: boolean }
-  | { type: 'promptPacks'; packs: PromptPackInfo[] }
-  | { type: 'repoDetected'; repo: RepoInfo }
-  | { type: 'templateLoaded'; description: string; packs: PromptPackSelection }
-  // Phase 3-6 messages
-  | { type: 'phaseUpdate'; phase: WorkflowPhase; status: PhaseStatus; message?: string }
-  | { type: 'agentAssigned'; agent: AgentAssignment; commentUrl?: string }
-  | { type: 'workflowNotFound' }
-  | { type: 'commentsUpdated'; comments: IssueComment[] }
-  | { type: 'prDetected'; pr: LinkedPullRequest }
-  | { type: 'prStatusUpdated'; pr: LinkedPullRequest }
-  | { type: 'labelsUpdated'; labels: string[] }
-  | { type: 'branchCheckedOut'; branch: string }
-  | { type: 'repoSynced'; message: string }
-  | { type: 'availableModels'; models: AvailableModel[]; defaultFamily: string }
-  | { type: 'metadataSaved' }
-  | { type: 'issuesLoaded'; issues: GitHubIssueListItem[]; hasMore: boolean; page: number }
-  | { type: 'prefillDescription'; description: string; packs?: { owasp: string[]; maintainability: string[]; threatModeling: string[] } }
-  | { type: 'workspaceFolders'; folders: { name: string; path: string }[]; selectedPath?: string }
-  // Phase 6 — Governance bridge data for Rabbit Hole
-  | { type: 'governanceData'; data: import('../utils/governanceBridge').GovernanceBridgeData | null };
 
 // ============================================================================
 // Scorecard Webview Message Protocol
