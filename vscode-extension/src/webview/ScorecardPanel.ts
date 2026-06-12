@@ -1051,8 +1051,10 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
     lines.push(`- Keep the ratchet in a \`baselines.json\` beside the fitness tests, under \`"${category}"\`: \`{ "floor": <number>, "target": <number>, "measured": <number> }\`.`);
     lines.push('### What the test does — self-bootstrapping floor');
     lines.push('- Run the tool and read the current value.');
-    lines.push(`- Read \`floor\` from \`baselines.json\`. **If the file or \`"${category}"\` entry is missing, CREATE it and set \`floor\` (and \`target\`) to the value you just measured** — the ratchet starts at today's value ("no worse"). Always update \`"measured"\`.`);
+    lines.push(`- Read \`floor\` from \`baselines.json\`. **If the file or \`"${category}"\` entry is missing, CREATE it ONCE with \`floor = target = measured =\` the value you just measured**, then pass — the ratchet starts at today's value ("no worse").`);
+    lines.push('- On every later run, **only read `floor` and assert — do NOT rewrite `baselines.json`** (it\'s governance-managed; rewriting `measured` each run just churns a tracked file). No no-op branches.');
     lines.push(`- Assert ${r.assert}.`);
+    lines.push('- Scope the scan to the project source (don\'t hardcode a path that won\'t exist elsewhere — derive it, e.g. `src/` if present else the package root, excluding tests/node_modules).');
     if (r.extra) { lines.push(`- ${r.extra}`); }
     lines.push('- Run the test yourself to confirm it passes on the bootstrapped floor, then wire it into the normal test command so it runs on every PR.');
     lines.push('### Rules');
