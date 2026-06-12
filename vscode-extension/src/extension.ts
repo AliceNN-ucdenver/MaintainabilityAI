@@ -2,7 +2,6 @@
 // Bug V (Codex round-6) ships narrowed workflow allowlist + persona-
 // prompt self_review signing — see packages/research-runner/src/runner/skills.ts.
 import * as vscode from 'vscode';
-import { createIssueCommand } from './commands/createIssue';
 import { scaffoldRepoCommand } from './commands/scaffoldRepo';
 import { browsePromptPacksCommand } from './commands/browsePromptPacks';
 import { configureSecretsCommand, SecretsTarget } from './commands/configureSecrets';
@@ -68,10 +67,6 @@ export function activate(context: vscode.ExtensionContext) {
     }
 
     context.subscriptions.push(
-      vscode.commands.registerCommand(
-        'maintainabilityai.createIssue',
-        () => createIssueCommand(context)
-      ),
       vscode.commands.registerCommand(
         'maintainabilityai.scaffoldRepo',
         (folderPath?: string) => scaffoldRepoCommand(context, folderPath)

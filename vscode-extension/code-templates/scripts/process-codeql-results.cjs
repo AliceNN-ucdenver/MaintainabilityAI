@@ -32,6 +32,9 @@ const config = {
   // The custom Copilot persona dispatched to remediate each finding. Set by
   // the codeql-to-issues workflow; defaults to the scaffolded Alice agent.
   maintenanceAgent: process.env.MAINTENANCE_AGENT || 'alice-maintenance-agent',
+  // Auto-dispatch Alice on new findings? Defaults to FALSE — issues are filed
+  // unassigned and the user triggers Alice from the Security Scorecard.
+  autoAssignAlice: process.env.AUTO_ASSIGN_ALICE === 'true',
   owner: process.env.GITHUB_REPOSITORY_OWNER || (process.env.GITHUB_REPOSITORY || '/').split('/')[0],
   repo: (process.env.GITHUB_REPOSITORY || '/').split('/')[1],
   sarifPath: process.env.SARIF_PATH || 'results.sarif',
@@ -423,9 +426,15 @@ async function createOrUpdateIssue(g, issueBody, labels) {
       ...(config.autoAssign.length > 0 ? { assignees: config.autoAssign } : {})
     });
     log('SUCCESS', `Created issue #${issue.number}: ${title}`);
-    // Auto-dispatch Alice on NEW findings only — re-running CodeQL must not
-    // re-dispatch an already-assigned issue.
-    await dispatchMaintenanceAgent(issue.number);
+    // Auto-dispatch Alice ONLY when explicitly enabled (AUTO_ASSIGN_ALICE) and
+    // ONLY on new findings (re-running CodeQL must not re-dispatch). By default
+    // the issue is filed unassigned — the user triggers Alice from the
+    // Security Scorecard's maintenance-issues list.
+    if (config.autoAssignAlice) {
+      await dispatchMaintenanceAgent(issue.number);
+    } else {
+      log('INFO', `Issue #${issue.number} filed unassigned (auto-assign disabled — assign Alice from the Scorecard)`);
+    }
     return { action: 'created', issueNumber: issue.number };
   }
 }

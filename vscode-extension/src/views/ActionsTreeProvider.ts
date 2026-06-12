@@ -19,11 +19,6 @@ const ACTIONS: ActionItem[] = [
     icon: 'shield',
   },
   {
-    label: 'Rabbit Hole',
-    command: 'maintainabilityai.createIssue',
-    icon: 'issues',
-  },
-  {
     label: 'Prompt Packs',
     command: 'maintainabilityai.browsePromptPacks',
     icon: 'book',

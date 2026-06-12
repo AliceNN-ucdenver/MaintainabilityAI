@@ -1362,12 +1362,12 @@ export class GitHubService {
     };
   }
 
-  async listIssues(owner: string, repo: string, page = 1, perPage = 30, labels?: string): Promise<{ issues: GitHubIssueListItem[]; hasMore: boolean }> {
+  async listIssues(owner: string, repo: string, page = 1, perPage = 30, labels?: string, state: 'open' | 'closed' | 'all' = 'open'): Promise<{ issues: GitHubIssueListItem[]; hasMore: boolean }> {
     const client = await this.getClient();
     const params: Parameters<typeof client.rest.issues.listForRepo>[0] = {
       owner,
       repo,
-      state: 'open',
+      state,
       sort: 'created',
       direction: 'desc',
       per_page: perPage,

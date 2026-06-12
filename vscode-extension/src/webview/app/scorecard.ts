@@ -9,6 +9,18 @@ declare function acquireVsCodeApi(): VsCodeApi;
 
 const vscode = acquireVsCodeApi();
 
+/** Maintenance-issues list row (mirrors the host's GitHubIssueListItem). */
+interface ScorecardIssue {
+  number: number;
+  title: string;
+  state: 'open' | 'closed';
+  labels: { name: string; color: string }[];
+  assignee: string | null;
+  updatedAt: string;
+  commentsCount: number;
+  url: string;
+}
+
 // ============================================================================
 // State
 // ============================================================================
@@ -57,6 +69,12 @@ const state = {
     issueUrl: string;
     issueNumber: number;
   },
+  // Maintenance-issues list
+  issues: [] as ScorecardIssue[],
+  issuesLoaded: false,
+  issueFilter: 'open' as 'open' | 'all',
+  issuesCollapsed: false,
+  assigningIssue: null as number | null,
 };
 
 const rootEl = document.getElementById('scorecard-root')!;
@@ -103,6 +121,28 @@ const CHESHIRE_SVG = `<svg width="40" height="40" viewBox="0 0 128 128" fill="no
     .rh-preview { max-height: 320px; overflow: auto; white-space: pre-wrap; word-break: break-word; background: var(--vscode-textCodeBlock-background, #1e1e1e); border: 1px solid var(--vscode-input-border, #444); border-radius: 4px; padding: 10px; font-size: 11px; margin-top: 4px; }
     .rh-done { font-size: 13px; }
     .rh-link { color: var(--vscode-textLink-foreground); cursor: pointer; text-decoration: underline; }
+
+    /* Maintenance Issues list */
+    .mi-section { margin-bottom: 14px; }
+    .mi-header { display: flex; align-items: center; gap: 8px; }
+    .mi-header h3 { margin: 0; font-size: 14px; flex: 0 0 auto; }
+    .mi-collapse { background: none; border: none; color: var(--text-secondary, #aaa); cursor: pointer; font-size: 14px; padding: 0 2px; line-height: 1; }
+    .mi-count { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 10px; background: var(--vscode-badge-background, #333); color: var(--vscode-badge-foreground, #ddd); }
+    .mi-header-actions { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+    .mi-filter { background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border, #444); border-radius: 4px; padding: 2px 6px; font-size: 11px; }
+    .mi-list { max-height: 300px; overflow-y: auto; margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+    .mi-row { display: flex; align-items: center; gap: 10px; padding: 7px 9px; border: 1px solid var(--vscode-input-border, #333); border-radius: 6px; }
+    .mi-main { min-width: 0; flex: 1; }
+    .mi-title { display: block; color: var(--vscode-textLink-foreground); cursor: pointer; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mi-chips { margin-top: 3px; display: flex; gap: 4px; flex-wrap: wrap; }
+    .mi-chip { font-size: 10px; padding: 1px 6px; border-radius: 9px; background: rgba(120,120,140,0.18); color: var(--text-secondary, #bbb); }
+    .mi-right { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+    .mi-pill { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
+    .mi-pill-open { background: rgba(56,139,253,0.18); color: #79c0ff; }
+    .mi-pill-active { background: rgba(168,85,247,0.20); color: #d2a8ff; }
+    .mi-pill-closed { background: rgba(120,120,120,0.18); color: #9aa0a6; }
+    .btn-sm { font-size: 11px; padding: 3px 9px; }
+    .mi-empty { margin-top: 8px; font-size: 12px; color: var(--text-secondary, #999); padding: 6px 2px; }
   `;
   document.head.appendChild(style);
 })();
@@ -193,6 +233,7 @@ function render() {
     ${renderGradeCard(d)}
     ${renderGovernanceSection()}
     ${renderMetricsGrid(d)}
+    ${renderMaintenanceIssues()}
     ${renderOwaspBreakdown(d.owaspIssues)}
     ${renderSdlcCompleteness(d.sdlcCompleteness)}
     ${renderScoreHistory()}
@@ -207,6 +248,7 @@ function render() {
   attachSyncBanner();
   attachFolderSelect();
   attachRabbitHoleSheet();
+  attachMaintenanceIssues();
   attachAgentStatusListeners(
     (msg) => vscode.postMessage(msg),
     // Lifecycle one-clicks (approve-run / mark-pr-ready / merge-pr) — post to
@@ -315,6 +357,112 @@ function attachRabbitHoleSheet(): void {
     e.preventDefault();
     const url = (e.currentTarget as HTMLElement).dataset.url;
     if (url) { vscode.postMessage({ type: 'openUrl', url }); }
+  });
+}
+
+// ============================================================================
+// Maintenance Issues — the repo's issues with state + one-click "Assign Alice"
+// ============================================================================
+
+const MI_NOISE_LABELS = new Set(['awaiting-remediation-plan', 'remediation-planning']);
+
+/** Phase pill + whether the issue can still be handed to Alice. */
+function maintenanceIssuePhase(i: ScorecardIssue): { label: string; cls: string; assignable: boolean } {
+  if (i.state === 'closed') { return { label: 'Closed', cls: 'mi-pill-closed', assignable: false }; }
+  const a = (i.assignee || '').toLowerCase();
+  if (a.includes('copilot') || a.includes('claude')) { return { label: 'Alice working', cls: 'mi-pill-active', assignable: false }; }
+  return { label: 'Open', cls: 'mi-pill-open', assignable: true };
+}
+
+function renderIssueRow(i: ScorecardIssue): string {
+  const phase = maintenanceIssuePhase(i);
+  const chips = i.labels
+    .filter(l => !MI_NOISE_LABELS.has(l.name))
+    .slice(0, 4)
+    .map(l => `<span class="mi-chip">${escapeHtml(l.name)}</span>`)
+    .join('');
+  const assigning = state.assigningIssue === i.number;
+  const action = phase.assignable
+    ? `<button class="btn-secondary btn-sm mi-assign" data-issue="${i.number}" ${assigning ? 'disabled' : ''}>${assigning ? 'Dispatching…' : '\u{1F43E} Assign Alice'}</button>`
+    : '';
+  return `
+    <div class="mi-row">
+      <div class="mi-main">
+        <a class="mi-title" data-url="${escapeHtml(i.url)}">#${i.number} ${escapeHtml(i.title)}</a>
+        ${chips ? `<div class="mi-chips">${chips}</div>` : ''}
+      </div>
+      <div class="mi-right">
+        <span class="mi-pill ${phase.cls}">${phase.label}</span>
+        ${action}
+      </div>
+    </div>`;
+}
+
+function renderMaintenanceIssues(): string {
+  // Don't flash an empty card before the first repo-scoped load.
+  if (!state.repo && !state.issuesLoaded) { return ''; }
+
+  const chevron = state.issuesCollapsed ? '›' : '˅';
+  const header = `
+    <div class="mi-header">
+      <button class="mi-collapse" id="mi-collapse" title="${state.issuesCollapsed ? 'Expand' : 'Collapse'}">${chevron}</button>
+      <h3>Maintenance Issues <span class="mi-count">${state.issues.length}</span></h3>
+      <div class="mi-header-actions">
+        <select id="mi-filter" class="mi-filter" title="Filter by state">
+          <option value="open" ${state.issueFilter === 'open' ? 'selected' : ''}>Open</option>
+          <option value="all" ${state.issueFilter === 'all' ? 'selected' : ''}>All</option>
+        </select>
+        <button class="btn-secondary btn-icon btn-sm" id="mi-reload" title="Reload issues">&#x21BB;</button>
+      </div>
+    </div>`;
+
+  if (state.issuesCollapsed) {
+    return `<div class="section mi-section">${header}</div>`;
+  }
+
+  let body: string;
+  if (!state.issuesLoaded) {
+    body = `<div class="mi-empty">Loading…</div>`;
+  } else if (state.issues.length === 0) {
+    body = `<div class="mi-empty">${state.issueFilter === 'open' ? 'No open issues \u{1F389}' : 'No issues'}</div>`;
+  } else {
+    body = `<div class="mi-list">${state.issues.map(renderIssueRow).join('')}</div>`;
+  }
+  return `<div class="section mi-section">${header}${body}</div>`;
+}
+
+function reloadIssues(): void {
+  state.issuesLoaded = false;
+  render();
+  vscode.postMessage({ type: 'loadIssues', filter: state.issueFilter });
+}
+
+function attachMaintenanceIssues(): void {
+  document.getElementById('mi-collapse')?.addEventListener('click', () => {
+    state.issuesCollapsed = !state.issuesCollapsed;
+    render();
+  });
+  const filter = document.getElementById('mi-filter') as HTMLSelectElement | null;
+  filter?.addEventListener('change', () => {
+    state.issueFilter = filter.value === 'all' ? 'all' : 'open';
+    reloadIssues();
+  });
+  document.getElementById('mi-reload')?.addEventListener('click', reloadIssues);
+  document.querySelectorAll('.mi-title').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.preventDefault();
+      const url = (e.currentTarget as HTMLElement).dataset.url;
+      if (url) { vscode.postMessage({ type: 'openUrl', url }); }
+    });
+  });
+  document.querySelectorAll('.mi-assign').forEach(el => {
+    el.addEventListener('click', (e) => {
+      const n = Number((e.currentTarget as HTMLElement).dataset.issue);
+      if (!n) { return; }
+      state.assigningIssue = n;
+      render();
+      vscode.postMessage({ type: 'assignAlice', issueNumber: n });
+    });
   });
 }
 
@@ -914,8 +1062,9 @@ function trendIndicator(direction: TrendDirection): string {
 // Message Handling
 // ============================================================================
 
-// Inline Rabbit Hole sheet messages, kept out of the main switch so its
-// cyclomatic complexity stays within budget. Returns true when handled.
+// Inline-section messages (Rabbit Hole sheet + maintenance-issues list), kept
+// out of the main switch so its cyclomatic complexity stays within budget.
+// Returns true when handled.
 function handleRabbitHoleMessage(message: { type: string; [k: string]: unknown }): boolean {
   if (message.type === 'openRabbitHole') {
     state.rabbitHole = {
@@ -944,6 +1093,14 @@ function handleRabbitHoleMessage(message: { type: string; [k: string]: unknown }
     state.rabbitHole.phase = 'done';
     state.rabbitHole.issueUrl = message.url as string;
     state.rabbitHole.issueNumber = message.number as number;
+    render();
+    return true;
+  }
+  if (message.type === 'issuesLoaded') {
+    state.issues = (message.issues as ScorecardIssue[]) || [];
+    state.issueFilter = (message.filter as 'open' | 'all') || 'open';
+    state.issuesLoaded = true;
+    state.assigningIssue = null;
     render();
     return true;
   }

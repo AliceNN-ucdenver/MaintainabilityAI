@@ -1,4 +1,4 @@
-import type { RepoInfo } from './github';
+import type { RepoInfo, GitHubIssueListItem } from './github';
 import type {
   AgentStatusInfo, ScorecardData, ScorecardSnapshot, TrendDirection,
 } from './scorecard';
@@ -33,6 +33,9 @@ export type ScorecardWebviewMessage =
   // Inline Rabbit Hole sheet (replaces the IssueCreatorPanel jump):
   | { type: 'generateRctroInline'; description: string }
   | { type: 'dispatchRctroInline'; title: string }
+  // Maintenance-issues list:
+  | { type: 'loadIssues'; filter: 'open' | 'all' }
+  | { type: 'assignAlice'; issueNumber: number }
   // Agent-status banner lifecycle one-clicks (mirrors the BAR detail banner).
   | { type: 'approveAgentRun'; runId: number }
   | { type: 'markAgentPrReady'; prNumber: number }
@@ -68,6 +71,7 @@ export type ScorecardExtensionMessage =
   | { type: 'openRabbitHole'; taskKind: string; heading: string; description: string; packLabels: string[] }
   | { type: 'rctroPreview'; title: string; body: string }
   | { type: 'rabbitHoleDispatched'; url: string; number: number }
+  | { type: 'issuesLoaded'; issues: GitHubIssueListItem[]; filter: 'open' | 'all' }
   | { type: 'syncStatus'; behind: number; ahead: number; branch: string; dirty: boolean }
   | { type: 'repoSynced' }
   // Phase 6 — Governance bridge data for Scorecard

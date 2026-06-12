@@ -46,6 +46,8 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
   private pendingIssueRequest: IssueCreationRequest | null = null;
   // Prefill the inline sheet on first render (Create Issue command / post-scaffold).
   private pendingRabbitHolePrefill: RabbitHolePrefill | null = null;
+  // Last maintenance-issues filter, so host-driven refreshes keep the user's view.
+  private lastIssueFilter: 'open' | 'all' = 'open';
 
   public static createOrShow(context: vscode.ExtensionContext, folderPath?: string, prefill?: RabbitHolePrefill) {
     const column = vscode.window.activeTextEditor
@@ -154,6 +156,12 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
       case 'dispatchRctroInline':
         await this.onDispatchRctroInline(message.title);
         break;
+      case 'loadIssues':
+        await this.onLoadIssues(message.filter);
+        break;
+      case 'assignAlice':
+        await this.onAssignAlice(message.issueNumber);
+        break;
       case 'approveAgentRun':
         await this.onApproveAgentRun(message.runId);
         break;
@@ -234,9 +242,10 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
     this.onCheckSync();
     this.sendGovernanceData();
 
-    // Query GitHub for agent status, then poll every 30s
+    // Query GitHub for agent status + the maintenance-issues list, then poll.
     if (this.currentRepo) {
       this.checkForActiveIssues();
+      void this.onLoadIssues('open');
     }
     this.startPolling();
 
@@ -460,6 +469,38 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
     }
   }
 
+  /** Load the repo's maintenance issues for the Scorecard list. `filter`
+   *  'open' hides closed; 'all' includes them. Best-effort. */
+  private async onLoadIssues(filter: 'open' | 'all') {
+    this.lastIssueFilter = filter;
+    if (!this.currentRepo) {
+      this.postMessage({ type: 'issuesLoaded', issues: [], filter });
+      return;
+    }
+    try {
+      const { issues } = await this.githubService.listIssues(
+        this.currentRepo.owner, this.currentRepo.repo, 1, 50, undefined, filter === 'all' ? 'all' : 'open'
+      );
+      this.postMessage({ type: 'issuesLoaded', issues, filter });
+    } catch {
+      this.postMessage({ type: 'issuesLoaded', issues: [], filter });
+    }
+  }
+
+  /** Dispatch the Alice maintenance agent onto an existing issue (from the
+   *  Scorecard list), then refresh the list + the agent-status banner. */
+  private async onAssignAlice(issueNumber: number) {
+    if (!this.currentRepo) { return; }
+    this.postMessage({ type: 'loading', active: true, message: `Dispatching Alice to #${issueNumber}…` });
+    try {
+      await this.dispatchAlice(this.currentRepo.owner, this.currentRepo.repo, issueNumber);
+    } finally {
+      this.postMessage({ type: 'loading', active: false });
+    }
+    await this.onLoadIssues(this.lastIssueFilter);
+    await this.checkForActiveIssues();
+  }
+
   /** Query GitHub for agent status (issues, PRs, workflow approval). */
   private async checkForActiveIssues() {
     if (!this.currentRepo) { return; }
@@ -529,6 +570,7 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
       } catch { /* best effort — issue may already be closed */ }
     }
     await this.checkForActiveIssues();
+    await this.onLoadIssues(this.lastIssueFilter);
   }
 
   private async onRefresh() {
@@ -1007,6 +1049,7 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
       this.pendingRabbitHole = null;
       this.pendingIssueRequest = null;
       await this.checkForActiveIssues();
+      await this.onLoadIssues(this.lastIssueFilter);
     } catch (err) {
       this.postMessage({ type: 'error', message: toErrorMessage(err) });
     } finally {

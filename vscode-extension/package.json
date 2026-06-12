@@ -48,15 +48,6 @@
         }
       },
       {
-        "command": "maintainabilityai.createIssue",
-        "title": "Issue Management",
-        "category": "MaintainabilityAI",
-        "icon": {
-          "light": "assets/cheshire-light.svg",
-          "dark": "assets/cheshire-dark.svg"
-        }
-      },
-      {
         "command": "maintainabilityai.browsePromptPacks",
         "title": "Prompt Packs",
         "category": "MaintainabilityAI"
@@ -129,19 +120,9 @@
       ]
     },
     "menus": {
-      "editor/title": [
-        {
-          "command": "maintainabilityai.createIssue",
-          "group": "navigation",
-          "when": "editorFocus"
-        }
-      ],
       "commandPalette": [
         {
           "command": "maintainabilityai.scaffoldRepo"
-        },
-        {
-          "command": "maintainabilityai.createIssue"
         },
         {
           "command": "maintainabilityai.browsePromptPacks"
