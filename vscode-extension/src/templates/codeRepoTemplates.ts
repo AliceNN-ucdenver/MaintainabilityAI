@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { TechStack } from '../types';
 import { serializeMetadataYaml, type RepoMetadata } from '../services/RepoMetadata';
+import { defaultFitnessTools } from '../services/fitnessTools';
 
 // ============================================================================
 // HELPERS
@@ -263,7 +264,7 @@ export function generateCiWorkflow(stack: TechStack, extensionPath: string): str
   return yml;
 }
 
-export function generateRepoMetadata(stack: TechStack, modelFamily?: string): string {
+export function generateRepoMetadata(stack: TechStack, modelFamily?: string, fitness?: Record<string, string>): string {
   const moduleSystem = stack.runtime?.includes('ESM') || stack.runtime?.includes('Vite') ? 'ESM' : 'CommonJS';
   const meta: RepoMetadata = {
     language: stack.language || undefined,
@@ -272,6 +273,9 @@ export function generateRepoMetadata(stack: TechStack, modelFamily?: string): st
     package_manager: stack.packageManager || undefined,
     framework: stack.framework || undefined,
     database: stack.database || undefined,
+    // Curated default fitness tool per category for this language; the Scaffold
+    // page can override before deploy. Read back by the fitness-test recipe.
+    fitness: fitness || defaultFitnessTools(stack.language),
   };
   if (modelFamily) {
     meta.llm = { model_family: modelFamily };

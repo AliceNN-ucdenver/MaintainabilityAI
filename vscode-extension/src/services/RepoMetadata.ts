@@ -11,6 +11,8 @@ export interface RepoMetadata {
   llm?: {
     model_family?: string;
   };
+  /** Selected fitness-function tool per category (duplicate, dead-code, …). */
+  fitness?: Record<string, string>;
 }
 
 const METADATA_PATH = '.github/repo-metadata.yml';
@@ -41,6 +43,12 @@ export function serializeMetadataYaml(meta: RepoMetadata): string {
     lines.push('llm:');
     lines.push(`  model_family: ${meta.llm.model_family}`);
   }
+  if (meta.fitness && Object.keys(meta.fitness).length > 0) {
+    lines.push('fitness:');
+    for (const [category, tool] of Object.entries(meta.fitness)) {
+      lines.push(`  ${category}: ${tool}`);
+    }
+  }
 
   return lines.join('\n') + '\n';
 }
@@ -49,14 +57,20 @@ function parseMetadataYaml(raw: string): RepoMetadata {
   const meta: RepoMetadata = {};
   const lines = raw.split('\n');
   let inLlm = false;
+  let inFitness = false;
 
   for (const line of lines) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith('#')) { continue; }
 
     if (trimmed === 'llm:') {
-      inLlm = true;
+      inLlm = true; inFitness = false;
       meta.llm = {};
+      continue;
+    }
+    if (trimmed === 'fitness:') {
+      inFitness = true; inLlm = false;
+      meta.fitness = {};
       continue;
     }
 
@@ -71,9 +85,17 @@ function parseMetadataYaml(raw: string): RepoMetadata {
       }
       continue;
     }
+    if (inFitness && line.startsWith('  ')) {
+      const match = trimmed.match(/^([\w-]+):\s*(.+)$/);
+      if (match) {
+        meta.fitness = meta.fitness || {};
+        meta.fitness[match[1]] = match[2];
+      }
+      continue;
+    }
 
     // Top-level keys
-    inLlm = false;
+    inLlm = false; inFitness = false;
     const match = trimmed.match(/^(\w+):\s*(.+)$/);
     if (match) {
       const [, key, value] = match;

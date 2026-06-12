@@ -19,6 +19,8 @@ import { MeshReader } from '../core/mesh-reader';
 import { RedQueenService } from '../services/RedQueenService';
 import { scaffoldAgentConfig, writeScaffoldFiles } from '../mcp/config-scaffold';
 import { generateMaintenanceAgent } from '../templates/codeRepoTemplates';
+import { readRepoMetadata } from '../services/RepoMetadata';
+import { defaultFitnessTools, fitnessToolInstruction } from '../services/fitnessTools';
 import { execFileAsync } from '../utils/exec';
 import { getNonce } from '../utils/getNonce';
 import { BasePanel } from './BasePanel';
@@ -1040,11 +1042,19 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
       return;
     }
     const slug = category.replace(/-/g, '_');
+    // Use the tool the team configured in repo-metadata.yml (`fitness:`), else
+    // the curated default for the detected language, else the generic guidance.
+    const root = this.selectedFolderPath || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    const meta = root ? readRepoMetadata(root) : null;
+    const chosenTool = meta?.fitness?.[category]
+      || (meta?.language ? defaultFitnessTools(meta.language)[category] : undefined);
+    const toolText = chosenTool ? fitnessToolInstruction(chosenTool) : r.tool;
+
     const lines: string[] = [];
     lines.push(`## Add a ${r.label} fitness test\n`);
     lines.push('Author an executable **fitness function** — a committed test that fails the build when this characteristic regresses — following the framework convention. Tests only; do not change application source.\n');
     lines.push('### Tooling — MUST be fast and native');
-    lines.push(`- Use ${r.tool}`);
+    lines.push(`- Use ${toolText}`);
     lines.push('- **Do NOT use PMAT, the `pmat` package, or any tool that compiles from source / downloads a Rust binary at test time.** The test must run in seconds on every PR, not minutes. Add the chosen tool as a normal devDependency (committed to the lockfile) — never vendor a `.tgz`.');
     lines.push('### Convention');
     lines.push(`- Put the test in a \`fitness/\` directory wherever this repo keeps tests (e.g. \`tests/fitness/\`, \`test/fitness/\`, \`src/__tests__/fitness/\`), named for the category: \`${category}.test.*\` (JS/TS), \`test_${slug}.py\`, or \`${slug}_fitness_test.go\`. Add a \`@fitness:${category}\` marker comment.`);
