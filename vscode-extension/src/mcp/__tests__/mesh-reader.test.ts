@@ -545,6 +545,52 @@ describe('Config Scaffold', () => {
       }
     });
 
+    it('break-glass: an active grant lets the agent Edit existing code (TIER-003 remediation, e.g. a SQLi fix)', () => {
+      const redQueen = new RedQueenService();
+      // Test Bar Empty scores 0 → restricted → Edit is plan-first (TIER-002) AND
+      // requireApproval (TIER-003). A remediation edit must clear BOTH under a grant.
+      const result = scaffoldAgentConfig(reader, 'Test Bar Empty', redQueen);
+      if ('error' in result) { throw new Error(`scaffold failed: ${result.error}`); }
+
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'redqueen-bg-edit-'));
+      try {
+        writeScaffoldFiles(tmpDir, result.files);
+        const wrapperPath = path.join(tmpDir, '.redqueen/hooks/validate-tool.sh');
+        const approvalsPath = path.join(tmpDir, '.redqueen', 'approvals.json');
+        // A non-security-critical source file (SEC-001 still gates src/auth/** etc.).
+        const editPayload = JSON.stringify({
+          tool_name: 'Edit',
+          tool_input: { file_path: 'src/db/queries.ts', old_string: 'a', new_string: 'b' },
+        });
+        const runEdit = () => spawnSync(wrapperPath, { input: editPayload, encoding: 'utf8', cwd: tmpDir });
+
+        // 1. No grant → Edit is blocked (plan-first / requireApproval).
+        const denied = runEdit();
+        expect(denied.status).toBe(2);
+
+        // 2. Active grant → Edit is allowed (regression: was TIER-003-denied even
+        //    with a grant, so the agent could create but never fix existing files).
+        const future = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+        fs.writeFileSync(approvalsPath, JSON.stringify({ version: 1, approvals: [{ issue: 7, expiresAt: future }] }));
+        const allowed = runEdit();
+        expect(allowed.status).toBe(0);
+        expect(allowed.stdout).toContain('"permissionDecision":"allow"');
+
+        const auditPath = path.join(tmpDir, '.redqueen', 'audit-log.jsonl');
+        const entries = fs.readFileSync(auditPath, 'utf8').trim().split('\n').map(l => JSON.parse(l));
+        const overrideEntry = entries.find(e => e.payload?.override === true && e.payload?.tool === 'Edit');
+        expect(overrideEntry).toBeTruthy();
+        expect(overrideEntry.payload?.approvalSource).toBe('break-glass#7');
+
+        // 3. Expired grant → blocked again.
+        const past = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+        fs.writeFileSync(approvalsPath, JSON.stringify({ version: 1, approvals: [{ issue: 7, expiresAt: past }] }));
+        expect(runEdit().status).toBe(2);
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
     it('break-glass: the agent cannot forge a grant — writing .redqueen/approvals.json is CTRL-001', () => {
       const redQueen = new RedQueenService();
       const result = scaffoldAgentConfig(reader, 'Test Bar Empty', redQueen);
