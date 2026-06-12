@@ -89,6 +89,8 @@ const state = {
   issuesCollapsed: false,
   // SDLC Completeness — collapsed by default so the 12 rows don't crowd the page.
   sdlcCollapsed: true,
+  // Score-history dropdown in the grade card header (closed by default).
+  historyOpen: false,
   assigningIssue: null as number | null,
   // Restricted-tier break-glass grants (.redqueen/approvals.json)
   breakGlassGrants: [] as BreakGlassGrant[],
@@ -263,7 +265,6 @@ function render() {
 
   const d = state.data!;
   const repoLabel = d.repo ? `${escapeHtml(d.repo.owner)}/${escapeHtml(d.repo.repo)}` : 'No repository detected';
-  const repoUrl = d.repo ? `https://github.com/${encodeURIComponent(d.repo.owner)}/${encodeURIComponent(d.repo.repo)}` : '';
 
   rootEl.innerHTML = `
     ${state.errorMessage ? `<div class="error-msg">${escapeHtml(state.errorMessage)}</div>` : ''}
@@ -297,8 +298,6 @@ function render() {
     ${renderMaintenanceIssues()}
     ${renderOwaspBreakdown(d.owaspIssues)}
     ${renderSdlcCompleteness(d.sdlcCompleteness)}
-    ${renderScoreHistory()}
-    ${renderQuickActions(repoUrl)}
   `;
 
   attachRefresh();
@@ -785,6 +784,25 @@ function renderGradeCard(d: ScorecardData): string {
   const compositeTrend = state.trends['composite'];
   const compositeTrendHtml = compositeTrend ? trendIndicator(compositeTrend) : '';
 
+  const repoUrl = d.repo ? `https://github.com/${encodeURIComponent(d.repo.owner)}/${encodeURIComponent(d.repo.repo)}` : '';
+  const hasHistory = state.history.length > 0;
+
+  const actions = `
+    <div class="grade-actions" style="margin-left: auto; display: flex; flex-direction: column; gap: 6px; align-self: flex-start;">
+      ${hasHistory ? `<button id="btn-history-toggle" class="btn-secondary btn-sm">History ${state.historyOpen ? '&#9652;' : '&#9662;'}</button>` : ''}
+      ${repoUrl ? `<button id="btn-open-repo" class="btn-secondary btn-sm">Open Repo &#8599;</button>` : ''}
+    </div>`;
+
+  let historyPanel = '';
+  if (hasHistory && state.historyOpen) {
+    const rows = state.history.slice(-5).reverse().map(snap => {
+      const dateStr = new Date(snap.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      const gc = snap.grade === '?' ? 'grade-unknown' : `grade-${snap.grade}`;
+      return `<div class="history-row"><span class="history-score">${snap.compositeScore}/100</span><span class="history-grade ${gc}">${snap.grade}</span><span class="history-date">${escapeHtml(dateStr)}</span></div>`;
+    }).join('');
+    historyPanel = `<div class="history-list" style="margin: -8px 0 16px; padding: 8px 12px; border: 1px solid var(--vscode-input-border, #333); border-radius: 6px;">${rows}</div>`;
+  }
+
   return `
     <div class="grade-card">
       <div class="grade-circle ${gradeClass}">${d.grade}</div>
@@ -795,7 +813,9 @@ function renderGradeCard(d: ScorecardData): string {
           <div class="score-fill" style="width: ${scorePercent}%; background: ${fillColor};"></div>
         </div>
       </div>
+      ${actions}
     </div>
+    ${historyPanel}
   `;
 }
 
@@ -1088,37 +1108,6 @@ function renderSdlcCompleteness(items: SdlcCompletenessItem[]): string {
   `;
 }
 
-function renderScoreHistory(): string {
-  if (state.history.length === 0) { return ''; }
-
-  const recent = state.history.slice(-5).reverse();
-
-  const rows = recent.map(snap => {
-    const date = new Date(snap.timestamp);
-    const dateStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-    const gradeClass = snap.grade === '?' ? 'grade-unknown' : `grade-${snap.grade}`;
-    return `
-      <div class="history-row">
-        <span class="history-score">${snap.compositeScore}/100</span>
-        <span class="history-grade ${gradeClass}">${snap.grade}</span>
-        <span class="history-date">${escapeHtml(dateStr)}</span>
-      </div>
-    `;
-  }).join('');
-
-  return `
-    <div class="section-header">Score History</div>
-    <div class="history-list">${rows}</div>
-  `;
-}
-
-function renderQuickActions(repoUrl: string): string {
-  return `
-    <div class="quick-actions">
-      ${repoUrl ? `<button id="btn-open-repo" class="btn-secondary">Open Repository</button>` : ''}
-    </div>
-  `;
-}
 
 // ============================================================================
 // Settings View
@@ -1311,6 +1300,11 @@ function attachActions() {
 
   document.getElementById('sdlc-collapse')?.addEventListener('click', () => {
     state.sdlcCollapsed = !state.sdlcCollapsed;
+    render();
+  });
+
+  document.getElementById('btn-history-toggle')?.addEventListener('click', () => {
+    state.historyOpen = !state.historyOpen;
     render();
   });
 
