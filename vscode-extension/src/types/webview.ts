@@ -36,6 +36,9 @@ export type ScorecardWebviewMessage =
   // Maintenance-issues list:
   | { type: 'loadIssues'; filter: 'open' | 'all' }
   | { type: 'assignAlice'; issueNumber: number }
+  // CodeQL auto-assign toggle (the AUTO_ASSIGN_ALICE repo Actions variable):
+  | { type: 'getAutoAssignAlice' }
+  | { type: 'setAutoAssignAlice'; enabled: boolean }
   // Agent-status banner lifecycle one-clicks (mirrors the BAR detail banner).
   | { type: 'approveAgentRun'; runId: number }
   | { type: 'markAgentPrReady'; prNumber: number }
@@ -72,6 +75,7 @@ export type ScorecardExtensionMessage =
   | { type: 'rctroPreview'; title: string; body: string }
   | { type: 'rabbitHoleDispatched'; url: string; number: number }
   | { type: 'issuesLoaded'; issues: GitHubIssueListItem[]; filter: 'open' | 'all' }
+  | { type: 'autoAssignAliceStatus'; enabled: boolean | null }
   | { type: 'syncStatus'; behind: number; ahead: number; branch: string; dirty: boolean }
   | { type: 'repoSynced' }
   // Phase 6 — Governance bridge data for Scorecard

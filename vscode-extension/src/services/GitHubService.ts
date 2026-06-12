@@ -993,6 +993,48 @@ export class GitHubService {
   }
 
   /**
+   * Read a repository Actions VARIABLE (not a secret — variable values are
+   * readable). Returns the string value, or null when unset / unreadable.
+   * Used by the Scorecard's "auto-assign Alice" toggle, which the
+   * codeql-to-issues workflow reads as `vars.AUTO_ASSIGN_ALICE`.
+   */
+  async getRepoVariable(owner: string, repo: string, name: string): Promise<string | null> {
+    const client = await this.getClient();
+    try {
+      const { data } = await client.request('GET /repos/{owner}/{repo}/actions/variables/{name}', {
+        owner, repo, name, headers: { 'X-GitHub-Api-Version': '2022-11-28' },
+      });
+      return (data as { value?: string }).value ?? null;
+    } catch {
+      return null; // 404 = unset, 403 = no permission
+    }
+  }
+
+  /**
+   * Create-or-update a repository Actions VARIABLE. Tries PATCH (update) first,
+   * then POST (create) when it doesn't exist yet. Returns true on success.
+   * Writing variables needs Actions:write / repo admin on the token.
+   */
+  async setRepoVariable(owner: string, repo: string, name: string, value: string): Promise<boolean> {
+    const client = await this.getClient();
+    try {
+      await client.request('PATCH /repos/{owner}/{repo}/actions/variables/{name}', {
+        owner, repo, name, value, headers: { 'X-GitHub-Api-Version': '2022-11-28' },
+      });
+      return true;
+    } catch {
+      try {
+        await client.request('POST /repos/{owner}/{repo}/actions/variables', {
+          owner, repo, name, value, headers: { 'X-GitHub-Api-Version': '2022-11-28' },
+        });
+        return true;
+      } catch {
+        return false;
+      }
+    }
+  }
+
+  /**
    * Flip a draft PR to ready-for-review. GitHub's REST API doesn't
    * expose this directly — you have to use the GraphQL `markPullRequestReadyForReview`
    * mutation. Returns true on success, false on any failure (logged for

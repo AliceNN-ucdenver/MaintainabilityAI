@@ -162,6 +162,12 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
       case 'assignAlice':
         await this.onAssignAlice(message.issueNumber);
         break;
+      case 'getAutoAssignAlice':
+        await this.onGetAutoAssignAlice();
+        break;
+      case 'setAutoAssignAlice':
+        await this.onSetAutoAssignAlice(message.enabled);
+        break;
       case 'approveAgentRun':
         await this.onApproveAgentRun(message.runId);
         break;
@@ -499,6 +505,34 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
     }
     await this.onLoadIssues(this.lastIssueFilter);
     await this.checkForActiveIssues();
+  }
+
+  /** Read the AUTO_ASSIGN_ALICE repo Actions variable for the settings toggle.
+   *  enabled = the variable is exactly 'true'; null when there's no repo. */
+  private async onGetAutoAssignAlice() {
+    if (!this.currentRepo) {
+      this.postMessage({ type: 'autoAssignAliceStatus', enabled: null });
+      return;
+    }
+    const value = await this.githubService.getRepoVariable(this.currentRepo.owner, this.currentRepo.repo, 'AUTO_ASSIGN_ALICE');
+    this.postMessage({ type: 'autoAssignAliceStatus', enabled: value === 'true' });
+  }
+
+  /** Set the AUTO_ASSIGN_ALICE repo Actions variable (codeql-to-issues reads it
+   *  as `vars.AUTO_ASSIGN_ALICE`). Needs Actions:write / admin on the token. */
+  private async onSetAutoAssignAlice(enabled: boolean) {
+    if (!this.currentRepo) {
+      this.postMessage({ type: 'autoAssignAliceStatus', enabled: null });
+      return;
+    }
+    const ok = await this.githubService.setRepoVariable(
+      this.currentRepo.owner, this.currentRepo.repo, 'AUTO_ASSIGN_ALICE', enabled ? 'true' : 'false'
+    );
+    if (!ok) {
+      this.postMessage({ type: 'error', message: 'Could not set the AUTO_ASSIGN_ALICE repo variable — your token may lack Actions:write / admin on this repo.' });
+    }
+    // Re-read so the toggle reflects the repo's actual state either way.
+    await this.onGetAutoAssignAlice();
   }
 
   /** Query GitHub for agent status (issues, PRs, workflow approval). */

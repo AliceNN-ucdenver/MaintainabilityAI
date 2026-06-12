@@ -40,6 +40,8 @@ const state = {
   settingsAliceWorkflowExists: null as boolean | null,
   availableModels: [] as { id: string; family: string; name: string; vendor: string }[],
   settingsPreferredModel: '',
+  // 'unknown' until the AUTO_ASSIGN_ALICE repo variable is read.
+  settingsAutoAssignAlice: 'unknown' as boolean | 'unknown',
   // Workspace folders
   workspaceFolders: [] as { name: string; path: string }[],
   selectedFolder: '',
@@ -143,6 +145,8 @@ const CHESHIRE_SVG = `<svg width="40" height="40" viewBox="0 0 128 128" fill="no
     .mi-pill-closed { background: rgba(120,120,120,0.18); color: #9aa0a6; }
     .btn-sm { font-size: 11px; padding: 3px 9px; }
     .mi-empty { margin-top: 8px; font-size: 12px; color: var(--text-secondary, #999); padding: 6px 2px; }
+    .mi-switch { display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer; }
+    .mi-switch input { cursor: pointer; }
   `;
   document.head.appendChild(style);
 })();
@@ -850,7 +854,34 @@ function renderSettingsView(): string {
         <h2>Settings</h2>
       </div>
       ${renderSettingsAliceWorkflow()}
+      ${renderSettingsCodeqlAutoAssign()}
       ${renderSettingsLlmModel()}
+    </div>
+  `;
+}
+
+function renderSettingsCodeqlAutoAssign(): string {
+  const v = state.settingsAutoAssignAlice;
+  const checked = v === true ? 'checked' : '';
+  const disabled = v === 'unknown' ? 'disabled' : '';
+  const statusText = v === 'unknown'
+    ? 'Reading repo setting…'
+    : (v === true
+        ? 'On — new CodeQL findings are dispatched to Alice automatically.'
+        : 'Off — findings are filed unassigned; assign Alice from the issue list.');
+  return `
+    <div class="settings-section">
+      <h3>CodeQL Auto-Assign</h3>
+      <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">
+        Sets the <code style="font-size: 11px; padding: 1px 4px; background: var(--bg-input); border-radius: 3px;">AUTO_ASSIGN_ALICE</code> repository Actions variable that <code style="font-size: 11px; padding: 1px 4px; background: var(--bg-input); border-radius: 3px;">codeql-to-issues.yml</code> reads. Off by default. Requires Actions write / admin on the repo.
+      </p>
+      <div class="settings-row" style="justify-content: flex-start; gap: 10px;">
+        <label class="mi-switch">
+          <input type="checkbox" id="toggle-auto-assign-alice" ${checked} ${disabled}>
+          <span>Auto-assign Alice to new CodeQL findings</span>
+        </label>
+      </div>
+      <p style="font-size: 11px; color: var(--text-secondary); margin: 4px 0 0;">${statusText}</p>
     </div>
   `;
 }
@@ -920,8 +951,10 @@ function attachSettingsGear() {
   document.getElementById('btn-settings-gear')?.addEventListener('click', () => {
     state.view = 'settings';
     state.settingsAliceWorkflowExists = null;
+    state.settingsAutoAssignAlice = 'unknown';
     vscode.postMessage({ type: 'checkAliceWorkflowStatus' });
     vscode.postMessage({ type: 'listModels' });
+    vscode.postMessage({ type: 'getAutoAssignAlice' });
     render();
   });
 }
@@ -942,6 +975,14 @@ function attachSettingsEvents() {
   // Deploy the Alice maintenance-agent persona
   document.getElementById('btn-deploy-alice')?.addEventListener('click', () => {
     vscode.postMessage({ type: 'deployAliceWorkflow' });
+  });
+
+  // CodeQL auto-assign toggle → set the AUTO_ASSIGN_ALICE repo variable.
+  document.getElementById('toggle-auto-assign-alice')?.addEventListener('change', (e) => {
+    const enabled = (e.currentTarget as HTMLInputElement).checked;
+    state.settingsAutoAssignAlice = 'unknown'; // pending — host re-reads + confirms
+    render();
+    vscode.postMessage({ type: 'setAutoAssignAlice', enabled });
   });
 
   // Save model preference
@@ -1102,6 +1143,12 @@ function handleRabbitHoleMessage(message: { type: string; [k: string]: unknown }
     state.issuesLoaded = true;
     state.assigningIssue = null;
     render();
+    return true;
+  }
+  if (message.type === 'autoAssignAliceStatus') {
+    const e = message.enabled as boolean | null;
+    state.settingsAutoAssignAlice = e === null ? 'unknown' : e;
+    if (state.view === 'settings') { render(); }
     return true;
   }
   return false;
