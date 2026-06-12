@@ -45,6 +45,18 @@ const state = {
   } | null,
   // Auto-detected BAR when no decision.json exists
   detectedBar: null as { barName: string; barPath: string } | null,
+  // Inline Rabbit Hole sheet — describe → grounded RCTRO preview → dispatch Alice
+  rabbitHole: null as null | {
+    taskKind: string;
+    heading: string;
+    description: string;
+    packLabels: string[];
+    phase: 'input' | 'generating' | 'preview' | 'dispatching' | 'done';
+    previewTitle: string;
+    previewBody: string;
+    issueUrl: string;
+    issueNumber: number;
+  },
 };
 
 const rootEl = document.getElementById('scorecard-root')!;
@@ -72,6 +84,26 @@ const CHESHIRE_SVG = `<svg width="40" height="40" viewBox="0 0 128 128" fill="no
 (function injectAgentStatusStyles() {
   const style = document.createElement('style');
   style.textContent = getAgentStatusStyles();
+  document.head.appendChild(style);
+})();
+
+// Inject the inline Rabbit Hole sheet CSS once
+(function injectRabbitHoleStyles() {
+  const style = document.createElement('style');
+  style.textContent = `
+    .rh-sheet { margin-bottom: 12px; padding: 14px; border: 1px solid var(--vscode-focusBorder, #a855f7); border-radius: 8px; }
+    .rh-heading { margin-top: 0; display: flex; align-items: center; gap: 8px; }
+    .rh-kind { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 7px; border-radius: 10px; background: rgba(168,85,247,0.18); color: #c4b5fd; }
+    .rh-label { display: block; font-size: 11px; font-weight: 600; margin-bottom: 4px; }
+    .rh-input, .rh-textarea { width: 100%; box-sizing: border-box; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border, #444); border-radius: 4px; padding: 6px 8px; font-family: inherit; font-size: 12px; }
+    .rh-textarea { resize: vertical; }
+    .rh-packs { margin-top: 10px; font-size: 12px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .rh-chip { font-size: 11px; padding: 2px 7px; border-radius: 10px; background: var(--vscode-badge-background, #333); color: var(--vscode-badge-foreground, #ddd); }
+    .rh-actions { display: flex; gap: 8px; margin-top: 12px; }
+    .rh-preview { max-height: 320px; overflow: auto; white-space: pre-wrap; word-break: break-word; background: var(--vscode-textCodeBlock-background, #1e1e1e); border: 1px solid var(--vscode-input-border, #444); border-radius: 4px; padding: 10px; font-size: 11px; margin-top: 4px; }
+    .rh-done { font-size: 13px; }
+    .rh-link { color: var(--vscode-textLink-foreground); cursor: pointer; text-decoration: underline; }
+  `;
   document.head.appendChild(style);
 })();
 
@@ -154,6 +186,7 @@ function render() {
     </div>
 
     ${renderAgentStatus(state.agentStatus, { lifecycleActions: true })}
+    ${renderRabbitHoleSheet()}
     ${renderSyncBanner()}
     ${renderCreateFeatureBanner()}
     ${renderPmatBanner(d)}
@@ -173,6 +206,7 @@ function render() {
   attachCreateFeature();
   attachSyncBanner();
   attachFolderSelect();
+  attachRabbitHoleSheet();
   attachAgentStatusListeners(
     (msg) => vscode.postMessage(msg),
     // Lifecycle one-clicks (approve-run / mark-pr-ready / merge-pr) — post to
@@ -189,6 +223,99 @@ function render() {
     },
   );
   attachSettingsGear();
+}
+
+// ============================================================================
+// Inline Rabbit Hole sheet — describe → grounded RCTRO preview → dispatch Alice
+// ============================================================================
+
+function renderRabbitHoleSheet(): string {
+  const rh = state.rabbitHole;
+  if (!rh) { return ''; }
+
+  const packChips = rh.packLabels.length
+    ? rh.packLabels.map(p => `<span class="rh-chip">${escapeHtml(p)}</span>`).join('')
+    : '<span class="text-muted">Security-First Baseline (default)</span>';
+
+  let phaseBody: string;
+  if (rh.phase === 'done') {
+    phaseBody = `
+      <div class="rh-done">
+        &#10003; Filed <a class="rh-link" data-url="${escapeHtml(rh.issueUrl)}">#${rh.issueNumber}</a> and dispatched
+        <strong>Alice</strong>. Track approve → ready → merge in the banner above.
+      </div>
+      <div style="margin-top: 10px;"><button id="btn-rh-close" class="btn-secondary">Close</button></div>`;
+  } else if (rh.phase === 'preview') {
+    phaseBody = `
+      <label class="rh-label">Issue title</label>
+      <input id="rh-title" type="text" class="rh-input" value="${escapeHtml(rh.previewTitle)}" />
+      <label class="rh-label" style="margin-top: 10px;">Grounded RCTRO preview <span class="text-muted">(this exact body is filed)</span></label>
+      <pre class="rh-preview">${escapeHtml(rh.previewBody)}</pre>
+      <div class="rh-actions">
+        <button id="btn-rh-dispatch" class="btn-primary">&#128126; Dispatch to Alice</button>
+        <button id="btn-rh-regenerate" class="btn-secondary">Regenerate</button>
+        <button id="btn-rh-cancel" class="btn-secondary">Cancel</button>
+      </div>`;
+  } else {
+    const busy = rh.phase === 'generating' || rh.phase === 'dispatching';
+    phaseBody = `
+      <label class="rh-label">Describe the task <span class="text-muted">(grounded in this repo's real files)</span></label>
+      <textarea id="rh-description" class="rh-textarea" rows="8" placeholder="What should Alice do? Name behaviors, not files — the RCTRO is grounded automatically." ${busy ? 'disabled' : ''}>${escapeHtml(rh.description)}</textarea>
+      <div class="rh-packs"><strong>Prompt packs</strong> ${packChips}</div>
+      <div class="rh-actions">
+        <button id="btn-rh-generate" class="btn-primary" ${busy ? 'disabled' : ''}>${rh.phase === 'generating' ? 'Generating…' : '&#10024; Generate RCTRO'}</button>
+        <button id="btn-rh-cancel" class="btn-secondary" ${busy ? 'disabled' : ''}>Cancel</button>
+      </div>`;
+  }
+
+  return `
+    <div class="section rh-sheet">
+      <h3 class="rh-heading">&#128046; ${escapeHtml(rh.heading)} <span class="rh-kind">${escapeHtml(rh.taskKind)}</span></h3>
+      ${phaseBody}
+    </div>`;
+}
+
+function attachRabbitHoleSheet(): void {
+  const rh = state.rabbitHole;
+  if (!rh) { return; }
+
+  // Preserve edits without re-rendering (would drop caret/focus).
+  const desc = document.getElementById('rh-description') as HTMLTextAreaElement | null;
+  desc?.addEventListener('input', () => { if (state.rabbitHole) { state.rabbitHole.description = desc.value; } });
+  const titleEl = document.getElementById('rh-title') as HTMLInputElement | null;
+  titleEl?.addEventListener('input', () => { if (state.rabbitHole) { state.rabbitHole.previewTitle = titleEl.value; } });
+
+  document.getElementById('btn-rh-generate')?.addEventListener('click', () => {
+    if (!state.rabbitHole) { return; }
+    state.rabbitHole.phase = 'generating';
+    render();
+    vscode.postMessage({ type: 'generateRctroInline', description: state.rabbitHole.description });
+  });
+  document.getElementById('btn-rh-regenerate')?.addEventListener('click', () => {
+    if (!state.rabbitHole) { return; }
+    state.rabbitHole.phase = 'input';
+    render();
+  });
+  document.getElementById('btn-rh-dispatch')?.addEventListener('click', () => {
+    if (!state.rabbitHole) { return; }
+    state.rabbitHole.phase = 'dispatching';
+    const title = state.rabbitHole.previewTitle;
+    render();
+    vscode.postMessage({ type: 'dispatchRctroInline', title });
+  });
+  document.getElementById('btn-rh-cancel')?.addEventListener('click', () => {
+    state.rabbitHole = null;
+    render();
+  });
+  document.getElementById('btn-rh-close')?.addEventListener('click', () => {
+    state.rabbitHole = null;
+    render();
+  });
+  document.querySelector('.rh-done .rh-link')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    const url = (e.currentTarget as HTMLElement).dataset.url;
+    if (url) { vscode.postMessage({ type: 'openUrl', url }); }
+  });
 }
 
 function renderFolderDropdown(): string {
@@ -810,9 +937,53 @@ function trendIndicator(direction: TrendDirection): string {
 // Message Handling
 // ============================================================================
 
+// Inline Rabbit Hole sheet messages, kept out of the main switch so its
+// cyclomatic complexity stays within budget. Returns true when handled.
+function handleRabbitHoleMessage(message: { type: string; [k: string]: unknown }): boolean {
+  if (message.type === 'openRabbitHole') {
+    state.rabbitHole = {
+      taskKind: message.taskKind as string,
+      heading: message.heading as string,
+      description: message.description as string,
+      packLabels: (message.packLabels as string[]) || [],
+      phase: 'input',
+      previewTitle: '',
+      previewBody: '',
+      issueUrl: '',
+      issueNumber: 0,
+    };
+    state.errorMessage = '';
+    render();
+    return true;
+  }
+  if (message.type === 'rctroPreview' && state.rabbitHole) {
+    state.rabbitHole.phase = 'preview';
+    state.rabbitHole.previewTitle = message.title as string;
+    state.rabbitHole.previewBody = message.body as string;
+    render();
+    return true;
+  }
+  if (message.type === 'rabbitHoleDispatched' && state.rabbitHole) {
+    state.rabbitHole.phase = 'done';
+    state.rabbitHole.issueUrl = message.url as string;
+    state.rabbitHole.issueNumber = message.number as number;
+    render();
+    return true;
+  }
+  return false;
+}
+
+// On any error, un-stick a busy Rabbit Hole sheet so the user can retry.
+function unstickRabbitHoleOnError(): void {
+  if (!state.rabbitHole) { return; }
+  if (state.rabbitHole.phase === 'generating') { state.rabbitHole.phase = 'input'; }
+  else if (state.rabbitHole.phase === 'dispatching') { state.rabbitHole.phase = 'preview'; }
+}
+
 window.addEventListener('message', (event) => {
   if (event.origin !== window.origin) { return; }
   const message = event.data;
+  if (handleRabbitHoleMessage(message)) { return; }
 
   switch (message.type) {
     case 'scorecardData':
@@ -837,6 +1008,7 @@ window.addEventListener('message', (event) => {
     case 'error':
       state.errorMessage = message.message;
       state.isLoading = false;
+      unstickRabbitHoleOnError();
       render();
       break;
 

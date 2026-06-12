@@ -1,11 +1,13 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import type { ScorecardWebviewMessage, ScorecardExtensionMessage, RepoInfo, ScorecardData } from '../types';
+import type { ScorecardWebviewMessage, ScorecardExtensionMessage, RepoInfo, ScorecardData, IssueCreationRequest, PromptPackSelection } from '../types';
 import { toErrorMessage } from '../utils/errors';
 import { GitHubService, githubService } from '../services/GitHubService';
 import { AgentStatusService } from '../services/AgentStatusService';
 import { promptPackService } from '../services/PromptPackService';
+import { LlmService } from '../services/llm/LlmService';
+import { buildRepoContext } from '../services/RepoContextScanner';
 import { PmatService } from '../services/PmatService';
 import { ScorecardService } from '../services/ScorecardService';
 import { ScorecardHistoryService } from '../services/ScorecardHistoryService';
@@ -16,7 +18,6 @@ import { MeshService } from '../services/MeshService';
 import { MeshReader } from '../core/mesh-reader';
 import { RedQueenService } from '../services/RedQueenService';
 import { scaffoldAgentConfig, writeScaffoldFiles } from '../mcp/config-scaffold';
-import { IssueCreatorPanel } from './IssueCreatorPanel';
 import { generateMaintenanceAgent } from '../templates/codeRepoTemplates';
 import { execFileAsync } from '../utils/exec';
 import { getNonce } from '../utils/getNonce';
@@ -39,6 +40,10 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
   private detectedTesting = 'Unknown';
   private selectedFolderPath: string | undefined;
   private pollTimer: ReturnType<typeof setInterval> | undefined;
+  // Inline Rabbit Hole sheet (Cheshire v2) — the in-flight maintenance task.
+  private llmService: LlmService | undefined;
+  private pendingRabbitHole: { taskKind: string; packs: PromptPackSelection; targetFiles?: string[] } | null = null;
+  private pendingIssueRequest: IssueCreationRequest | null = null;
 
   public static createOrShow(context: vscode.ExtensionContext, folderPath?: string) {
     const column = vscode.window.activeTextEditor
@@ -137,7 +142,13 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
         this.onImproveDeps();
         break;
       case 'createFeature':
-        IssueCreatorPanel.createOrShow(this.context, '', undefined, this.currentRepo?.remoteUrl, undefined, this.selectedFolderPath);
+        this.openRabbitHole('rctro-feature', 'Create feature', '', { owasp: [], maintainability: [], threatModeling: [] });
+        break;
+      case 'generateRctroInline':
+        await this.onGenerateRctroInline(message.description);
+        break;
+      case 'dispatchRctroInline':
+        await this.onDispatchRctroInline(message.title);
         break;
       case 'approveAgentRun':
         await this.onApproveAgentRun(message.runId);
@@ -767,7 +778,7 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
       threatModeling: [] as string[],
     };
 
-    IssueCreatorPanel.createOrShow(this.context, lines.join('\n'), coveragePacks, this.currentRepo?.remoteUrl, undefined, this.selectedFolderPath);
+    this.openRabbitHole('improve-coverage', 'Improve test coverage', lines.join('\n'), coveragePacks, breakdown.map(f => f.filePath));
   }
 
   private onImproveDeps() {
@@ -802,7 +813,7 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
       threatModeling: [] as string[],
     };
 
-    IssueCreatorPanel.createOrShow(this.context, lines.join('\n'), depPacks, this.currentRepo?.remoteUrl, undefined, this.selectedFolderPath);
+    this.openRabbitHole('improve-dependencies', 'Improve dependency freshness', lines.join('\n'), depPacks);
   }
 
   private async onReduceComplexity() {
@@ -842,7 +853,7 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
       threatModeling: [] as string[],
     };
 
-    IssueCreatorPanel.createOrShow(this.context, lines.join('\n'), complexityPacks, this.currentRepo?.remoteUrl, undefined, this.selectedFolderPath);
+    this.openRabbitHole('reduce-complexity', 'Reduce cyclomatic complexity', lines.join('\n'), complexityPacks, [...new Set(result.hotspots.map(h => h.file))]);
   }
 
   private async onAddressTechDebt() {
@@ -880,7 +891,134 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
       threatModeling: [] as string[],
     };
 
-    IssueCreatorPanel.createOrShow(this.context, lines.join('\n'), techDebtPacks, this.currentRepo?.remoteUrl, undefined, this.selectedFolderPath);
+    this.openRabbitHole('address-tech-debt', 'Address technical debt', lines.join('\n'), techDebtPacks, result.problemFiles.map(f => f.filePath));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Inline Rabbit Hole sheet (Cheshire v2) — describe → grounded RCTRO → dispatch
+  // Alice. Replaces the IssueCreatorPanel jump; the agent-status banner takes
+  // over the post-dispatch lifecycle (approve → mark ready → merge).
+  // ---------------------------------------------------------------------------
+
+  /** Open the inline sheet pre-filled for a task. The 4 improve actions pass a
+   *  scorecard-derived description + the files they already know are at fault;
+   *  Create feature opens it blank. */
+  private openRabbitHole(taskKind: string, heading: string, description: string, packs: PromptPackSelection, targetFiles?: string[]) {
+    this.pendingRabbitHole = { taskKind, packs, targetFiles };
+    this.pendingIssueRequest = null;
+    const packLabels = [
+      ...packs.owasp, ...packs.maintainability, ...packs.threatModeling,
+    ];
+    this.postMessage({ type: 'openRabbitHole', taskKind, heading, description, packLabels });
+  }
+
+  /** Generate the grounded RCTRO and stream back a preview of the exact issue
+   *  body that would be filed (WYSIWYG — no separate markdown formatter). */
+  private async onGenerateRctroInline(description: string) {
+    if (!this.pendingRabbitHole) { return; }
+    if (!description.trim()) {
+      this.postMessage({ type: 'error', message: 'Describe the task before generating an RCTRO.' });
+      return;
+    }
+    this.postMessage({ type: 'loading', active: true, message: 'Generating grounded RCTRO…' });
+    try {
+      const repo = this.currentRepo || await this.githubService.detectRepoForFolder(this.selectedFolderPath || '');
+      if (!repo) {
+        throw new Error('Could not detect a GitHub repository for this folder. Open a folder with a GitHub remote.');
+      }
+      this.currentRepo = repo;
+
+      const { packs, targetFiles } = this.pendingRabbitHole;
+      const packContents = promptPackService.getSelectedPackContents(packs);
+      const defaultContent = promptPackService.getDefaultPackContent();
+      const contentStrings = [
+        ...(defaultContent ? [defaultContent] : []),
+        ...packContents.map(p => p.content),
+      ];
+
+      const stack = await this.techStackDetector.detect(this.selectedFolderPath);
+
+      // Ground the RCTRO in the real code (same scan as IssueCreatorPanel):
+      // scorecard/CodeQL tasks already know the target files, so pass them as
+      // explicit excerpt targets; a blind feature ranks files by the description.
+      const repoContext = this.selectedFolderPath
+        ? buildRepoContext(this.selectedFolderPath, { description, targetFiles }) ?? undefined
+        : undefined;
+
+      if (!this.llmService) { this.llmService = new LlmService(); }
+      const rctro = await this.llmService.generateRctro(
+        description, stack, contentStrings, undefined, undefined, repoContext
+      );
+
+      // Always include the default pack (Security-First Baseline) in the body.
+      const bodyPackContents = [...packContents];
+      if (defaultContent) {
+        bodyPackContents.unshift({ id: 'default', category: 'default', name: 'Security-First Baseline', filename: 'default.md', content: defaultContent });
+      }
+
+      // The LLM usually titles the RCTRO; fall back to the task heading.
+      const issueTitle = rctro.title?.trim() || `${this.pendingRabbitHole.taskKind}: maintenance task`;
+      const request: IssueCreationRequest = {
+        title: issueTitle,
+        rctroPrompt: rctro,
+        selectedPacks: packs,
+        packContents: bodyPackContents,
+        techStack: stack,
+        labels: [this.pendingRabbitHole.taskKind, 'remediation-planning'],
+        repo,
+      };
+      this.pendingIssueRequest = request;
+
+      this.postMessage({ type: 'rctroPreview', title: issueTitle, body: promptPackService.buildRabbitHoleIssue(request) });
+    } catch (err) {
+      this.postMessage({ type: 'error', message: toErrorMessage(err) });
+    } finally {
+      this.postMessage({ type: 'loading', active: false });
+    }
+  }
+
+  /** File the issue and dispatch the Alice maintenance agent by name (with a
+   *  generic copilot fallback). The banner then drives approve → ready → merge. */
+  private async onDispatchRctroInline(title: string) {
+    const request = this.pendingIssueRequest;
+    if (!request) {
+      this.postMessage({ type: 'error', message: 'Generate the RCTRO before dispatching.' });
+      return;
+    }
+    this.postMessage({ type: 'loading', active: true, message: 'Filing issue & dispatching Alice…' });
+    try {
+      if (title.trim()) { request.title = title.trim(); }
+      const result = await this.githubService.createIssue(request);
+      await this.dispatchAlice(request.repo.owner, request.repo.repo, result.number);
+
+      this.postMessage({ type: 'rabbitHoleDispatched', url: result.url, number: result.number });
+      this.pendingRabbitHole = null;
+      this.pendingIssueRequest = null;
+      await this.checkForActiveIssues();
+    } catch (err) {
+      this.postMessage({ type: 'error', message: toErrorMessage(err) });
+    } finally {
+      this.postMessage({ type: 'loading', active: false });
+    }
+  }
+
+  /** Assign the Alice custom Copilot persona; fall back to a plain
+   *  copilot-swe-agent[bot] assignment + `@copilot use agent` comment when the
+   *  custom-agent extension isn't available (e.g. a pre-v2 repo). */
+  private async dispatchAlice(owner: string, repo: string, issueNumber: number) {
+    const agent = 'alice-maintenance-agent';
+    try {
+      const baseBranch = await this.githubService.getDefaultBranch(owner, repo);
+      await this.githubService.assignCustomCopilotAgent(owner, repo, issueNumber, agent, { baseBranch });
+    } catch {
+      try {
+        await this.githubService.assignIssue(owner, repo, issueNumber, ['copilot-swe-agent[bot]']);
+        await this.githubService.createIssueComment(owner, repo, issueNumber,
+          `@copilot use agent ${agent} — read \`.github/repo-metadata.yml\` and \`.cheshire/prompts/\`, then ship this grounded in the real code.`);
+      } catch (err) {
+        this.postMessage({ type: 'error', message: `Issue filed but agent dispatch failed: ${toErrorMessage(err)}` });
+      }
+    }
   }
 
   // ---------------------------------------------------------------------------

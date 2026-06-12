@@ -92,6 +92,9 @@ export type ScorecardWebviewMessage =
   | { type: 'improveCoverage' }
   | { type: 'improveDeps' }
   | { type: 'createFeature' }
+  // Inline Rabbit Hole sheet (replaces the IssueCreatorPanel jump):
+  | { type: 'generateRctroInline'; description: string }
+  | { type: 'dispatchRctroInline'; title: string }
   // Agent-status banner lifecycle one-clicks (mirrors the BAR detail banner).
   | { type: 'approveAgentRun'; runId: number }
   | { type: 'markAgentPrReady'; prNumber: number }
@@ -123,6 +126,11 @@ export type ScorecardExtensionMessage =
   | { type: 'preferredModelSaved'; family: string }
   | { type: 'workspaceFolders'; folders: { name: string; path: string }[] }
   | { type: 'agentStatusUpdate'; status: AgentStatusInfo | null }
+  // Inline Rabbit Hole sheet (Cheshire v2): the panel opens the sheet
+  // pre-filled, streams back the grounded RCTRO preview, and confirms dispatch.
+  | { type: 'openRabbitHole'; taskKind: string; heading: string; description: string; packLabels: string[] }
+  | { type: 'rctroPreview'; title: string; body: string }
+  | { type: 'rabbitHoleDispatched'; url: string; number: number }
   | { type: 'syncStatus'; behind: number; ahead: number; branch: string; dirty: boolean }
   | { type: 'repoSynced' }
   // Phase 6 — Governance bridge data for Scorecard
