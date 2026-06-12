@@ -1,7 +1,7 @@
 // Scorecard webview frontend — renders Security Scorecard dashboard
 import { renderAgentStatus, attachAgentStatusListeners, getAgentStatusStyles } from './agentStatus';
 import type { AgentStatusInfo, AgentStatusPhase } from './agentStatus';
-import { escapeHtml, formatTimestamp } from './pillars/shared';
+import { escapeHtml, formatTimestamp, renderMarkdown } from './pillars/shared';
 import { deployStatusBadge } from './components/html';
 import type { VsCodeApi, MetricResult, SdlcCompletenessItem, OwaspIssueSummary, ScorecardData, ScorecardSnapshot, TrendDirection, FitnessTestResult } from './types';
 
@@ -76,6 +76,7 @@ const state = {
     description: string;
     packLabels: string[];
     phase: 'input' | 'generating' | 'preview' | 'dispatching' | 'done';
+    editing: boolean;
     previewTitle: string;
     previewBody: string;
     issueUrl: string;
@@ -132,7 +133,20 @@ const CHESHIRE_SVG = `<svg width="40" height="40" viewBox="0 0 128 128" fill="no
     .rh-packs { margin-top: 10px; font-size: 12px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
     .rh-chip { font-size: 11px; padding: 2px 7px; border-radius: 10px; background: var(--vscode-badge-background, #333); color: var(--vscode-badge-foreground, #ddd); }
     .rh-actions { display: flex; gap: 8px; margin-top: 12px; }
-    .rh-preview { max-height: 320px; overflow: auto; white-space: pre-wrap; word-break: break-word; background: var(--vscode-textCodeBlock-background, #1e1e1e); border: 1px solid var(--vscode-input-border, #444); border-radius: 4px; padding: 10px; font-size: 11px; margin-top: 4px; }
+    .rh-preview { max-height: 460px; overflow: auto; word-break: break-word; background: var(--vscode-textCodeBlock-background, #1e1e1e); border: 1px solid var(--vscode-input-border, #444); border-radius: 4px; padding: 12px 14px; font-size: 12px; margin-top: 4px; }
+
+    /* Rendered markdown (RCTRO preview + pre-filled brief) */
+    .rh-md { font-size: 12px; line-height: 1.55; }
+    .rh-md h3, .rh-md h4, .rh-md h5 { margin: 12px 0 4px; line-height: 1.3; }
+    .rh-md h3 { font-size: 14px; } .rh-md h4 { font-size: 13px; } .rh-md h5 { font-size: 12px; color: var(--text-secondary, #bbb); }
+    .rh-md code { background: var(--vscode-textCodeBlock-background, #2a2a2a); padding: 1px 4px; border-radius: 3px; font-size: 11px; }
+    .rh-md pre { background: var(--vscode-textCodeBlock-background, #1e1e1e); border: 1px solid var(--vscode-input-border, #444); border-radius: 4px; padding: 8px 10px; overflow: auto; }
+    .rh-md pre code { background: none; padding: 0; }
+    .rh-md table { border-collapse: collapse; margin: 6px 0; font-size: 11px; }
+    .rh-md th, .rh-md td { border: 1px solid var(--vscode-input-border, #444); padding: 3px 8px; text-align: left; }
+    .rh-md th { background: rgba(255,255,255,0.04); }
+    .rh-md hr { border: none; border-top: 1px solid var(--vscode-panel-border, #444); margin: 8px 0; }
+    .rh-brief { max-height: 360px; overflow: auto; background: var(--vscode-textBlockQuote-background, rgba(255,255,255,0.03)); border: 1px solid var(--vscode-input-border, #444); border-radius: 4px; padding: 10px 14px; }
     .rh-done { font-size: 13px; }
     .rh-link { color: var(--vscode-textLink-foreground); cursor: pointer; text-decoration: underline; }
 
@@ -317,6 +331,14 @@ function render() {
 // Inline Rabbit Hole sheet — describe → grounded RCTRO preview → dispatch Alice
 // ============================================================================
 
+/** Bring the inline RCTRO sheet into view — it renders near the top, but the
+ *  click that opens it usually comes from a tile/row further down the page. */
+function scrollRabbitHoleIntoView(): void {
+  requestAnimationFrame(() => {
+    document.querySelector('.rh-sheet')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+}
+
 function renderRabbitHoleSheet(): string {
   const rh = state.rabbitHole;
   if (!rh) { return ''; }
@@ -346,7 +368,7 @@ function renderRabbitHoleSheet(): string {
       <label class="rh-label">Issue title</label>
       <input id="rh-title" type="text" class="rh-input" value="${escapeHtml(rh.previewTitle)}" />
       <label class="rh-label" style="margin-top: 10px;">Grounded RCTRO preview <span class="text-muted">(this exact body is filed)</span></label>
-      <pre class="rh-preview">${escapeHtml(rh.previewBody)}</pre>
+      <div class="rh-preview rh-md">${renderMarkdown(rh.previewBody)}</div>
       ${restricted ? `<div class="text-muted" style="margin-top: 8px; font-size: 11px;">&#128275; This repo is <strong>restricted</strong> tier — Alice's Write/Bash are denied (TIER-001) unless you break glass.</div>` : ''}
       <div class="rh-actions">
         ${dispatchButtons}
@@ -355,9 +377,16 @@ function renderRabbitHoleSheet(): string {
       </div>`;
   } else {
     const busy = rh.phase === 'generating' || rh.phase === 'dispatching';
+    // A pre-filled recipe (e.g. "Assign Alice") reads best rendered; show the raw
+    // textarea only for a blank brief (Create Feature) or when the user edits.
+    const showRendered = !!rh.description.trim() && !rh.editing && !busy;
+    const briefBody = showRendered
+      ? `<div class="rh-md rh-brief">${renderMarkdown(rh.description)}</div>
+         <button id="btn-rh-edit" class="rh-link" style="margin-top: 6px;">&#9998; Edit</button>`
+      : `<textarea id="rh-description" class="rh-textarea" rows="14" placeholder="What should Alice do? Name behaviors, not files — the RCTRO is grounded automatically." ${busy ? 'disabled' : ''}>${escapeHtml(rh.description)}</textarea>`;
     phaseBody = `
       <label class="rh-label">Describe the task <span class="text-muted">(grounded in this repo's real files)</span></label>
-      <textarea id="rh-description" class="rh-textarea" rows="8" placeholder="What should Alice do? Name behaviors, not files — the RCTRO is grounded automatically." ${busy ? 'disabled' : ''}>${escapeHtml(rh.description)}</textarea>
+      ${briefBody}
       <div class="rh-packs"><strong>Prompt packs</strong> ${packChips}</div>
       <div class="rh-actions">
         <button id="btn-rh-generate" class="btn-primary" ${busy ? 'disabled' : ''}>${rh.phase === 'generating' ? 'Generating…' : '&#10024; Generate RCTRO'}</button>
@@ -381,6 +410,12 @@ function attachRabbitHoleSheet(): void {
   desc?.addEventListener('input', () => { if (state.rabbitHole) { state.rabbitHole.description = desc.value; } });
   const titleEl = document.getElementById('rh-title') as HTMLInputElement | null;
   titleEl?.addEventListener('input', () => { if (state.rabbitHole) { state.rabbitHole.previewTitle = titleEl.value; } });
+
+  document.getElementById('btn-rh-edit')?.addEventListener('click', () => {
+    if (!state.rabbitHole) { return; }
+    state.rabbitHole.editing = true;
+    render();
+  });
 
   document.getElementById('btn-rh-generate')?.addEventListener('click', () => {
     if (!state.rabbitHole) { return; }
@@ -1360,6 +1395,7 @@ function handleRabbitHoleMessage(message: { type: string; [k: string]: unknown }
       description: message.description as string,
       packLabels: (message.packLabels as string[]) || [],
       phase: 'input',
+      editing: false,
       previewTitle: '',
       previewBody: '',
       issueUrl: '',
@@ -1367,6 +1403,7 @@ function handleRabbitHoleMessage(message: { type: string; [k: string]: unknown }
     };
     state.errorMessage = '';
     render();
+    scrollRabbitHoleIntoView();
     return true;
   }
   if (message.type === 'rctroPreview' && state.rabbitHole) {
@@ -1374,6 +1411,7 @@ function handleRabbitHoleMessage(message: { type: string; [k: string]: unknown }
     state.rabbitHole.previewTitle = message.title as string;
     state.rabbitHole.previewBody = message.body as string;
     render();
+    scrollRabbitHoleIntoView();
     return true;
   }
   if (message.type === 'rabbitHoleDispatched' && state.rabbitHole) {
