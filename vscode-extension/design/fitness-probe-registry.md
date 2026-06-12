@@ -109,23 +109,83 @@ interface FitnessTestProbe {
 `ProbeContext` = parsed manifests + memoised file index + resolved test command —
 the same cheap, client-side contract; we read the repo, we don't run the gates.
 
-## UI — the new section
+## The convention (must be visible in the tile)
 
-Under Fitness Functions, a **Fitness Tests** section, two groups:
+Fitness tests live at a prescribed, glob-able path so detection is deterministic and
+Alice scaffolds to the same place:
 
-- **Structural** — duplicate · dead-code · complexity · import-boundaries
-- **Runtime / Evolutionary** — performance · accessibility
+```
+tests/fitness/<category>.test.{ts,js}     # node / react
+tests/fitness/test_<category>.py          # python
+<pkg>/fitness_<category>_test.go          # go
+tests/fitness/<category>.rs               # rust
+```
 
-Each row: `category · status (present / stale / absent) · [Assign Alice]` when
-`absent` (or `[Wire into test command]` when `stale`). One click briefs Alice with
-the category `recipe` and the convention path.
+…each carrying a marker (`// @fitness:<category>` / `# @fitness:<category>`). The
+**tile must make this legible** — a viewer should see *what backs this row*:
+
+```
+Duplicate    ●present   tests/fitness/duplicate.test.ts    4.2% · floor 5% · target 2%   [Tighten]
+Dead code    ○absent    —                                  [Assign Alice]
+Imports      ●present   tests/fitness/architecture.test.ts 0 violations · floor 0        [✓ at target]
+```
+
+So each row shows: status · **convention path** (click → open the test) · the
+ratchet bar (current · floor · target) · the contextual action.
+
+## Ratchet & baselines
+
+A fitness test asserts `metric ≤ floor` (for lower-is-better categories — all the
+structural ones). Two numbers per category live in a committed file:
+
+```jsonc
+// tests/fitness/baselines.json
+{ "duplicate": { "floor": 5.0, "target": 2.0, "measured": 4.2,
+                 "updatedBy": "alice", "updatedAt": "…", "commit": "…" } }
+```
+
+- **floor** — the no-regression line the test asserts against (the ratchet pawl).
+- **target** — the aspirational goal; the gap `measured → target` is the backlog.
+
+### The three moves (each with different governance)
+
+1. **Tighten-auto (the pawl).** After a green run where `measured < floor`, propose
+   `floor := measured` to lock the gain. *Suggested* on the tile (one-click apply),
+   or applied by a dedicated baseline bot — **never silently by the coding agent**
+   (see keystone below). The floor only ever ratchets toward target.
+
+2. **Tighten-on-purpose (lowering the ratchet).** A human lowers `target` (or
+   `floor`) on the tile. Two flavours:
+   - *Gentle (default):* lower **target** below `measured` → no build break; the
+     Scorecard surfaces **"Assign Alice: reduce <category> from 4.2% → 2%."** As
+     Alice improves the code, the pawl ratchets `floor` down; the gap closes.
+   - *Aggressive:* lower **floor** below `measured` → the test goes red **now** →
+     forces the fix this PR. Use when you want it gone immediately.
+
+   So *lowering the ratchet is itself the dispatch mechanism* — tightening the budget
+   creates the remediation task.
+
+3. **Loosen (raising the floor) — governed.** Increasing the budget is a regression
+   of the standard, so it's a deliberate, **audited** "standards exception" (who /
+   why / optional TTL: "allow until we pay it down"), analogous to break-glass.
+
+### The keystone: the baseline file is agent-read-only
+
+`tests/fitness/baselines.json` is **governance-managed, read-only to the agent**
+(the `CTRL-001` pattern — exactly like `.redqueen/approvals.json`). This closes the
+gate-gaming hole: a red fitness test must be fixed by **improving the code**, never
+by the agent loosening its own budget. Only a human (or the human-approved pawl) edits
+baselines. This is the symmetry with break-glass — *the thing being governed can't
+rewrite the rules it's governed by.*
+
+> Polarity note: these structural categories are all lower-is-better, so "tighten" =
+> lower the number. A higher-is-better metric (coverage) would ratchet the floor *up*;
+> the baseline record would carry the direction. Coverage lives on the dashboard, so
+> the fitness section stays uniformly lower-is-better for now.
 
 ## Open questions
 
-- The prescribed convention — `tests/fitness/<category>.test.*` + a marker tag? A
-  per-ecosystem idiom (`*_fitness_test.go`, `tests/fitness/test_*.py`)?
-- Thresholds: absolute (`dead-code == 0`) is brutal on legacy repos → **ratchet from
-  the current baseline** so the test locks in "no worse" and tightens over time.
-- One batched "add all missing fitness tests" task vs one issue per category.
-- Should `present` also light up the dashboard ("this characteristic is *protected*,
-  not just measured")?
+- Per-ecosystem convention idioms confirmed above — naming of the marker tag?
+- Pawl auto-tighten: one-click suggestion vs a dedicated baseline-bot identity in CI?
+- One batched "add all missing fitness tests" task vs one issue per category?
+- Should `present` also light up the dashboard tile ("protected, not just measured")?
