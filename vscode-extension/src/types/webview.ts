@@ -47,7 +47,6 @@ export type ScorecardWebviewMessage =
   | { type: 'pushRepo' }
   | { type: 'commitAndPush' }
   | { type: 'openScaffold' }
-  | { type: 'configureSecrets' }
   | { type: 'resyncGovernance' };
 
 export type ScorecardExtensionMessage =
@@ -115,9 +114,9 @@ export interface CalmPatch {
 // Research Settings — surfaced in the Looking Glass Settings panel
 // ============================================================================
 
-// ANTHROPIC/OPENAI dropped from the Looking Glass research surface — the
-// agents route LLM calls through GitHub Models (GITHUB_TOKEN). Those keys are
-// a code-repo concern (alice-remediation), managed Cheshire-side via `SECRETS`.
+// ANTHROPIC/OPENAI retired entirely (Cheshire v2) — the agents route LLM
+// calls through GitHub Models (GITHUB_TOKEN); no Anthropic/OpenAI provider
+// or provisioned key remains.
 export type ResearchSecretId =
   | 'tavily'
   | 'uspto'
@@ -142,7 +141,7 @@ export interface ResearchSecretStatus {
 
 /** Non-secret runtime preferences for the research + PRD pipelines. */
 export interface ResearchPrefs {
-  llmProvider: 'github-models' | 'anthropic' | 'openai';
+  llmProvider: 'github-models';
   guardrails: 'strict' | 'default' | 'lenient';
   grounding: 'strict' | 'default' | 'lenient';
   groundingThreshold: number;

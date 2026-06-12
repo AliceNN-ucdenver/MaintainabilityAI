@@ -12,11 +12,12 @@ import type {
 } from '../types';
 
 const SDLC_FILES = [
-  { label: 'CLAUDE.md', path: 'CLAUDE.md' },
+  // Cheshire v2: CLAUDE.md + alice-remediation.yml are replaced by the Alice
+  // maintenance-agent persona; the MCP `.mcp.json` layer is retired.
   { label: 'CI Workflow', path: '.github/workflows/ci.yml' },
   { label: 'CodeQL Workflow', path: '.github/workflows/codeql.yml' },
   { label: 'Fitness Functions', path: '.github/workflows/fitness-functions.yml' },
-  { label: 'Alice Remediation', path: '.github/workflows/alice-remediation.yml' },
+  { label: 'Alice (Maintenance Agent)', path: '.github/agents/alice-maintenance-agent.agent.md' },
   { label: 'PR Template', path: '.github/PULL_REQUEST_TEMPLATE.md' },
   { label: 'Security Policy', path: '.github/SECURITY.md' },
   { label: 'Repo Metadata', path: '.github/repo-metadata.yml' },
@@ -25,7 +26,6 @@ const SDLC_FILES = [
   { label: 'Red Queen Policy', path: '.redqueen/policy.json' },
   { label: 'Red Queen Decision', path: '.redqueen/decision.json' },
   { label: 'Red Queen Hooks', path: '.redqueen/hooks/validate-tool.sh' },
-  { label: 'MCP Config', path: '.mcp.json' },
   { label: 'Impl Provenance Gate', path: '.github/workflows/impl-provenance.yml' },
   { label: 'AGENTS.md', path: 'AGENTS.md' },
 ];

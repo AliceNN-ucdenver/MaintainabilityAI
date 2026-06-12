@@ -124,9 +124,6 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
         // Pass the currently selected folder so scaffold targets the right repo
         vscode.commands.executeCommand('maintainabilityai.scaffoldRepo', this.selectedFolderPath);
         break;
-      case 'configureSecrets':
-        vscode.commands.executeCommand('maintainabilityai.configureSecrets', 'workspace', this.selectedFolderPath);
-        break;
       case 'installPmat':
         await this.onInstallPmat();
         break;

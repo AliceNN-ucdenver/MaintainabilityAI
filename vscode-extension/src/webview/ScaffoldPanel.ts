@@ -238,7 +238,6 @@ export class ScaffoldPanel extends BasePanel<Record<string, unknown>, Record<str
           repoName: string;
           repoDescription: string;
           repoVisibility: string;
-          configureSecrets: boolean;
         };
         await this.runScaffold(config);
         break;
@@ -338,7 +337,6 @@ export class ScaffoldPanel extends BasePanel<Record<string, unknown>, Record<str
     repoName: string;
     repoDescription: string;
     repoVisibility: string;
-    configureSecrets: boolean;
   }) {
     const workspaceRoot = config.folder;
 
@@ -549,74 +547,9 @@ export class ScaffoldPanel extends BasePanel<Record<string, unknown>, Record<str
         }
       }
 
-      // Configure secrets — prompt directly since the workspace may not be open yet
-      if (config.configureSecrets) {
-        this.postMessage({ type: 'step', id: 'secrets', status: 'running', message: 'Waiting for API key input...' });
-
-        let fullRepoName: string;
-        try {
-          fullRepoName = await this.resolveRepoFullName(config.repoName, workspaceRoot);
-        } catch {
-          this.postMessage({ type: 'step', id: 'secrets', status: 'error', message: 'Could not determine GitHub user' });
-          // Continue to completion — secrets are optional
-          const alreadyInWs = (vscode.workspace.workspaceFolders || []).some(f => f.uri.fsPath === workspaceRoot);
-          this.postMessage({ type: 'complete', folder: workspaceRoot, folderInWorkspace: alreadyInWs });
-          return;
-        }
-
-        // Prompt for Anthropic API key
-        const apiKey = await vscode.window.showInputBox({
-          prompt: `Enter your Anthropic API key for ${fullRepoName}`,
-          placeHolder: 'sk-ant-api3-...',
-          password: true,
-          ignoreFocusOut: true,
-          validateInput: (value) => {
-            if (!value || value.trim().length === 0) {
-              return 'API key cannot be empty';
-            }
-            if (!value.startsWith('sk-ant-')) {
-              return 'Anthropic keys start with "sk-ant-"';
-            }
-            return undefined;
-          },
-        });
-
-        if (apiKey) {
-          try {
-            this.postMessage({ type: 'step', id: 'secrets', status: 'running', message: `Setting ANTHROPIC_API_KEY on ${fullRepoName}...` });
-            await execFileAsync('gh', [
-              'secret', 'set', 'ANTHROPIC_API_KEY',
-              '--repo', fullRepoName,
-              '--body', apiKey,
-            ], { cwd: workspaceRoot });
-            this.postMessage({ type: 'step', id: 'secrets', status: 'done', message: `ANTHROPIC_API_KEY set on ${fullRepoName}` });
-
-            // Offer to save locally too
-            const saveLocally = await vscode.window.showQuickPick(
-              [
-                { label: 'Yes — save to VS Code settings for local LLM use', value: 'yes' },
-                { label: 'No — only set as repo secret', value: 'no' },
-              ],
-              {
-                placeHolder: 'Also save the Anthropic key to VS Code settings?',
-                ignoreFocusOut: true,
-              }
-            );
-            if (saveLocally?.value === 'yes') {
-              await vscode.workspace.getConfiguration().update(
-                'maintainabilityai.llm.claudeApiKey',
-                apiKey,
-                vscode.ConfigurationTarget.Global
-              );
-            }
-          } catch (err: unknown) {
-            const errMsg = this.extractError(err);
-            this.postMessage({ type: 'step', id: 'secrets', status: 'error', message: `Failed to set secret: ${errMsg}` });
-          }
-        } else {
-          this.postMessage({ type: 'step', id: 'secrets', status: 'done', message: 'Skipped — no key provided' });
-        }
-      }
+      // (Cheshire v2: the post-scaffold ANTHROPIC_API_KEY provisioning was
+      // removed — alice-remediation is gone and the Alice maintenance agent
+      // uses the Actions GITHUB_TOKEN / copilot environment, no API key.)
     }
 
     const folderInWs = (vscode.workspace.workspaceFolders || []).some(f => f.uri.fsPath === workspaceRoot);
@@ -1018,10 +951,6 @@ export class ScaffoldPanel extends BasePanel<Record<string, unknown>, Record<str
       <label>Description</label>
       <input type="text" id="repoDescription" placeholder="Security-first project scaffolded with MaintainabilityAI">
     </div>
-    <div class="toggle-row" style="grid-column: span 2">
-      <input type="checkbox" id="configureSecretsToggle" checked>
-      <label for="configureSecretsToggle">Configure ANTHROPIC_API_KEY secret after creation</label>
-    </div>
   </div>
 </div>
 
@@ -1096,7 +1025,6 @@ const STEPS = [
   { id: 'governance', label: 'Governance files (Red Queen)' },
   { id: 'git', label: 'Initialize git & commit' },
   { id: 'github', label: 'Create GitHub repository' },
-  { id: 'secrets', label: 'Configure repository secrets' },
 ];
 
 let selectedFolder = '';
@@ -1168,18 +1096,12 @@ document.getElementById('createRepoToggle').addEventListener('change', (e) => {
   updateRunBtn();
 });
 
-document.getElementById('configureSecretsToggle').addEventListener('change', () => {
-  updateStepVisibility();
-});
-
 function updateStepVisibility() {
   const createRepo = document.getElementById('createRepoToggle').checked;
-  const configSecrets = document.getElementById('configureSecretsToggle').checked;
   const govChecked = document.querySelector('#fileGrid input[data-id="governance"]');
   document.getElementById('step-governance').style.display = (govChecked && govChecked.checked) ? '' : 'none';
   document.getElementById('step-git').style.display = createRepo ? '' : 'none';
   document.getElementById('step-github').style.display = createRepo ? '' : 'none';
-  document.getElementById('step-secrets').style.display = (createRepo && configSecrets) ? '' : 'none';
 }
 updateStepVisibility();
 
@@ -1208,7 +1130,6 @@ document.getElementById('runBtn').addEventListener('click', () => {
       repoName: document.getElementById('repoName').value,
       repoDescription: document.getElementById('repoDescription').value,
       repoVisibility: document.getElementById('repoVisibility').value,
-      configureSecrets: createRepo && document.getElementById('configureSecretsToggle').checked,
     },
   });
 });

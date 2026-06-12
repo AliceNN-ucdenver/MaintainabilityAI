@@ -247,7 +247,7 @@ const state = {
       scope: 'mesh' | 'mesh+code';
     }[];
     prefs: {
-      llmProvider: 'github-models' | 'anthropic' | 'openai';
+      llmProvider: 'github-models';
       guardrails: 'strict' | 'default' | 'lenient';
       grounding: 'strict' | 'default' | 'lenient';
       groundingThreshold: number;
@@ -2538,11 +2538,10 @@ function renderSettingsResearch(): string {
     const ghDisabled = !rs.meshRepo || !s.hasVsCodeValue;
     const testDisabled = !s.hasVsCodeValue;
     // One push button per scope:
-    //   mesh-only secrets (Tavily, USPTO)      → "Push to mesh"
-    //   mesh+code secrets (Anthropic, OpenAI,
-    //   GOVERNANCE_MESH_TOKEN)                  → "Push to mesh + code repos"
-    // Never both — pushing a mesh+code secret only to the mesh leaves the
-    // distribution half-done, which is worse than not pushing at all.
+    //   mesh-only secrets (the default today)  → "Push to mesh"
+    //   mesh+code secrets                      → "Push to mesh + code repos"
+    // No secret is currently mesh+code (Anthropic/OpenAI were retired in
+    // Cheshire v2), but the mechanism stays for any future cross-repo secret.
     const pushLabel = s.scope === 'mesh+code' ? 'Push to mesh + code repos' : 'Push to mesh';
     const pushClass = s.scope === 'mesh+code' ? 'btn-research-push-all' : 'btn-research-push';
     const pushTitle = s.scope === 'mesh+code'
@@ -3317,7 +3316,7 @@ function attachEventHandlers() {
     btn.addEventListener('click', () => {
       const id = ((btn as HTMLElement).dataset.secretId || '') as ResearchSecretId;
       if (!id) { return; }
-      if (!confirm('Push this secret to the mesh repo AND every linked code repo found in app.yaml across all BARs?\n\nUse this for ANTHROPIC_API_KEY and OPENAI_API_KEY — secrets that alice-remediation.yml on each code repo consumes. (GOVERNANCE_MESH_TOKEN is mesh-only; use Push to mesh for it.)')) { return; }
+      if (!confirm('Push this secret to the mesh repo AND every linked code repo found in app.yaml across all BARs?')) { return; }
       state.researchSecretStatus[id] = { kind: 'busy', message: 'Pushing to mesh + code repos…' };
       render();
       vscode.postMessage({ type: 'pushResearchSecretToAll', id });
@@ -3325,7 +3324,7 @@ function attachEventHandlers() {
   });
 
   document.getElementById('btn-save-research-prefs')?.addEventListener('click', () => {
-    const provider = (document.getElementById('research-pref-provider') as HTMLSelectElement)?.value as 'github-models' | 'anthropic' | 'openai';
+    const provider = (document.getElementById('research-pref-provider') as HTMLSelectElement)?.value as 'github-models';
     const guardrails = (document.getElementById('research-pref-guardrails') as HTMLSelectElement)?.value as 'strict' | 'default' | 'lenient';
     const grounding = (document.getElementById('research-pref-grounding') as HTMLSelectElement)?.value as 'strict' | 'default' | 'lenient';
     const groundingThreshold = parseFloat((document.getElementById('research-pref-threshold') as HTMLInputElement)?.value || '0.85');
@@ -5117,7 +5116,7 @@ const inboundHandlers: Record<string, InboundHandler> = {
       if (state.view === 'settings') { render(); }
     },
     'researchSecretSaved': (message: WebviewInboundMessage) => {
-      const msg = message as unknown as { id: 'anthropic' | 'openai' | 'tavily'; hasValue: boolean };
+      const msg = message as unknown as { id: ResearchSecretId; hasValue: boolean };
       if (state.researchSettings) {
         const s = state.researchSettings.secrets.find(x => x.id === msg.id);
         if (s) { s.hasVsCodeValue = msg.hasValue; }
@@ -5130,7 +5129,7 @@ const inboundHandlers: Record<string, InboundHandler> = {
       }, 4000);
     },
     'researchTestResult': (message: WebviewInboundMessage) => {
-      const msg = message as unknown as { id: 'anthropic' | 'openai' | 'tavily'; ok: boolean; message: string };
+      const msg = message as unknown as { id: ResearchSecretId; ok: boolean; message: string };
       state.researchSecretStatus[msg.id] = { kind: msg.ok ? 'success' : 'error', message: msg.message };
       if (state.view === 'settings') { render(); }
       window.setTimeout(() => {

@@ -703,7 +703,6 @@ function renderSettingsView(): string {
       </div>
       ${renderSettingsAliceWorkflow()}
       ${renderSettingsLlmModel()}
-      ${renderSettingsSecrets()}
     </div>
   `;
 }
@@ -711,15 +710,14 @@ function renderSettingsView(): string {
 function renderSettingsAliceWorkflow(): string {
   const statusLabel = deployStatusBadge(state.settingsAliceWorkflowExists);
 
-  const buttonLabel = state.settingsAliceWorkflowExists ? 'Redeploy Workflow' : 'Deploy Workflow';
+  const buttonLabel = state.settingsAliceWorkflowExists ? 'Redeploy Agent' : 'Deploy Agent';
   const buttonClass = state.settingsAliceWorkflowExists ? 'btn-secondary' : 'btn-primary';
 
   return `
     <div class="settings-section">
-      <h3>Alice Remediation Workflow</h3>
+      <h3>Alice (Maintenance Agent)</h3>
       <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">
-        The <code style="font-size: 11px; padding: 1px 4px; background: var(--bg-input); border-radius: 3px;">alice-remediation.yml</code> GitHub Action enables AI-powered issue remediation.
-        Comment <code style="font-size: 11px; padding: 1px 4px; background: var(--bg-input); border-radius: 3px;">@claude</code> on an issue to trigger analysis and implementation.
+        Deploys the <code style="font-size: 11px; padding: 1px 4px; background: var(--bg-input); border-radius: 3px;">.github/agents/alice-maintenance-agent.agent.md</code> persona — a custom Copilot agent that takes on maintenance issues (CodeQL findings, coverage, complexity, tech-debt) dispatched by name. Governed by the baked Red Queen policy; no API key required.
       </p>
       <div class="settings-row">
         <div class="settings-label">Status</div>
@@ -770,22 +768,6 @@ function renderSettingsLlmModel(): string {
   `;
 }
 
-function renderSettingsSecrets(): string {
-  const repoLabel = state.repo ? `${state.repo.owner}/${state.repo.repo}` : 'selected repository';
-  return `
-    <div class="settings-section">
-      <h3>Repository Secrets</h3>
-      <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">
-        Configure API keys (ANTHROPIC_API_KEY, OPENAI_API_KEY) as GitHub repository secrets on <strong>${escapeHtml(repoLabel)}</strong>.
-        Required for AI-powered workflows like Alice Remediation.
-      </p>
-      <div class="settings-row" style="justify-content: flex-start;">
-        <button id="btn-configure-secrets" class="btn-primary">Configure Secrets</button>
-      </div>
-    </div>
-  `;
-}
-
 function attachSettingsGear() {
   document.getElementById('btn-settings-gear')?.addEventListener('click', () => {
     state.view = 'settings';
@@ -809,7 +791,7 @@ function attachSettingsEvents() {
     render();
   });
 
-  // Deploy alice-remediation workflow
+  // Deploy the Alice maintenance-agent persona
   document.getElementById('btn-deploy-alice')?.addEventListener('click', () => {
     vscode.postMessage({ type: 'deployAliceWorkflow' });
   });
@@ -820,11 +802,6 @@ function attachSettingsEvents() {
     if (select) {
       vscode.postMessage({ type: 'savePreferredModel', family: select.value });
     }
-  });
-
-  // Configure repository secrets
-  document.getElementById('btn-configure-secrets')?.addEventListener('click', () => {
-    vscode.postMessage({ type: 'configureSecrets' });
   });
 }
 

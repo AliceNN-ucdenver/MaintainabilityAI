@@ -15,9 +15,10 @@ export interface SecretDefinition {
    *   - 'mesh' (default): only the governance mesh repo needs it
      *     (Tavily, USPTO, GOVERNANCE_MESH_TOKEN — the Archeologist and
      *     notify-code-repos.yml on the mesh use them).
-   *   - 'mesh+code': needs to be on the mesh AND every linked code repo
-   *     (ANTHROPIC, OPENAI — alice-remediation.yml on each code repo
-   *     uses them).
+   *   - 'mesh+code': needs to be on the mesh AND every linked code repo.
+   *     No secret uses this today (Anthropic/OpenAI were retired in Cheshire
+   *     v2); the scope + 'Push to all linked code repos' action remain for any
+   *     future cross-repo secret.
    * Looking Glass surfaces a 'Push to all linked code repos' action for
    * 'mesh+code' secrets that iterates every BAR's app.yaml repos and
    * pushes via `gh secret set --repo` per destination.
@@ -26,25 +27,12 @@ export interface SecretDefinition {
 }
 
 export const SECRETS: SecretDefinition[] = [
-  {
-    id: 'anthropic',
-    envName: 'ANTHROPIC_API_KEY',
-    settingKey: 'maintainabilityai.llm.claudeApiKey',
-    prefix: 'sk-ant-',
-    label: 'Anthropic API Key',
-    description: 'ANTHROPIC_API_KEY — Claude Code on mesh (research/PRD) + each code repo (alice-remediation)',
-    picked: true,
-    scope: 'mesh+code',
-  },
-  {
-    id: 'openai',
-    envName: 'OPENAI_API_KEY',
-    settingKey: 'maintainabilityai.llm.openaiApiKey',
-    prefix: 'sk-',
-    label: 'OpenAI API Key',
-    description: 'OPENAI_API_KEY — For OpenAI-powered workflows on the mesh and code repos',
-    scope: 'mesh+code',
-  },
+  // ANTHROPIC_API_KEY / OPENAI_API_KEY were retired in Cheshire v2: the
+  // code-repo consumer (alice-remediation) was replaced by the Alice persona
+  // (GITHUB_TOKEN / copilot env, no key), and research/PRD route through
+  // GitHub Models. No secret is `mesh+code` anymore — everything below is
+  // mesh-only. (The local Claude RCTRO provider still reads the
+  // `maintainabilityai.llm.claudeApiKey` SETTING directly; that's unaffected.)
   {
     id: 'tavily',
     envName: 'TAVILY_API_KEY',
@@ -83,10 +71,9 @@ export const SECRETS: SecretDefinition[] = [
 
 /**
  * Subset of SECRETS the Looking Glass Research + PRD settings surface. The
- * agents route LLM calls through GitHub Models (GITHUB_TOKEN), so the
- * ANTHROPIC_API_KEY / OPENAI_API_KEY rows were dropped here — those keys are a
- * CODE-REPO concern (alice-remediation.yml), managed on the Cheshire side, and
- * remain in `SECRETS` for that flow.
+ * agents route LLM calls through GitHub Models (GITHUB_TOKEN); ANTHROPIC_API_KEY
+ * / OPENAI_API_KEY were retired entirely (Cheshire v2), so every research secret
+ * is now mesh-only and this is effectively all of `SECRETS`.
  */
 export const RESEARCH_SECRET_IDS = ['tavily', 'uspto', 'huggingface', 'governance-mesh-token'] as const;
 export type ResearchSecretId = (typeof RESEARCH_SECRET_IDS)[number];

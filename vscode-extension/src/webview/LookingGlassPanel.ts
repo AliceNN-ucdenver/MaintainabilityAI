@@ -6235,7 +6235,6 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         { label: `Create GitHub repository: ${repoName}`, status: 'pending' },
         { label: 'Push to remote', status: 'pending' },
         { label: 'Add Oraculum review workflow', status: 'pending' },
-        { label: 'Configure ANTHROPIC_API_KEY secret', status: 'pending' },
       );
     }
     steps.push({ label: 'Load portfolio', status: 'pending' });
@@ -6375,36 +6374,9 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
           markError(stepIdx, `Workflow error: ${wfErr instanceof Error ? wfErr.message : String(wfErr)}`);
         }
         stepIdx++;
-
-        // Step 6: Configure ANTHROPIC_API_KEY secret
-        markActive(stepIdx);
-        try {
-          const apiKey = await vscode.window.showInputBox({
-            title: 'ANTHROPIC_API_KEY',
-            prompt: 'Enter your Anthropic API key for Oraculum reviews (or press Escape to skip)',
-            password: true,
-            placeHolder: 'sk-ant-...',
-            validateInput: (v) => {
-              if (v && !v.startsWith('sk-ant-')) { return 'Anthropic API keys start with sk-ant-'; }
-              return null;
-            },
-          });
-
-          if (apiKey && repoUrl) {
-            const secretRepo = parseGitHubUrl(repoUrl);
-            if (secretRepo) {
-              await this.githubService.setRepoSecret(secretRepo.owner, secretRepo.repo, 'ANTHROPIC_API_KEY', apiKey);
-              markDone(stepIdx, 'ANTHROPIC_API_KEY configured');
-            } else {
-              markDone(stepIdx, 'Skipped — could not parse repo URL');
-            }
-          } else {
-            markDone(stepIdx, 'Skipped — no key provided');
-          }
-        } catch (secErr: unknown) {
-          markError(stepIdx, `Secret error: ${secErr instanceof Error ? secErr.message : String(secErr)}`);
-        }
-        stepIdx++;
+        // (Cheshire v2: the per-repo ANTHROPIC_API_KEY provisioning step was
+        // removed — Oraculum reviews are retired and research routes through
+        // GitHub Models, so no Anthropic key is provisioned.)
       }
 
       // Final step: Load portfolio
@@ -8614,7 +8586,7 @@ Policy file: ${filename}
     });
 
     const prefs: ResearchPrefs = {
-      llmProvider: config.get<'github-models' | 'anthropic' | 'openai'>('maintainabilityai.research.llmProvider', 'github-models'),
+      llmProvider: 'github-models',
       guardrails: config.get<'strict' | 'default' | 'lenient'>('maintainabilityai.research.guardrails', 'default'),
       grounding: config.get<'strict' | 'default' | 'lenient'>('maintainabilityai.research.grounding', 'default'),
       groundingThreshold: config.get<number>('maintainabilityai.research.groundingThreshold', 0.85),
@@ -8862,9 +8834,9 @@ Policy file: ${filename}
    * Push a secret to the mesh repo AND every linked code repo found in
    * the union of every BAR's `app.yaml application.repos[]`. Single
    * source of truth (the local VS Code value) → fan-out to all
-   * workflows that need it. Used for ANTHROPIC + OPENAI — both
-   * consumed by alice-remediation.yml on each code repo. (GMT is
-   * mesh-only now — see the Create flow above.)
+   * workflows that need it. Reserved for any `mesh+code`-scoped secret
+   * (none today — Anthropic/OpenAI were retired in Cheshire v2; every
+   * current secret is mesh-only).
    *
    * Returns a per-destination outcome so the UI can show a table
    * (mesh OK / code-repo-1 OK / code-repo-2 failed: 403 / …).

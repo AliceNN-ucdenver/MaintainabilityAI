@@ -74,13 +74,8 @@ export const CODING_AGENT_SECRETS: CodingAgentSecretSpec[] = [
     required: true,
     signupUrl: 'https://data.uspto.gov/apis/getting-started',
   },
-  {
-    name: 'ANTHROPIC_API_KEY',
-    purpose: 'Anthropic LLM provider (when agent chooses Claude over github-models)',
-    usedBy: ['agent reasoning (optional)'],
-    required: false,
-    signupUrl: 'https://console.anthropic.com',
-  },
+  // ANTHROPIC_API_KEY retired (Cheshire v2) — research/agents route through
+  // GitHub Models; no Anthropic provider option remains.
 ];
 
 /**
