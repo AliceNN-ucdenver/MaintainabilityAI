@@ -1,5 +1,5 @@
 /**
- * End-to-end smoke for the PRD orchestrator. Mocks Anthropic to route by
+ * End-to-end smoke for the PRD orchestrator. Mocks GitHub Models to route by
  * prompt content:
  *   synthesize_prd prompt    → returns the canonical PRD body
  *   architecture_review prompt → returns SCORE/SEVERITY/COVERED/MISSING/CHANGES
@@ -43,38 +43,38 @@ interface ScoreSequence {
 }
 
 /** Routing mock — picks synth vs arch-review vs sec-review by prompt content. */
-function buildAnthropicMock(scores: ScoreSequence): typeof fetch {
+function buildLlmMock(scores: ScoreSequence): typeof fetch {
   let archIter = 0;
   let secIter = 0;
   return async (_url, init) => {
     const body = JSON.parse(String((init as RequestInit).body));
-    const sys = body.system as string;
-    const userPrompt = body.messages?.[0]?.content as string || '';
+    const allText = ((body.messages ?? []) as Array<{ content?: string }>)
+      .map(m => String(m.content ?? '')).join(' ');
 
-    if (sys?.includes('senior architect') || userPrompt.includes('Architecture Review')) {
+    if (allText.includes('senior architect') || allText.includes('Architecture Review')) {
       const i = Math.min(archIter, scores.architecture.length - 1);
       const score = scores.architecture[i];
       const sev = scores.archSeverity?.[i] ?? 'PASS';
       archIter += 1;
       return new Response(JSON.stringify({
-        content: [{ type: 'text', text: reviewResponse(score, sev, 'celeb-api', 'celeb-db', 'Tighten FR-01') }],
-        usage: { input_tokens: 800, output_tokens: 120 },
+        choices: [{ message: { content: reviewResponse(score, sev, 'celeb-api', 'celeb-db', 'Tighten FR-01') } }],
+        usage: { prompt_tokens: 800, completion_tokens: 120 },
       }), { status: 200 });
     }
-    if (sys?.includes('senior application-security') || userPrompt.includes('Security Review')) {
+    if (allText.includes('senior application-security') || allText.includes('Security Review')) {
       const i = Math.min(secIter, scores.security.length - 1);
       const score = scores.security[i];
       const sev = scores.secSeverity?.[i] ?? 'PASS';
       secIter += 1;
       return new Response(JSON.stringify({
-        content: [{ type: 'text', text: reviewResponse(score, sev, 'THR-001', 'A07', 'Add rate-limit to SR-02') }],
-        usage: { input_tokens: 800, output_tokens: 120 },
+        choices: [{ message: { content: reviewResponse(score, sev, 'THR-001', 'A07', 'Add rate-limit to SR-02') } }],
+        usage: { prompt_tokens: 800, completion_tokens: 120 },
       }), { status: 200 });
     }
     // Default: synthesize_prd → return canonical body
     return new Response(JSON.stringify({
-      content: [{ type: 'text', text: CANONICAL_PRD_BODY }],
-      usage: { input_tokens: 3000, output_tokens: 1500 },
+      choices: [{ message: { content: CANONICAL_PRD_BODY } }],
+      usage: { prompt_tokens: 3000, completion_tokens: 1500 },
     }), { status: 200 });
   };
 }
@@ -97,7 +97,7 @@ test('runPrd: PASS on iteration 1 when both reviews score high', async () => {
   const handle = buildFixtureMesh();
   seedPrdPrompts(handle);
   try {
-    const fetchImpl = buildAnthropicMock({
+    const fetchImpl = buildLlmMock({
       architecture: [0.95],
       security: [0.95],
     });
@@ -112,7 +112,7 @@ test('runPrd: PASS on iteration 1 when both reviews score high', async () => {
       outputDir: 'prds',
       auditDir: '.research-audit',
       agentVersion: '0.1.0',
-      anthropicApiKey: 'sk-test',
+      githubToken: 'sk-test',
       fetchImpl,
     });
 
@@ -166,7 +166,7 @@ test('runPrd: ITERATE then PASS — refinement loop reruns synthesis with feedba
   const handle = buildFixtureMesh();
   seedPrdPrompts(handle);
   try {
-    const fetchImpl = buildAnthropicMock({
+    const fetchImpl = buildLlmMock({
       architecture: [0.5, 0.95],
       security:     [0.5, 0.95],
       archSeverity: ['MAJOR', 'MINOR'],
@@ -183,7 +183,7 @@ test('runPrd: ITERATE then PASS — refinement loop reruns synthesis with feedba
       outputDir: 'prds',
       auditDir: '.research-audit',
       agentVersion: '0.1.0',
-      anthropicApiKey: 'sk-test',
+      githubToken: 'sk-test',
       fetchImpl,
     });
 
@@ -218,7 +218,7 @@ test('runPrd: EXHAUSTED when max_iterations reached without PASS', async () => {
   const handle = buildFixtureMesh();
   seedPrdPrompts(handle);
   try {
-    const fetchImpl = buildAnthropicMock({
+    const fetchImpl = buildLlmMock({
       architecture: [0.4, 0.4],
       security:     [0.4, 0.4],
       archSeverity: ['MAJOR', 'MAJOR'],
@@ -235,7 +235,7 @@ test('runPrd: EXHAUSTED when max_iterations reached without PASS', async () => {
       outputDir: 'prds',
       auditDir: '.research-audit',
       agentVersion: '0.1.0',
-      anthropicApiKey: 'sk-test',
+      githubToken: 'sk-test',
       fetchImpl,
     });
 
@@ -254,7 +254,7 @@ test('runPrd: writes PR body with Hatter Tag including grounding block', async (
   seedPrdPrompts(handle);
   const prBodyPath = path.join(handle.meshDir, 'pr.md');
   try {
-    const fetchImpl = buildAnthropicMock({ architecture: [0.95], security: [0.95] });
+    const fetchImpl = buildLlmMock({ architecture: [0.95], security: [0.95] });
     await runPrd({
       brief: {
         research_source: { kind: 'pr', url: 'https://github.com/x/y/pull/42' },
@@ -267,7 +267,7 @@ test('runPrd: writes PR body with Hatter Tag including grounding block', async (
       auditDir: '.research-audit',
       emitPrBodyPath: prBodyPath,
       agentVersion: '0.1.0',
-      anthropicApiKey: 'sk-test',
+      githubToken: 'sk-test',
       fetchImpl,
     });
     const body = fs.readFileSync(prBodyPath, 'utf8');
@@ -295,7 +295,7 @@ test('runPrd: rejects invalid brief with a clear error', async () => {
         outputDir: 'prds',
         auditDir: '.research-audit',
         agentVersion: '0.1.0',
-        anthropicApiKey: 'k',
+        githubToken: 'k',
         fetchImpl: async () => new Response(''),
       }),
       /Invalid PRD brief/,

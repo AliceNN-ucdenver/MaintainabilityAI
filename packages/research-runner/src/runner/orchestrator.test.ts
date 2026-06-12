@@ -43,28 +43,26 @@ const VALID_PLAN = {
 };
 
 /**
- * Routing mock — anthropic plan-queries hop + 4 search providers.
+ * Routing mock — github-models plan-queries hop + 4 search providers.
  * Only the plan_queries LLM hop is still in-band (synth removed).
  */
 function buildArcheologistFetchMock(opts: { tavilyDuplicates?: boolean } = {}): typeof fetch {
   return async (url, init) => {
     const u = String(url);
-    if (u.startsWith('https://api.anthropic.com/')) {
+    if (u.startsWith('https://models.github.ai/')) {
       // Two LLM hops in data-collection mode: plan_queries (returns the
       // canonical QueryPlan object) and gap_analysis (returns a string[]
-      // of follow-up queries). Disambiguate by the system prompt content.
+      // of follow-up queries). Disambiguate by the prompt content.
       const body = JSON.parse(String((init as RequestInit).body));
-      const systemPrompt = String(body.system ?? '');
-      const userPrompt = String(body.messages?.[0]?.content ?? '');
-      const isGapAnalysis = systemPrompt.toLowerCase().includes('gap analysis')
-        || userPrompt.toLowerCase().includes('gap analysis')
-        || userPrompt.toLowerCase().includes('follow-up');
+      const allText = ((body.messages ?? []) as Array<{ content?: string }>)
+        .map(m => String(m.content ?? '')).join(' ').toLowerCase();
+      const isGapAnalysis = allText.includes('gap analysis') || allText.includes('follow-up');
       const text = isGapAnalysis
         ? '["agentic deep dive 2026", "PRD lifecycle review 2026", "governance threats 2026"]'
         : JSON.stringify(VALID_PLAN);
       return new Response(JSON.stringify({
-        content: [{ type: 'text', text }],
-        usage: { input_tokens: 1500, output_tokens: 400 },
+        choices: [{ message: { content: text } }],
+        usage: { prompt_tokens: 1500, completion_tokens: 400 },
       }), { status: 200 });
     }
     if (u.startsWith('https://api.tavily.com/')) {
@@ -129,7 +127,7 @@ test('runArcheologist: data-collection mode produces issue body with all section
       auditDir: '.research-audit',
       emitIssueBodyPath: issueBodyPath,
       agentVersion: '0.0.0-test',
-      anthropicApiKey: 'sk-test',
+      githubToken: 'sk-test',
       tavilyApiKey: 'tv-test',
       usptoApiKey: 'uspto-test',
       fetchImpl: buildArcheologistFetchMock(),
@@ -210,18 +208,19 @@ test('runArcheologist: gap_analysis fires when first-pass coverage misses brief 
     };
     const gapFetch: typeof fetch = async (url, init) => {
       const u = String(url);
-      if (u.startsWith('https://api.anthropic.com/')) {
+      if (u.startsWith('https://models.github.ai/')) {
         const body = JSON.parse(String((init as RequestInit).body));
-        const userPrompt = body.messages?.[0]?.content as string || '';
-        if (userPrompt.includes('Gap Analysis') || userPrompt.includes('follow-up')) {
+        const allText = ((body.messages ?? []) as Array<{ content?: string }>)
+          .map(m => String(m.content ?? '')).join(' ');
+        if (allText.includes('Gap Analysis') || allText.includes('follow-up')) {
           return new Response(JSON.stringify({
-            content: [{ type: 'text', text: '["follow up about specific-niche-topic", "narrower query", "broader query"]' }],
-            usage: { input_tokens: 800, output_tokens: 70 },
+            choices: [{ message: { content: '["follow up about specific-niche-topic", "narrower query", "broader query"]' } }],
+            usage: { prompt_tokens: 800, completion_tokens: 70 },
           }), { status: 200 });
         }
         return new Response(JSON.stringify({
-          content: [{ type: 'text', text: JSON.stringify(planMissingTopic) }],
-          usage: { input_tokens: 1500, output_tokens: 400 },
+          choices: [{ message: { content: JSON.stringify(planMissingTopic) } }],
+          usage: { prompt_tokens: 1500, completion_tokens: 400 },
         }), { status: 200 });
       }
       // Fall back to the standard search mocks
@@ -240,7 +239,7 @@ test('runArcheologist: gap_analysis fires when first-pass coverage misses brief 
       outputDir: 'research',
       auditDir: '.research-audit',
       agentVersion: '0.0.0-test',
-      anthropicApiKey: 'sk-test',
+      githubToken: 'sk-test',
       tavilyApiKey: 'tv-test',
       fetchImpl: gapFetch,
     });

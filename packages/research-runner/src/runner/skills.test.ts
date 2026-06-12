@@ -836,7 +836,7 @@ test('Bug Y / round-9 — public CLI path rejects llm_call (runtime-only kind)',
       const r = await runSkill('audit-emit-event', {
         okrId: 'OKR-Y-LLM', runId: 'WHY-Y-LLM',
         eventKind: 'llm_call',
-        payload: { model: 'claude-sonnet-4-6' },
+        payload: { model: 'openai/gpt-5-chat' },
         phase: 'why',
         intentThreadUuid: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
       });

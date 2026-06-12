@@ -33,7 +33,7 @@ test('ResearchBrief: minimal valid brief parses', () => {
   });
   assert.equal(parsed.path, 'research');           // default applied
   assert.equal(parsed.guardrails, 'default');
-  assert.equal(parsed.llm_provider, 'anthropic');
+  assert.equal(parsed.llm_provider, 'github-models');
   assert.equal(parsed.cost_cap_tokens, 200_000);
 });
 
@@ -194,8 +194,8 @@ test('AuditEvent: discriminated union routes by node_kind', () => {
     prev_event_hash: 'a'.repeat(64),
     event_hash: 'b'.repeat(64),
     llm: {
-      provider: 'anthropic',
-      model: 'claude-sonnet-4-6',
+      provider: 'github-models',
+      model: 'openai/gpt-5-chat',
       prompt_pack: {
         path: '.caterpillar/prompts/research/synthesis.md@v1.0.0',
         sha256: 'c'.repeat(64),
@@ -208,7 +208,7 @@ test('AuditEvent: discriminated union routes by node_kind', () => {
   });
   assert.equal(llm.node_kind, 'llm');
   if (llm.node_kind === 'llm') {
-    assert.equal(llm.llm.provider, 'anthropic');
+    assert.equal(llm.llm.provider, 'github-models');
   }
 
   // Wrong shape for the discriminator should reject

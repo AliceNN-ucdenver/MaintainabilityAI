@@ -6,9 +6,8 @@
  * `max_tokens`, `temperature`. Authentication is the workflow's GITHUB_TOKEN
  * with `permissions: models: read` — no separate API key as a repo secret.
  *
- * Returns the same telemetry shape as callAnthropic so plan_queries /
- * synthesize_report can route through either client without branching on
- * their result types.
+ * Returns the uniform telemetry shape callLlm normalizes to, so plan_queries
+ * / synthesize_report consume the result without branching on the client.
  *
  * Model names use GitHub Models namespacing — e.g. `openai/gpt-4o`,
  * `openai/gpt-4o-mini`, `openai/gpt-5-mini`. The router (in
@@ -27,9 +26,8 @@
  *     the model's advertised limit (200K for gpt-5-mini). Routed through
  *     Copilot-billed access, so the token-owner needs Copilot.
  *
- * Synth tier uses gpt-5-mini for the larger context window. Anthropic
- * remains the preferred synth target when an Anthropic key is set (see
- * llm-router.ts hybrid routing).
+ * Synth tier uses gpt-5-chat for the larger context window. GitHub Models is
+ * the only wired provider (Anthropic was retired in Cheshire v2).
  */
 export type GitHubModelsModel =
   | 'openai/gpt-4o'
@@ -78,7 +76,7 @@ export async function callGitHubModels(opts: CallGitHubModelsOpts): Promise<Call
   const endpoint = opts.endpoint ?? DEFAULT_ENDPOINT;
   // Synthesis prompts can produce 8K+ output tokens (and "custom"-tier
   // models like gpt-5-chat can return much more), which routinely take
-  // 100–180s. Match the Anthropic client at 240s for headroom on slow
+  // 100–180s. Use a 240s ceiling for headroom on slow
   // days. (Real fix is streaming so the connection stays alive, but
   // the cost/benefit isn't worth it yet — single-shot is fine until
   // we hit 240s legitimately.)

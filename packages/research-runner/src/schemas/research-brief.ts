@@ -33,7 +33,7 @@ export const ResearchBrief = z.object({
   guardrails: GuardrailMode.default('default'),
 
   /** LLM provider for the synthesis + planning nodes. */
-  llm_provider: LlmProvider.default('anthropic'),
+  llm_provider: LlmProvider.default('github-models'),
 
   /** Token budget cap (warn before exceeding). */
   cost_cap_tokens: z.number().int().positive().default(200_000),

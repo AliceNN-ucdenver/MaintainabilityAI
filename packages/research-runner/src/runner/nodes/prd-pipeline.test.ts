@@ -343,7 +343,7 @@ test('generatePrdManifest: extracts endpoints from FR entries + SR citations', (
     research_source: { kind: 'path', relative_path: 'platforms/imdb-lite/bars/APP-INS-001/research/celeb-fraud-2025.md' },
     scope: { level: 'bar', id: 'APP-INS-001' },
     mode: 'deep', grounding: 'default', grounding_threshold: 0.85, max_iterations: 3,
-    guardrails: 'default', llm_provider: 'anthropic', cost_cap_tokens: 200_000,
+    guardrails: 'default', llm_provider: 'github-models', cost_cap_tokens: 200_000,
     trigger: { kind: 'local_dev' },
   };
   const manifest = generatePrdManifest({
@@ -394,7 +394,7 @@ test('generatePrdManifest: falls back to mesh/<bar-id> when linked_repos is empt
     research_source: { kind: 'path', relative_path: 'platforms/x/bars/APP-INS-001/research/topic.md' },
     scope: { level: 'bar', id: 'APP-INS-001' },
     mode: 'deep', grounding: 'default', grounding_threshold: 0.85, max_iterations: 3,
-    guardrails: 'default', llm_provider: 'anthropic', cost_cap_tokens: 200_000,
+    guardrails: 'default', llm_provider: 'github-models', cost_cap_tokens: 200_000,
     trigger: { kind: 'local_dev' },
   };
   const meshNoRepos: MeshContext = { ...mockMesh(), bar: { ...mockMesh().bar!, linked_repos: [] } };
@@ -416,7 +416,7 @@ test('generatePrdManifest: platform scope classifies siblings HIGH/LOW by CALM +
     research_source: { kind: 'path', relative_path: 'platforms/imdb-lite/research/celeb-fraud-2025.md' },
     scope: { level: 'platform', id: 'PLT-IMDB' },
     mode: 'deep', grounding: 'default', grounding_threshold: 0.85, max_iterations: 3,
-    guardrails: 'default', llm_provider: 'anthropic', cost_cap_tokens: 200_000,
+    guardrails: 'default', llm_provider: 'github-models', cost_cap_tokens: 200_000,
     trigger: { kind: 'local_dev' },
   };
   // Platform-scoped: mesh.bar is null, mesh.platform.sibling_bars carries

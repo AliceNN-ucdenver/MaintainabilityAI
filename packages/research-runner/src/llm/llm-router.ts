@@ -11,7 +11,6 @@
  * use it without branching on provider in their own bodies.
  */
 import type { LlmProvider } from '../schemas';
-import { callAnthropic, type AnthropicModel } from './anthropic-client';
 import { callGitHubModels, type GitHubModelsModel } from './github-models-client';
 
 /**
@@ -29,7 +28,6 @@ export type LlmTier = 'plan' | 'synth';
  * still work via the "low"-tier fallback.
  */
 const MODEL_BY_TIER: Record<LlmTier, {
-  anthropic: AnthropicModel;
   githubModels: GitHubModelsModel;
   githubModelsFallback?: GitHubModelsModel;
 }> = {
@@ -40,7 +38,6 @@ const MODEL_BY_TIER: Record<LlmTier, {
   // output quality on the V3-anchor prompt — the upgrade is "if free,
   // why not"; the fallback keeps everyone working.
   plan: {
-    anthropic: 'claude-haiku-4-5',
     githubModels: 'openai/gpt-5-chat',
     githubModelsFallback: 'openai/gpt-4.1-mini',
   },
@@ -50,18 +47,13 @@ const MODEL_BY_TIER: Record<LlmTier, {
   // completion budget on hidden chain-of-thought before producing any
   // visible markdown. Synth needs predictable structured output. No
   // fallback model here — synth runs on the agent side now (Copilot
-  // Coding Agent / @claude), so the runner doesn't fire synth itself.
-  synth: { anthropic: 'claude-sonnet-4-6', githubModels: 'openai/gpt-5-chat' },
+  // Coding Agent), so the runner doesn't fire synth itself.
+  synth: { githubModels: 'openai/gpt-5-chat' },
 };
 
 export interface CallLlmOpts {
   provider: LlmProvider;
   tier: LlmTier;
-  /**
-   * Anthropic API key (used when provider === 'anthropic'). For
-   * 'github-models', leave undefined and supply `githubToken` instead.
-   */
-  anthropicApiKey?: string;
   /** GITHUB_TOKEN (used when provider === 'github-models'). */
   githubToken?: string;
   system?: string;
@@ -80,41 +72,6 @@ export interface CallLlmResult {
   outputTokens: number;
   costUsd: number;
   httpStatus: number;
-}
-
-/**
- * Write progress to stderr so the GitHub Actions job shows the
- * "tried X, falling back to Y" story when the primary provider fails.
- * Silenced when RESEARCH_RUNNER_QUIET=1 (tests).
- */
-function progress(msg: string): void {
-  if (process.env.RESEARCH_RUNNER_QUIET === '1') { return; }
-  const ts = new Date().toISOString().slice(11, 19);
-  process.stderr.write(`[research-runner ${ts}] ${msg}\n`);
-}
-
-async function callAnthropicTier(opts: CallLlmOpts, tierModels: { anthropic: AnthropicModel }): Promise<CallLlmResult> {
-  if (!opts.anthropicApiKey) {
-    throw new Error(`callLlm: provider=anthropic requires anthropicApiKey (set ANTHROPIC_API_KEY).`);
-  }
-  const r = await callAnthropic({
-    apiKey: opts.anthropicApiKey,
-    model: tierModels.anthropic,
-    system: opts.system,
-    prompt: opts.prompt,
-    maxTokens: opts.maxTokens,
-    temperature: opts.temperature,
-    fetchImpl: opts.fetchImpl,
-  });
-  return {
-    provider: 'anthropic',
-    model: tierModels.anthropic,
-    text: r.text,
-    inputTokens: r.inputTokens,
-    outputTokens: r.outputTokens,
-    costUsd: r.costUsd,
-    httpStatus: r.httpStatus,
-  };
 }
 
 /**
@@ -178,37 +135,13 @@ async function callGitHubModelsTier(
 export async function callLlm(opts: CallLlmOpts): Promise<CallLlmResult> {
   const tierModels = MODEL_BY_TIER[opts.tier];
 
-  // Try-then-fall-back routing for github-models.
-  //
-  // When the brief asks for github-models AND an Anthropic key is also
-  // available, we try GitHub Models FIRST (respects the user's stated
-  // provider preference — they're often paying for Copilot Pro). If it
-  // fails for ANY reason (8K cap 413, custom-tier 403, timeout, 5xx,
-  // network), fall back to Anthropic. The synth tier is where this
-  // matters most — plan-tier prompts are small and almost never fail.
-  //
-  // Why fall back on every error vs. only on 413: we'd rather have a
-  // working synth via Anthropic than a half-failed run. The progress
-  // log makes the "tried X, fell back to Y" story explicit so it's
-  // easy to debug.
-  //
-  // anthropic provider is pass-through (no fallback target).
+  // GitHub Models is the only wired provider. The github-models→github-models
+  // fallback (custom-tier → low-tier) lives in callGitHubModelsTier. The
+  // Anthropic provider + its cross-provider fallback were retired (Cheshire v2)
+  // — research routes entirely through GitHub Models / Copilot.
   if (opts.provider === 'github-models') {
-    try {
-      return await callGitHubModelsTier(opts, tierModels);
-    } catch (err) {
-      if (!opts.anthropicApiKey) {
-        throw err; // no fallback available
-      }
-      const msg = err instanceof Error ? err.message : String(err);
-      progress(`⚠ github-models failed on tier=${opts.tier} — falling back to Anthropic. Cause: ${msg.slice(0, 200)}`);
-      return await callAnthropicTier(opts, tierModels);
-    }
+    return await callGitHubModelsTier(opts, tierModels);
   }
 
-  if (opts.provider === 'anthropic') {
-    return await callAnthropicTier(opts, tierModels);
-  }
-
-  throw new Error(`callLlm: provider "${opts.provider}" not yet implemented (phase 2c.1 ships anthropic + github-models; openai + azure-openai land later).`);
+  throw new Error(`callLlm: provider "${opts.provider}" not yet implemented (github-models is the only wired provider; openai + azure-openai land later).`);
 }

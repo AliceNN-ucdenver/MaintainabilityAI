@@ -46,7 +46,6 @@ export interface ExpertReviewOpts {
   /** Prior iteration's review (passed back to the LLM for delta-checking). */
   priorReview?: ExpertReview;
   provider: LlmProvider;
-  anthropicApiKey?: string;
   githubToken?: string;
   fetchImpl?: typeof fetch;
 }
@@ -92,7 +91,6 @@ export async function runExpertReview(opts: ExpertReviewOpts): Promise<ExpertRev
     const result = await callLlm({
       provider: opts.provider,
       tier: 'plan',          // reviews are tighter than synthesis — cheaper tier is fine
-      anthropicApiKey: opts.anthropicApiKey,
       githubToken: opts.githubToken,
       system,
       prompt: userPrompt,

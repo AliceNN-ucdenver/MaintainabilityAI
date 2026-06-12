@@ -3,7 +3,7 @@
  *
  * Loads `.caterpillar/prompts/prd/synthesis.md`, fills in brief +
  * mesh-context + ranked-sources (carried over from the upstream research
- * doc), calls Anthropic / GitHub Models, runs prd-validator on the body.
+ * doc), calls GitHub Models, runs prd-validator on the body.
  *
  * Unlike research's synthesize_report, this node has TWO call modes:
  *   - First iteration: standard prompt fill, no prior-review feedback
@@ -57,7 +57,6 @@ export interface SynthesizePrdOpts {
   rankedSources: RankedSource[];
   /** Provider routing — comes from brief.llm_provider unless overridden. */
   provider?: LlmProvider;
-  anthropicApiKey?: string;
   githubToken?: string;
   /** Present on iteration ≥ 2 — carries the prior round's review CHANGES. */
   priorFeedback?: PriorReviewFeedback;
@@ -111,7 +110,6 @@ export async function synthesizePrd(opts: SynthesizePrdOpts): Promise<Synthesize
     const result = await callLlm({
       provider,
       tier: 'synth',
-      anthropicApiKey: opts.anthropicApiKey,
       githubToken: opts.githubToken,
       system,
       prompt: userPrompt,

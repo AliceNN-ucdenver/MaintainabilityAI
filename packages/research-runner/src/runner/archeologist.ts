@@ -63,9 +63,7 @@ export interface ArcheologistOptions {
                               // (data + Hatter's Tag). The workflow posts this
                               // back to the originating research-request issue.
   agentVersion: string;       // injected by CLI (from package.json)
-  /** Provider keys — supply only the one your brief.llm_provider needs. Default from process.env. */
-  anthropicApiKey?: string;
-  /** GITHUB_TOKEN — used when brief.llm_provider === 'github-models'. */
+  /** GITHUB_TOKEN — research routes through GitHub Models. Default from process.env. */
   githubToken?: string;
   tavilyApiKey?: string;
   /** Optional — when absent, uspto_search emits a node_error envelope and the run continues without patent coverage. */
@@ -105,12 +103,11 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
 
   const runId = generateRunId('RES');
   const startedAt = new Date();
-  const anthropicApiKey = opts.anthropicApiKey ?? process.env.ANTHROPIC_API_KEY ?? '';
   const githubToken = opts.githubToken ?? process.env.GITHUB_TOKEN ?? '';
   const tavilyApiKey = opts.tavilyApiKey ?? process.env.TAVILY_API_KEY ?? '';
   const usptoApiKey = opts.usptoApiKey ?? process.env.USPTO_API_KEY ?? '';
 
-  progress(`▶ run ${runId} | scope=${brief.scope.level}(${brief.scope.id}) | path=${brief.path} | llm_provider=${brief.llm_provider ?? 'anthropic'} | keys: anthropic=${!!anthropicApiKey} github=${!!githubToken} tavily=${!!tavilyApiKey} uspto=${!!usptoApiKey}`);
+  progress(`▶ run ${runId} | scope=${brief.scope.level}(${brief.scope.id}) | path=${brief.path} | llm_provider=${brief.llm_provider ?? 'github-models'} | keys: github=${!!githubToken} tavily=${!!tavilyApiKey} uspto=${!!usptoApiKey}`);
 
   const absoluteAuditDir = path.resolve(opts.meshDir, opts.auditDir);
   const absoluteOutputDir = path.resolve(opts.meshDir, opts.outputDir);
@@ -277,7 +274,6 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
       brief,
       meshContext,
       provider: brief.llm_provider,
-      anthropicApiKey,
       githubToken,
       fetchImpl: opts.fetchImpl,
     });
@@ -409,7 +405,6 @@ export async function runArcheologist(opts: ArcheologistOptions): Promise<Archeo
       rankedSources,
       signals: gapSignals,
       provider: brief.llm_provider,
-      anthropicApiKey,
       githubToken,
       fetchImpl: opts.fetchImpl,
     });

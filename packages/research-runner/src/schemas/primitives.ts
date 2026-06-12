@@ -11,7 +11,10 @@ export type GuardrailMode = z.infer<typeof GuardrailMode>;
 export const GroundingMode = z.enum(['strict', 'default', 'lenient']);
 export type GroundingMode = z.infer<typeof GroundingMode>;
 
-export const LlmProvider = z.enum(['anthropic', 'openai', 'azure-openai', 'github-models']);
+// `anthropic` was retired (Cheshire v2) — research routes entirely through
+// GitHub Models. `openai` / `azure-openai` remain as declared-but-unwired
+// placeholders (callLlm throws "not yet implemented" for them).
+export const LlmProvider = z.enum(['openai', 'azure-openai', 'github-models']);
 export type LlmProvider = z.infer<typeof LlmProvider>;
 
 /**

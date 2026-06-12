@@ -55,7 +55,6 @@ export interface PrdOptions {
   auditDir: string;
   emitPrBodyPath?: string;
   agentVersion: string;
-  anthropicApiKey?: string;
   githubToken?: string;
   fetchImpl?: typeof fetch;
 }
@@ -86,7 +85,6 @@ export async function runPrd(opts: PrdOptions): Promise<PrdResult> {
 
   const runId = generateRunId('PRD');
   const startedAt = new Date();
-  const anthropicApiKey = opts.anthropicApiKey ?? process.env.ANTHROPIC_API_KEY ?? '';
   const githubToken = opts.githubToken ?? process.env.GITHUB_TOKEN ?? '';
 
   const absoluteAuditDir = path.resolve(opts.meshDir, opts.auditDir);
@@ -148,7 +146,6 @@ export async function runPrd(opts: PrdOptions): Promise<PrdResult> {
       meshContext,
       rankedSources,
       provider: brief.llm_provider,
-      anthropicApiKey,
       githubToken,
       priorFeedback,
       fetchImpl: opts.fetchImpl,
@@ -186,7 +183,6 @@ export async function runPrd(opts: PrdOptions): Promise<PrdResult> {
         meshContext,
         priorReview: priorArch,
         provider: brief.llm_provider,
-        anthropicApiKey,
         githubToken,
         fetchImpl: opts.fetchImpl,
       }),
@@ -198,7 +194,6 @@ export async function runPrd(opts: PrdOptions): Promise<PrdResult> {
         meshContext,
         priorReview: priorSec,
         provider: brief.llm_provider,
-        anthropicApiKey,
         githubToken,
         fetchImpl: opts.fetchImpl,
       }),

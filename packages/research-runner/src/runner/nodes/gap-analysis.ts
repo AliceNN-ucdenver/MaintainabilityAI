@@ -115,7 +115,6 @@ export interface RunGapAnalysisOpts {
   rankedSources: RankedSource[];
   signals: GapSignal[];
   provider: LlmProvider;
-  anthropicApiKey?: string;
   githubToken?: string;
   fetchImpl?: typeof fetch;
 }
@@ -166,7 +165,6 @@ export async function runGapAnalysis(opts: RunGapAnalysisOpts): Promise<GapAnaly
     const result = await callLlm({
       provider: opts.provider,
       tier: 'plan',                          // cheap tier; this is structural follow-up
-      anthropicApiKey: opts.anthropicApiKey,
       githubToken: opts.githubToken,
       system,
       prompt: userPrompt,

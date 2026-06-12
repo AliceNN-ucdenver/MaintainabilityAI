@@ -38,7 +38,7 @@ export const PrdBrief = z.object({
 
   guardrails: GuardrailMode.default('default'),
 
-  llm_provider: LlmProvider.default('anthropic'),
+  llm_provider: LlmProvider.default('github-models'),
 
   cost_cap_tokens: z.number().int().positive().default(200_000),
 

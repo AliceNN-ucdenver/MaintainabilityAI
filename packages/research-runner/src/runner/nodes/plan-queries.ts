@@ -2,7 +2,7 @@
  * plan_queries — LLM node.
  *
  * Loads `.caterpillar/prompts/research/query-plan.md`, fills placeholders
- * from the ResearchBrief + MeshContext, calls Anthropic with `output-format:
+ * from the ResearchBrief + MeshContext, calls GitHub Models with `output-format:
  * json-only` semantics, then validates the response against the QueryPlan
  * schema. On validation failure, one retry with a clarifying nudge before
  * surfacing the error to the orchestrator.
@@ -27,8 +27,6 @@ export interface PlanQueriesOpts {
   meshContext: MeshContext;
   /** Provider routing — comes from brief.llm_provider unless overridden. */
   provider?: LlmProvider;
-  /** Required when provider === 'anthropic'. */
-  anthropicApiKey?: string;
   /** Required when provider === 'github-models'. */
   githubToken?: string;
   fetchImpl?: typeof fetch;
@@ -74,7 +72,6 @@ export async function planQueries(opts: PlanQueriesOpts): Promise<PlanQueriesRes
     const result = await callLlm({
       provider,
       tier: 'plan',
-      anthropicApiKey: opts.anthropicApiKey,
       githubToken: opts.githubToken,
       system: baseSystem,
       prompt: userPrompt,

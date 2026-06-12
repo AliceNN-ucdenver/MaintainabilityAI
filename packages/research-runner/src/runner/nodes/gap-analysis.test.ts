@@ -9,7 +9,7 @@ const BRIEF: ResearchBrief = {
   scope: { level: 'bar', id: 'APP-INS-001' },
   path: 'research',
   guardrails: 'default',
-  llm_provider: 'anthropic',
+  llm_provider: 'github-models',
   cost_cap_tokens: 200_000,
   trigger: { kind: 'local_dev' },
 };
@@ -76,10 +76,10 @@ test('detectGapSignals: tunable thresholds (minSources / dominantProviderRatio)'
 
 const VALID_FOLLOWUP_JSON = '["agentic governance market sizing 2026","CALM standard adoption 2026","mesh-governance vendor map 2026"]';
 
-function mockAnthropicResponse(text: string): Response {
+function mockLlmResponse(text: string): Response {
   return new Response(JSON.stringify({
-    content: [{ type: 'text', text }],
-    usage: { input_tokens: 500, output_tokens: 80 },
+    choices: [{ message: { content: text } }],
+    usage: { prompt_tokens: 500, completion_tokens: 80 },
   }), { status: 200 });
 }
 
@@ -87,14 +87,14 @@ test('runGapAnalysis: happy path — LLM returns 3 validated follow-up queries',
   const handle = buildFixtureMesh();
   seedFixturePromptPack(handle, 'research/gap-analysis');
   try {
-    const fetchImpl: typeof fetch = async () => mockAnthropicResponse(VALID_FOLLOWUP_JSON);
+    const fetchImpl: typeof fetch = async () => mockLlmResponse(VALID_FOLLOWUP_JSON);
     const result = await runGapAnalysis({
       meshDir: handle.meshDir,
       brief: BRIEF,
       rankedSources: [source({})],
       signals: [{ kind: 'low_source_diversity', evidence: 'only 1 source' }],
-      provider: 'anthropic',
-      anthropicApiKey: 'sk-test',
+      provider: 'github-models',
+      githubToken: 'sk-test',
       fetchImpl,
     });
     assert.equal(result.followUpQueries.length, 3);
@@ -108,10 +108,10 @@ test('runGapAnalysis: tolerates ```json fenced output', async () => {
   seedFixturePromptPack(handle, 'research/gap-analysis');
   try {
     const fenced = '```json\n' + VALID_FOLLOWUP_JSON + '\n```';
-    const fetchImpl: typeof fetch = async () => mockAnthropicResponse(fenced);
+    const fetchImpl: typeof fetch = async () => mockLlmResponse(fenced);
     const result = await runGapAnalysis({
       meshDir: handle.meshDir, brief: BRIEF, rankedSources: [], signals: [],
-      provider: 'anthropic', anthropicApiKey: 'k', fetchImpl,
+      provider: 'github-models', githubToken: 'k', fetchImpl,
     });
     assert.equal(result.followUpQueries.length, 3);
   } finally { destroyFixtureMesh(handle); }
@@ -121,11 +121,11 @@ test('runGapAnalysis: retries on validation failure then throws after 2 attempts
   const handle = buildFixtureMesh();
   seedFixturePromptPack(handle, 'research/gap-analysis');
   try {
-    const fetchImpl: typeof fetch = async () => mockAnthropicResponse('["only one query"]');
+    const fetchImpl: typeof fetch = async () => mockLlmResponse('["only one query"]');
     await assert.rejects(
       () => runGapAnalysis({
         meshDir: handle.meshDir, brief: BRIEF, rankedSources: [], signals: [],
-        provider: 'anthropic', anthropicApiKey: 'k', fetchImpl,
+        provider: 'github-models', githubToken: 'k', fetchImpl,
       }),
       /failed validation after 2 attempts/,
     );
