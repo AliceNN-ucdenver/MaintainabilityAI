@@ -76,6 +76,14 @@ export interface AuditReportInputSources {
   prd: 'github' | 'local-fallback' | 'missing' | 'suppressed-non-canonical';
   artifact: 'github' | 'local-fallback' | 'missing' | 'suppressed-non-canonical';
   /**
+   * Phase-aware upstream provenance (2026-06-13). `research-doc.md` is the WHY
+   * output that HOW + WHAT ground on; the trust posture surfaces it as an input
+   * row only in those phases. `not-applicable` in WHY — there it is the phase's
+   * OWN artifact (shown in the `artifact` row), not an upstream input. Optional
+   * so existing single-phase / rollup constructions compile unchanged.
+   */
+  researchDoc?: 'github' | 'local-fallback' | 'missing' | 'suppressed-non-canonical' | 'not-applicable';
+  /**
    * Codex E3-gold-r5 (2026-05-25) — structurally encode whether the
    * bytes the runner WOULD verify match the bytes the report cites.
    *
@@ -833,7 +841,10 @@ export function composeSourceTag(
  * downstream section doesn't mix canonical metadata with local
  * design text.
  */
-function renderSourceBreakdownBlock(sources: AuditReportInputSources | undefined): string {
+function renderSourceBreakdownBlock(
+  sources: AuditReportInputSources | undefined,
+  phase: 'why' | 'how' | 'what',
+): string {
   if (!sources) { return ''; }
   const label = (origin: string): string => {
     switch (origin) {
@@ -852,17 +863,38 @@ function renderSourceBreakdownBlock(sources: AuditReportInputSources | undefined
       default:                  return origin;
     }
   };
+  // Phase-aware breakdown. The crypto/provenance inputs are phase-independent;
+  // the CONTENT rows are exactly what THIS phase consumes (upstream artifacts)
+  // and produces (its own artifact). A phase never lists a not-yet-authored
+  // downstream file — that is why WHY shows no `prd.md` row (written in HOW) and
+  // HOW shows no duplicate `prd.md` row (`prd.md` IS the HOW artifact). A
+  // `— missing` on an upstream row is therefore a real problem (a phase ran
+  // without grounding), not the old false alarm of listing a future artifact.
+  const ARTIFACT_FILE: Record<'why' | 'how' | 'what', string> = {
+    why: 'research-doc.md', how: 'prd.md', what: 'code-design.md',
+  };
+  const rows: Array<[string, string]> = [
+    ['`okr.yaml`', label(sources.okr)],
+    ['chain JSONL', label(sources.chain)],
+    ['chain-ladder.yaml', label(sources.ladder)],
+    ['`audit/keys/<runId>.epoch-*.pub.pem`', label(sources.keys)],
+  ];
+  // Upstream content inputs this phase grounds on: the WHY artifact feeds HOW +
+  // WHAT; the PRD additionally feeds WHAT. WHY consumes neither (okr.yaml only).
+  if (phase === 'how' || phase === 'what') {
+    rows.push(['`research-doc.md` (WHY input)', label(sources.researchDoc ?? 'missing')]);
+  }
+  if (phase === 'what') {
+    rows.push(['`prd.md` (HOW input)', label(sources.prd)]);
+  }
+  rows.push([`artifact (\`${ARTIFACT_FILE[phase]}\`)`, label(sources.artifact)]);
+  rows.push(['runner input (local-disk bytes seen by verifier)', label(sources.runnerInput)]);
+
   return `**Source breakdown** — which inputs are canonical:
 
 | Input | Source |
 |---|---|
-| \`okr.yaml\` | ${label(sources.okr)} |
-| chain JSONL | ${label(sources.chain)} |
-| chain-ladder.yaml | ${label(sources.ladder)} |
-| \`audit/keys/<runId>.epoch-*.pub.pem\` | ${label(sources.keys)} |
-| \`prd.md\` | ${label(sources.prd)} |
-| artifact | ${label(sources.artifact)} |
-| runner input (local-disk bytes seen by verifier) | ${label(sources.runnerInput)} |
+${rows.map(([k, v]) => `| ${k} | ${v} |`).join('\n')}
 
 _The runner verifier shells out against local-disk bytes. If \`chain\`, \`keys\`, or \`runner input\` are not canonical (or \`local-only\`), this export refuses to invoke the runner — its verdict would describe bytes the report cannot vouch for._`;
 }
@@ -979,7 +1011,7 @@ Total events: ${verdict.totalEvents} · Malformed lines: ${verdict.malformedLine
   // above the runner verdict so the auditor knows what bytes are being
   // attested to BEFORE reading the crypto verdict. Empty when sources
   // is undefined (backward-compat for existing tests).
-  const sourceBreakdownBlock = renderSourceBreakdownBlock(input.sources);
+  const sourceBreakdownBlock = renderSourceBreakdownBlock(input.sources, input.phase);
 
   // E3-gold — compact chronological event timeline inside <details>.
   const timeline = summarizeEventTimeline(events);

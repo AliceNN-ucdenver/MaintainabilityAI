@@ -5050,8 +5050,11 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     }
     const artifactRel = ((actionYaml['artifact'] as string | undefined) ?? localAction?.artifact) ?? phaseSpec(phase).artifactPath(okrId);
     const prdRel = `okrs/${okrId}/how/prd.md`;
-    const { prdText, prdSource, artifactText, artifactSource } = await this.fetchPrdAndArtifact({
-      okrSource, repoInfo, prdRel, artifactRel, meshPath,
+    // research-doc.md is the WHY artifact HOW + WHAT ground on — surfaced as an
+    // upstream input row only in those phases (not-applicable in WHY).
+    const researchDocRel = phase === 'why' ? null : `okrs/${okrId}/why/research-doc.md`;
+    const { prdText, prdSource, artifactText, artifactSource, researchDocSource } = await this.fetchPrdAndArtifact({
+      okrSource, repoInfo, prdRel, artifactRel, researchDocRel, meshPath,
     });
 
     // Compose AuditReportInputSources for the renderer + the headline
@@ -5065,6 +5068,7 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       keys: keysSource,
       prd: prdSource,
       artifact: artifactSource,
+      researchDoc: researchDocSource,
       runnerInput: runnerInputSource,
     };
     // Codex E3-gold-r5-followup — sourceTag composition extracted
@@ -5360,18 +5364,26 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     repoInfo: { owner: string; repo: string } | undefined | null;
     prdRel: string;
     artifactRel: string;
+    /** Upstream WHY artifact for HOW/WHAT trust-posture rows; null in WHY (it is
+     *  the phase's own artifact, so there is no upstream research-doc row). */
+    researchDocRel: string | null;
     meshPath: string;
   }): Promise<{
     prdText: string | null;
     prdSource: AuditReportInputSources['prd'];
     artifactText: string | null;
     artifactSource: AuditReportInputSources['artifact'];
+    researchDocSource: NonNullable<AuditReportInputSources['researchDoc']>;
   }> {
-    const { okrSource, repoInfo, prdRel, artifactRel, meshPath } = params;
+    const { okrSource, repoInfo, prdRel, artifactRel, researchDocRel, meshPath } = params;
     let prdText: string | null = null;
     let prdSource: AuditReportInputSources['prd'] = 'missing';
     let artifactText: string | null = null;
     let artifactSource: AuditReportInputSources['artifact'] = 'missing';
+    // research-doc.md: presence/canonicality only — the control-mapping section
+    // never reads its text. 'not-applicable' in WHY (no upstream research-doc).
+    let researchDocSource: NonNullable<AuditReportInputSources['researchDoc']> =
+      researchDocRel === null ? 'not-applicable' : 'missing';
 
     if (repoInfo && okrSource === 'github') {
       try {
@@ -5382,13 +5394,23 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         artifactText = await this.githubService.getRepoFileText(repoInfo.owner, repoInfo.repo, artifactRel);
         if (artifactText) { artifactSource = 'github'; }
       } catch { /* suppression check below */ }
+      if (researchDocRel !== null) {
+        try {
+          const rd = await this.githubService.getRepoFileText(repoInfo.owner, repoInfo.repo, researchDocRel);
+          if (rd) { researchDocSource = 'github'; }
+        } catch { /* suppression check below */ }
+      }
       if (!prdText && fs.existsSync(path.join(meshPath, prdRel))) {
         prdSource = 'suppressed-non-canonical';
       }
       if (!artifactText && fs.existsSync(path.join(meshPath, artifactRel))) {
         artifactSource = 'suppressed-non-canonical';
       }
-      return { prdText, prdSource, artifactText, artifactSource };
+      if (researchDocRel !== null && researchDocSource === 'missing'
+          && fs.existsSync(path.join(meshPath, researchDocRel))) {
+        researchDocSource = 'suppressed-non-canonical';
+      }
+      return { prdText, prdSource, artifactText, artifactSource, researchDocSource };
     }
     // local-fallback mode
     const localPrd = path.join(meshPath, prdRel);
@@ -5405,7 +5427,10 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         artifactSource = 'local-fallback';
       } catch { /* keep missing */ }
     }
-    return { prdText, prdSource, artifactText, artifactSource };
+    if (researchDocRel !== null && fs.existsSync(path.join(meshPath, researchDocRel))) {
+      researchDocSource = 'local-fallback';
+    }
+    return { prdText, prdSource, artifactText, artifactSource, researchDocSource };
   }
 
   /**
@@ -5615,7 +5640,9 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     let prdSource: AuditReportInputSources['prd'] = 'missing';
     let artifactSource: AuditReportInputSources['artifact'] = 'missing';
     if (howAction || whatAction) {
-      const fetched = await this.fetchPrdAndArtifact({ okrSource, repoInfo, prdRel, artifactRel: whatArtifactRel, meshPath });
+      // Rollup control-mapping only needs PRD + WHAT-artifact text; it does not
+      // render the per-action source-breakdown table, so researchDoc is n/a here.
+      const fetched = await this.fetchPrdAndArtifact({ okrSource, repoInfo, prdRel, artifactRel: whatArtifactRel, researchDocRel: null, meshPath });
       prdSource = fetched.prdSource;
       artifactSource = fetched.artifactSource;
       controlRows = extractControlMapping(fetched.prdText, fetched.artifactText);

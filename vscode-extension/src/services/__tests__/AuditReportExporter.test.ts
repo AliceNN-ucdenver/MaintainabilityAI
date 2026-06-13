@@ -704,6 +704,65 @@ Require explicit audit logging for identity-confidence overrides, manual merge d
     expect(md).toContain('canonical (GitHub) · local key bytes match');
   });
 
+  // ── 2026-06-13 — Source breakdown is phase-aware (per-phase upstream inputs +
+  //    named artifact row; no not-yet-authored downstream rows) ──
+  it('Source breakdown phase-aware: WHY shows no prd.md row, artifact = research-doc.md', () => {
+    const md = buildAuditReportMarkdown(makeInput({
+      phase: 'why',
+      sources: {
+        okr: 'github', chain: 'github', ladder: 'github', keys: 'github-verified',
+        prd: 'missing', artifact: 'github', researchDoc: 'not-applicable',
+        runnerInput: 'github-verified',
+      },
+    }));
+    expect(md).toContain('**Source breakdown**');
+    expect(md).toContain('artifact (`research-doc.md`)');
+    // WHY consumes no upstream artifact and never lists the not-yet-authored PRD.
+    expect(md).not.toContain('(WHY input)');
+    expect(md).not.toContain('(HOW input)');
+  });
+
+  it('Source breakdown phase-aware: HOW shows research-doc.md upstream, artifact = prd.md, no duplicate prd row', () => {
+    const md = buildAuditReportMarkdown(makeInput({
+      phase: 'how',
+      sources: {
+        okr: 'github', chain: 'github', ladder: 'github', keys: 'github-verified',
+        prd: 'github', artifact: 'github', researchDoc: 'github',
+        runnerInput: 'github-verified',
+      },
+    }));
+    expect(md).toContain('`research-doc.md` (WHY input)');
+    expect(md).toContain('artifact (`prd.md`)');
+    // prd.md is the HOW artifact, not an upstream row — that row is WHAT-only.
+    expect(md).not.toContain('(HOW input)');
+  });
+
+  it('Source breakdown phase-aware: WHAT shows research-doc.md + prd.md upstreams, artifact = code-design.md', () => {
+    const md = buildAuditReportMarkdown(makeInput({
+      phase: 'what',
+      sources: {
+        okr: 'github', chain: 'github', ladder: 'github', keys: 'github-verified',
+        prd: 'github', artifact: 'github', researchDoc: 'github',
+        runnerInput: 'github-verified',
+      },
+    }));
+    expect(md).toContain('`research-doc.md` (WHY input)');
+    expect(md).toContain('`prd.md` (HOW input)');
+    expect(md).toContain('artifact (`code-design.md`)');
+  });
+
+  it('Source breakdown flags a missing upstream as a real problem (HOW without research-doc.md)', () => {
+    const md = buildAuditReportMarkdown(makeInput({
+      phase: 'how',
+      sources: {
+        okr: 'github', chain: 'github', ladder: 'github', keys: 'github-verified',
+        prd: 'github', artifact: 'github', researchDoc: 'missing',
+        runnerInput: 'github-verified',
+      },
+    }));
+    expect(md).toContain('`research-doc.md` (WHY input) | — missing');
+  });
+
   it('Source breakdown table absent when sources not provided (backward-compat)', () => {
     const md = buildAuditReportMarkdown(makeInput());
     expect(md).not.toContain('**Source breakdown**');
