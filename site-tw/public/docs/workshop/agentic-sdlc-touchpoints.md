@@ -27,9 +27,9 @@
 | **Part 2 · Cheshire's Prompt Pack** | `.cheshire/prompts/` populated with the OWASP packs in the code repo; `.caterpillar/prompts/` populated in the mesh repo. | Every OKR phase reads from `.caterpillar/prompts/`. The `prd-agent` cites `prd/synthesis.md` + `prd/ask-experts.md` directly from there. |
 | **Part 3 · Alice Remediates (A03 fix)** | An ADR documenting the parameterized-query fix; a passing test suite; a labeled PR. | The PRD agent's `context-security` Skill walks the BAR's ADR list — this ADR becomes evidence the agent can cite when the next OKR touches the same module. |
 | **Part 4 · The Looking Glass Measures (fitness functions)** | `architecture/fitness-functions.yaml` per BAR; the score history JSON. | `OKRService.tierFor()` reads each affected BAR's pillar score (which the fitness functions feed) and derives `governance_tier`. Phase A: this drives the tier badge on the OKR list view. |
-| **Part 5 · Caterpillar's Challenge (security pipeline)** | CodeQL + Snyk workflows in the code repo; SARIF triage artifacts in `governance/`. | The security pipeline's SARIF feeds the Security pillar score. That pillar score drives the tier (§6.2). A celeb-api with no CodeQL stays Restricted in Phase A onwards. |
+| **Part 5 · Caterpillar's Challenge (security pipeline)** | CodeQL + Snyk workflows in the brownfield movie-api; SARIF triage artifacts in `governance/`. | The security pipeline's SARIF feeds the Security pillar score. That pillar score drives the tier (§6.2). A movie-api with no CodeQL stays Restricted in Phase A onwards. |
 | **Part 6 · The Hatter's Library (versioned prompts)** | `prompt-pack.lock.yaml` pinning every `.caterpillar/prompts/*` version + SHA. | Every Hatter's Tag stamps `author_prompt_pack_version` + `author_system_prompt_sha` (§11.1). The lock file is the source of truth those stamps point at. |
-| **Part 7 · The Red Queen's Court (deterministic enforcement)** | `.claude/settings.json` hooks + MCP `validate_action` wiring in the code repo. | The Red Queen governs the **coding agents** that run downstream of the Hatter's `What` phase (the per-repo fan-out targets). Same CALM model; same tier; different governance modality. |
+| **Part 7 · The Red Queen's Court (deterministic enforcement)** | A baked `.redqueen/policy.json` + a PreToolUse hook + the merge-time `impl-provenance` gate in the code repo, with a scoped, audited break-glass for Restricted-tier work. | The Red Queen governs the **coding agents** that run downstream of the Hatter's `What` phase (the per-repo fan-out targets). Allow/deny is deterministic and fail-closed; every decision is logged to `.redqueen/audit-log.jsonl`. Same CALM model; same tier; different governance modality. |
 | **Part 8 · Through the Looking Glass (capstone)** | One full project: research doc + PRD + designs + audit log + Hatter's Tag, anchored at one `project_id`. | This IS an Audit Report Export (§11.8) preview, hand-built. Phase E ships the one-click bundle that automates exactly this evidence chain. The audit log is built by the runtime (B28 Court Recorder Auto-Logging, §11.6), not by the agent — learners get a tamper-evident, deterministically-emitted record on every workshop run, not a self-report that depends on the agent doing the right thing. |
 
 ---
@@ -86,7 +86,7 @@ Where to find each pillar of evidence in the mesh after the full workshop:
 │           │       └── compliance-checklist.yaml
 │           └── imdb-celebs/                   ← intentionally sparse — drives Restricted tier
 ├── okrs/                                       ← Phase A (this PR series)
-│   └── OKR-2026Q1-IMDB-001-celeb-api/
+│   └── OKR-2026Q1-IMDB-002-celeb-api/          ← greenfield Celebs capstone
 │       ├── okr.yaml                            ← Card with intent_thread_uuid + intent_cascade
 │       ├── audit/
 │       │   ├── chain-ladder.yaml               ← Cross-phase audit ladder
@@ -101,7 +101,7 @@ Where to find each pillar of evidence in the mesh after the full workshop:
 └── governance/                                 ← Part 4 (scoring), Part 5 (SARIF)
 ```
 
-In the **code repo** side, Part 7 lays down `.claude/settings.json` + `.cheshire/` to govern the coding agents that pick up Phase D's per-repo fan-out issues.
+In the **code repo** side, Part 7 lays down `.redqueen/policy.json` + a PreToolUse hook + `.cheshire/` to govern the coding agents that pick up Phase D's per-repo fan-out issues.
 
 ---
 

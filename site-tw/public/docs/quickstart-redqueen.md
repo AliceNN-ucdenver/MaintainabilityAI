@@ -41,8 +41,9 @@
 - [x] A governance mesh directory (local path — can be anywhere on your machine)
 - [x] `npm login` completed
 - [x] `NPM_TOKEN` GitHub secret set
-- [ ] `ANTHROPIC_API_KEY` GitHub secret (needed for Claude review steps)
 - [ ] `GOVERNANCE_MESH_TOKEN` GitHub secret (PAT with read access to your governance mesh repo)
+
+(No Anthropic/OpenAI key needed — Alice, the implementation agent, runs as a Copilot persona on the Actions `GITHUB_TOKEN`.)
 
 > **Path conventions:** This guide uses `$MESH_PATH` for your governance mesh and `$REPO_PATH` for the code repo. Substitute your actual paths. Scaffolded repos include a self-contained `.redqueen/mcp-runner.js`; it resolves the live mesh from `RED_QUEEN_MESH_PATH`, `GOVERNANCE_MESH_PATH`, `MESH_PATH`, or a local `./governance-mesh` checkout. On GitHub Actions, the mesh is checked out to `${{ github.workspace }}/governance-mesh` by the workflow.
 >
@@ -343,12 +344,9 @@ Should show restricted-tier instructions: "Plan first, implement after approval.
 
 ## Step 5: Set Up GitHub Secrets
 
-The implementation agent and the impl-provenance gate need these secrets on `celeb-api`:
+The impl-provenance gate needs this secret on `celeb-api` (Alice, the implementation agent, runs as a Copilot persona on the Actions `GITHUB_TOKEN` — no Anthropic/OpenAI key required):
 
 ```bash
-# Required for the implementation agent (Claude Code Action) runs
-gh secret set ANTHROPIC_API_KEY --repo AliceNN-ucdenver/celeb-api
-
 # Required to checkout the private governance mesh repo
 gh secret set GOVERNANCE_MESH_TOKEN --repo AliceNN-ucdenver/celeb-api
 ```

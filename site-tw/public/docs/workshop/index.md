@@ -54,14 +54,14 @@ The workshop should feel like one journey, not a pile of disconnected lessons:
     <div class="docs-card-kicker">Part 4 &middot; ~75 min</div>
     <h3 class="docs-card-title docs-card-title-lg">The Looking Glass Measures</h3>
     <div class="docs-card-subtitle">Fitness Functions and Quality Gates</div>
-    <p class="docs-card-body">Implement automated checks for complexity, dependency freshness, test coverage, and performance regression.</p>
+    <p class="docs-card-body">Commit fitness tests in four categories &mdash; complexity, duplication, dead code, and architecture &mdash; that ratchet against a baseline and run in CI.</p>
   </a>
 
   <a href="/docs/workshop/part5-security-pipeline" class="docs-card docs-card-cyan">
     <div class="docs-card-kicker">Part 5 &middot; ~75 min</div>
     <h3 class="docs-card-title docs-card-title-lg">The Caterpillar&rsquo;s Challenge</h3>
     <div class="docs-card-subtitle">Security Pipeline · CodeQL + Snyk + SARIF Triage</div>
-    <p class="docs-card-body">Wire CodeQL and Snyk into the celeb-api, then triage SARIF findings through the same Cheshire enrich and assign-the-agent loop.</p>
+    <p class="docs-card-body">Wire CodeQL and Snyk into the brownfield movie-api, then triage SARIF findings through the same Cheshire enrich and dispatch-Alice loop.</p>
   </a>
 
   <a href="/docs/workshop/part6-team-prompt-library" class="docs-card docs-card-emerald">

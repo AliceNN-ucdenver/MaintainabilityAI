@@ -28,9 +28,9 @@ It maps onto the **IMDB Lite** sample platform the VS Code extension creates in 
 
 | Repo | Stack | BAR mapping | Mode | Role in the workshop |
 |---|---|---|---|---|
-| `celeb-api` | TypeScript + Express + PostgreSQL | `APP-IMDB-002` | **greenfield** | Built from scratch by the agentic SDLC (WHY→HOW→WHAT→implement). The canonical "build it under governance" track. No planted code — it starts empty. |
-| `movie-api` | TypeScript + Express + PostgreSQL | `APP-IMDB-001` | **brownfield** | Movie catalogue + reviews with planted vulnerabilities. **The canonical remediation repo** the workshop walks through in Parts 3–5. |
-| `imdb-identity` | TypeScript + Express + PostgreSQL + JWT | `APP-IMDB-001` | brownfield | Auth/identity service with planted crypto/auth/logging issues (extension exercises). |
+| `celeb-api` | TypeScript + Express + MongoDB (Mongoose) | `APP-IMDB-002` | **greenfield** | Built from scratch by the agentic SDLC (WHY→HOW→WHAT→implement). The canonical "build it under governance" track. No planted code — it starts empty. |
+| `movie-api` | TypeScript + Express + MongoDB (Mongoose) | `APP-IMDB-001` | **brownfield** | Movie catalogue + reviews with planted vulnerabilities. **The canonical remediation repo** the workshop walks through in Parts 3–5. |
+| `imdb-identity` | TypeScript + Express + MongoDB (Mongoose) + JWT | `APP-IMDB-001` | brownfield | Auth/identity service with planted crypto/auth/logging issues (extension exercises). |
 | `imdb-react-frontend` | React 19 + Vite + TypeScript + Tailwind | spans both BARs (UI tier) | brownfield | SPA with planted client-side issues; touched in the cross-cutting capstone. |
 
 All four ship with a `docker-compose.yml` at the workshop-pack root so learners can `docker compose up` and have a working local environment in minutes. (`celeb-api`'s entry is added once the greenfield build produces it.)
@@ -47,9 +47,9 @@ Nodes:
   imdb-identity         (api tier, express)
   movie-api             (api tier, express)
   celeb-api             (api tier, express)
-  identity-db           (data tier, postgres)
-  movie-db              (data tier, postgres)
-  celeb-db              (data tier, postgres)
+  identity-db           (data tier, mongodb)
+  movie-db              (data tier, mongodb)
+  celeb-db              (data tier, mongodb)
   news-feed             (external, https)
 
 Declared flows:
@@ -93,7 +93,7 @@ The deny on `imdb-react-frontend → celeb-db` (and the other undeclared flows) 
 
 | File | Issue | OWASP | Fixed in |
 |---|---|---|---|
-| `src/routes/movies.ts` | String-concatenated SQL in `GET /movies?genre=` | A03 Injection | Part 3 (live class) |
+| `src/routes/movies.ts` | NoSQL operator injection in `GET /movies?genre=` — Mongoose selector built from raw `req.query` (`$ne`, `$where`, unbounded regex) | A03 Injection | Part 3 (live class) |
 | `src/routes/reviews.ts` | Stored XSS via unsanitised review body | A03 Injection (stored XSS) | Part 3 (extension exercise) |
 | `src/routes/movies.ts` | `POST /movies` accepts unauthenticated requests (should be admin) | A01 Broken Access Control | Part 4 (CodeQL flags) |
 | `src/routes/poster-proxy.ts` | SSRF via `GET /poster?url=` — no URL allowlist, no IP-range block | A10 SSRF | Part 5 (CodeQL surfaces it) |
@@ -174,7 +174,7 @@ imdb-lite-workshop-pack/
     imdb-react-frontend/
     # celeb-api is NOT shipped here — it's greenfield, built during the workshop
   data/
-    seed/                            (postgres seed SQL)
+    seed/                            (MongoDB seed data)
 ```
 
 The pack starts ungoverned and brownfield-only; `celeb-api` is created and built **during** the workshop. The point is to start ungoverned and earn the score.

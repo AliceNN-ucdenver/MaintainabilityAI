@@ -9,27 +9,26 @@
   </div>
   <div class="docs-workshop-meta">
     <strong class="docs-strong">Duration:</strong> 90 minutes<br/>
-    <strong class="docs-strong">Prerequisites:</strong> <a href="/docs/workshop/part6-team-prompt-library" class="markdown-link">Part 6 complete</a>. Prompt library versioned, Hatter's Tag landing on every PR, scorecard at ~55, repo in Supervised tier.<br/>
+    <strong class="docs-strong">Prerequisites:</strong> <a href="/docs/workshop/part6-team-prompt-library" class="markdown-link">Part 6 complete</a>. Prompt library versioned, Hatter's Tag landing on every PR, the brownfield movie-api in Supervised tier. Part 7 installs the Red Queen on the **greenfield, Restricted-tier celeb-api** — the BAR you build from scratch in Part 8.<br/>
     <strong class="docs-strong">SDLC phase:</strong> Phase 4 (Governance) and a new agent-action enforcement layer.<br/>
     <strong class="docs-strong">Status:</strong> Available now
   </div>
 </div>
 
-> *"All the ways about here belong to me,"* says the Red Queen — she's the chess piece who rules the board, not the Queen of Hearts. By the end of Part 7 the celeb-api has the Red Queen installed: a PreToolUse hook blocks Bash and Write before they ever fire, an MCP `validate_action` call lets agents ask before they act, and the **same CALM-layer rule we built as a fitness function in Part 4 now runs deterministically at the agent's tool-call boundary instead of after the code is written**. The score finally lifts the Architecture pillar out of red, and the celeb-api crosses into Autonomous-tier readiness.
+> *"All the ways about here belong to me,"* says the Red Queen — she's the chess piece who rules the board, not the Queen of Hearts. By the end of Part 7 the **greenfield, Restricted-tier celeb-api** has the Red Queen installed: a PreToolUse hook blocks Bash and Write before they ever fire (Restricted denies them outright), the **same CALM-layer rule we built as a fitness test in Part 4 now runs deterministically at the agent's tool-call boundary instead of after the code is written**, and — because celeb-api is Restricted — a scoped, audited **break-glass** is how you authorize Alice to build it. That sets up the Part 8 greenfield capstone.
 
 ---
 
 ## What you will have built when you leave
 
-1. The Red Queen scaffold added to the celeb-api: `.redqueen/` directory with `policy.json` (static rules), `mcp-runner.js` (live mesh resolution), and `hooks/validate-tool.js` + `.sh` (the fast-path PreToolUse hook).
-2. `.claude/settings.json` updated with the PreToolUse hook registration so Claude Code calls into the validator on every tool use.
-3. `.mcp.json` configured so Claude Code can call `validate_action` over MCP for richer, mesh-aware structural checks.
-4. The `impl-provenance.yml` gate generated and configured as a **required status check** on the celeb-api's main branch. Implementation PRs cannot merge unless the signed audit chain, skill manifest, Hatter Tag, and Red Queen decision log all verify.
-5. **A live demo of the hook firing.** You try to write a Mongo selector built directly from `req.body` in a route handler. The hook blocks it before the file changes. The deny reason cites the exact policy rule and lands as a JSONL line in the audit log.
-6. **The Part 4 CALM-layer fitness function promoted to deterministic.** The advisory check that ran in CI in Part 4 now runs as a hook BEFORE the agent's edit lands. Same rule, two enforcement points, one fail-closed gate.
-7. A custom team policy rule added: *"route handlers must validate Mongo input through a Zod schema; no `$where` / `$accumulator` / `$function`; no selector built from raw `req.body` / `req.query` / `req.params`."* Written once, enforced forever, audited every fire.
-8. Scorecard: **~55 → ~65**. Architecture pillar finally lifts because the CALM-layer rule is now deterministic. The repo crosses the threshold for Autonomous-tier eligibility (the score earns it; remaining gaps are documented).
-9. Golden Rule 6 internalised: **Make governance deterministic. Advisory rules become hard gates with audit trails.**
+1. The Red Queen scaffold added to the celeb-api: `.redqueen/` directory with `policy.json` (static tier + path + CALM rules), `decision.json`, `governance-context.md`, and `hooks/validate-tool.js` + `.sh` (the fast-path PreToolUse hook).
+2. `.claude/settings.json` updated with the PreToolUse hook registration so Claude Code calls into the validator on every tool use, plus `.github/hooks/redqueen.json` for the Copilot Coding Agent.
+3. The `impl-provenance.yml` gate generated and configured as a **required status check** on the celeb-api's main branch. Implementation PRs cannot merge unless the signed audit chain, skill manifest, Hatter Tag, and Red Queen decision log all verify.
+4. **A live demo of the hook firing.** You try to write a Mongo selector built directly from `req.body` in a route handler. The hook blocks it before the file changes. The deny reason cites the exact policy rule and lands as a JSONL line in the audit log.
+5. **The Part 4 CALM-layer fitness test promoted to deterministic.** The check that ran in CI in Part 4 now runs as a hook BEFORE the agent's edit lands. Same rule, two enforcement points, one fail-closed gate.
+6. A custom team policy rule added: *"route handlers must validate Mongo input through a Zod schema; no `$where` / `$accumulator` / `$function`; no selector built from raw `req.body` / `req.query` / `req.params`."* Written once, enforced forever, audited every fire.
+7. **A break-glass grant exercised.** Because celeb-api is Restricted, Write/Bash are denied outright — so you grant a scoped, audited, one-click break-glass to authorize Alice to build the service (the Part 8 capstone), and watch the grant land in `.redqueen/approvals.json` and auto-clear on merge.
+8. Golden Rule 6 internalised: **Make governance deterministic. Advisory rules become hard gates with audit trails.**
 
 ---
 
@@ -85,12 +84,11 @@ Same code, different position in time. The fitness function from Part 4 still ru
 
 | Control point | When it fires | Latency | Bypassable? |
 |---|---|---|---|
-| **PreToolUse hook** | Before `Bash`, `Write`, `Edit` ever runs | <10 ms | `REDQUEEN_TOOL_APPROVED` (per tool call) or `REDQUEEN_PLAN_APPROVED` (per Edit on restricted-tier) — both logged |
-| **MCP `validate_action`** | When the agent asks before acting (richer CALM/security checks) | <500 ms | The agent receives a structured verdict; ignoring it is itself an audited violation |
+| **PreToolUse hook** | Before `Bash`, `Write`, `Edit` ever runs | <10 ms | Only by a recorded break-glass: `REDQUEEN_TOOL_APPROVED` / `REDQUEEN_PLAN_APPROVED` (per session, logged) or a committed `.redqueen/approvals.json` grant (`break-glass#<issue>`) |
 | **impl-provenance gate (required CI status check)** | After an implementation PR opens, before merge | 1-5 minutes (workflow run) | No, when configured as a branch-protection required check (the branch-protection setup is a manual step) |
 | **`redqueen-action` standalone hard gate** *(<a href="/docs/red-queens-court#queens-next-act" class="markdown-link">Queen&rsquo;s Next Act</a>)* | At the PR merge boundary, non-bypassable | AST semantic diff + contract diffs | No |
 
-Today we ship the first three. Queen&rsquo;s Next Act adds the standalone `redqueen-action` hard gate plus AST semantic diff and contract diffs.
+Today we ship the first two (the deterministic PreToolUse hook + the impl-provenance gate). Queen&rsquo;s Next Act adds the standalone `redqueen-action` hard gate plus AST semantic diff and contract diffs. *(An earlier draft also wired a live `validate_action` MCP tool for mid-run CALM queries; that optional live-mesh layer was retired — enforcement is the deterministic baked policy at the hook, not a tool the agent chooses to call.)*
 
 ---
 
@@ -98,7 +96,7 @@ Today we ship the first three. Queen&rsquo;s Next Act adds the standalone `redqu
 
 In 2024, governance was a code review at the end. A human read the diff, decided if the AI made sense, merged or not. In 2026-2027, governance is **enforced at the agent's tool-call boundary**. The agent literally cannot violate the architecture without an explicit, recorded, time-limited override.
 
-This is what "the trust battery earns autonomy" actually means. A repo at score 5 (Restricted) has hooks that block everything. A repo at score 70 (Supervised, where the celeb-api will be by the end of today) has hooks that block only the most dangerous patterns. A repo at score 85+ (Autonomous) has hooks that block almost nothing but log everything. **The score gates the autonomy; the hooks enforce the gate.**
+This is what "the trust battery earns autonomy" actually means. A repo at score 5 (Restricted — like the greenfield celeb-api) has hooks that block everything; the only way through is a recorded break-glass. A repo at score 70 (Supervised — like the brownfield movie-api you climbed in Parts 3–6) has hooks that block only the most dangerous patterns. A repo at score 85+ (Autonomous) has hooks that block almost nothing but log everything. **The score gates the autonomy; the hooks enforce the gate.**
 
 ---
 
@@ -122,22 +120,19 @@ Click **Scaffold**. Cheshire writes:
   decision.json            ← orchestration decision (tier + permissions + active rules)
   governance-context.md    ← human-readable summary of governance posture
   config-manifest.yaml     ← scaffold version + file fingerprints for the doctor
-  mcp-runner.js            ← Node script that launches the Red Queen MCP server
   hooks/
     validate-tool.js       ← the fast-path policy evaluator (pure JavaScript)
     validate-tool.sh       ← shell wrapper that PreToolUse calls
 .claude/
   settings.json            ← updated with the PreToolUse hook registration
-.mcp.json                  ← Claude Code MCP server config pointing at .redqueen/mcp-runner.js
 .github/
   hooks/redqueen.json      ← Copilot Coding Agent governance config (Copilot hook adapter)
-  copilot-governance-steps.yml  ← Copilot pre-run governance steps
   workflows/
     impl-provenance.yml    ← always-on gate verifying the signed audit chain on implementation PRs
 AGENTS.md                  ← updated to declare Red Queen is the governance authority
 ```
 
-Commit. The celeb-api repo now has the full Red Queen scaffold.
+Commit. The celeb-api repo now has the full Red Queen scaffold. (The deterministic policy needs no mesh path, MCP server, or token at runtime — the earlier `mcp-runner.js` / `.mcp.json` "live mesh tools" layer was retired as unused; the baked `policy.json` + hook is the enforcement.)
 
 ### Step 2. Read the policy.json
 
@@ -151,8 +146,8 @@ You should see something like:
 {
   "barId": "APP-IMDB-002",
   "barName": "IMDB Celebs (celeb-api)",
-  "tier": "supervised",
-  "compositeScore": 55,
+  "tier": "restricted",
+  "compositeScore": 18,
   "rules": {
     "toolRestrictions": {
       "restricted": { "deny": ["Bash", "Write"], "requireApproval": ["Edit"] },
@@ -172,7 +167,7 @@ You should see something like:
 
 Three things to notice:
 
-1. **The tier is `supervised`**, pulled from the current scorecard. The policy auto-derives the tier; you do not configure it manually.
+1. **The tier is `restricted`**, pulled from the current scorecard — celeb-api is greenfield with a sparse BAR, so it scores low and starts in the strictest posture. The policy auto-derives the tier; you do not configure it manually. (On Restricted, `Bash` and `Write` are denied outright and `Edit` requires a recorded approval — which is why break-glass matters here.)
 2. **`allowedConnections`** lists every flow declared in the BAR's CALM model. **A code change that proposes an undeclared connection (frontend → celeb-db directly, celeb-api → any node the CALM model has not authorised) is denied.**
 3. **`readOnlyPaths`** includes the Red Queen's own files. Agents cannot edit the policy that governs them. The governance is itself governed.
 
@@ -199,13 +194,13 @@ What you should see (in Claude Code's output):
 ```
 [Red Queen] PreToolUse hook ran in 7ms.
 Tool: Bash
-Verdict: requireApproval (Bash on supervised-tier BAR)
-Decision: Plan first. Set REDQUEEN_TOOL_APPROVED=true after recording approval.
+Verdict: deny (TIER-001 — Bash blocked on restricted-tier BAR)
+Decision: Restricted tier denies Bash/Write outright. Grant a scoped break-glass to proceed.
 
 Tool call cancelled.
 ```
 
-The Bash never ran. The deny is logged to `.redqueen/audit-log.jsonl`. Claude Code receives the structured reason and can plan around it (e.g., propose the Bash, ask you to confirm out-of-band, then re-attempt with approval recorded).
+The Bash never ran. The deny is logged to `.redqueen/audit-log.jsonl`. Claude Code receives the structured reason and can plan around it — and on a Restricted BAR the *only* way through is a recorded break-glass (the env-var lever at the keyboard, or the committed one-click grant when dispatching Alice — see the break-glass note below).
 
 > Two different break-glass env vars. `REDQUEEN_TOOL_APPROVED=true` bypasses a single `requireApproval` verdict (the case above). `REDQUEEN_PLAN_APPROVED=true` is narrower: it permits a single Edit on a restricted-tier BAR after a written plan. Use the tighter one whenever it applies.
 
@@ -234,34 +229,11 @@ Tool call cancelled. The change was never written to disk.
 
 This is the same rule Part 4's CALM-layer fitness function would catch. But the fitness function fires in CI after the file is written; the Red Queen fires before the file is touched. **The bad change literally never happens.**
 
-### Step 6. The MCP `validate_action` call
+### Step 6. Cross-BAR composition is a CALM-flow decision, not a vibe
 
-The hook is fast and binary (allow / deny). For richer queries the agent can call the `validate_action` MCP tool. From Claude Code:
+The hook is fast and binary (allow / deny) and reads the baked `allowedConnections`. Consider a tempting feature: a `/celebrities/:id/movies` endpoint that joins celeb-api (APP-IMDB-002) + movie-api (APP-IMDB-001) data. That is a **cross-BAR** read. If the CALM model does not declare a flow from celeb-api to movie-api's data, the hook denies it deterministically (`CALM-004`), just like the analytics-warehouse case above — the bad change never lands.
 
-```
-Before I propose changes, can you check whether adding a new endpoint
-`/celebrities/:id/movies` that joins celeb-api + movie-api data is
-architecturally valid?
-```
-
-Claude calls `validate_action` over MCP. The runner reads the full CALM model, evaluates the proposed action, returns:
-
-```json
-{
-  "verdict": "conditional",
-  "violations": [{
-    "ruleId": "CALM-002",
-    "category": "calm_flow",
-    "severity": "warning",
-    "message": "Cross-BAR data composition (APP-IMDB-001 movies + APP-IMDB-002 celebrities) creates platform coupling",
-    "details": "Consider an explicit composition layer or document with an ADR before implementation"
-  }],
-  "reasoning": ["BAR: APP-IMDB-002, Tier: supervised", "Cross-platform read detected", "CONDITIONAL: 1 warning"],
-  "conditions": ["Cross-BAR data composition creates platform coupling"]
-}
-```
-
-The agent now has a structured signal. It knows the change is *allowed* but needs an ADR. It can ask you to write the ADR before proceeding, or propose the ADR itself for your review.
+The point is not that the agent *asks* — there is no mid-run "please validate" round-trip in the shipped model; the deterministic policy at the hook **is** the gate. The point is that cross-BAR composition is an architecture decision a human makes: declare the flow in the CALM model (and write the ADR for why platform coupling is acceptable here), *then* the policy permits it. Until then, the hook keeps the architecture diagram honest.
 
 ### Step 7. Promote the CALM-connection fitness function to deterministic
 
@@ -323,21 +295,19 @@ Now `impl-provenance.yml` is a hard merge gate. Any implementation PR whose sign
 
 ### Step 10. Re-read the scorecard
 
-Refresh the Cheshire Cat Security Scorecard. You should see:
+Refresh the Cheshire Cat Security Scorecard. celeb-api is still **Restricted** — it's greenfield, so most pillars are empty (there's no code yet to score):
 
 ```
-celeb-api                                 66 / 100      SUPERVISED  (up from 55)
-  Code Security                           19 / 25       green
-  Test Coverage                           14 / 20       green
-  Technical Debt                           8 / 15       yellow
-  Dependency Freshness                    10 / 15       green
+celeb-api                                 18 / 100      RESTRICTED
+  Code Security                            2 / 25       red    (no code built yet)
+  Test Coverage                            0 / 20       red    (no code built yet)
+  Technical Debt                           4 / 15       yellow
+  Dependency Freshness                     5 / 15       yellow
   Complexity                               5 / 15       yellow
-  Architecture                            10 / 10       green   ← CALM rule now deterministic
+  Architecture                             2 / 10       red    (CALM model declared; nothing built against it)
 ```
 
-The Architecture pillar finally lifts to green. The composite score crosses into Autonomous-tier readiness territory (>=80 is the formal threshold; remaining gaps are in Technical Debt and Complexity, which are about code state, not about governance enforcement).
-
-The repo is not in Autonomous tier yet. The tier is derived from the composite. But the governance enforcement layer that an Autonomous-tier repo needs is **now in place**. The remaining ~15 points are cleanup work.
+That low score is the *point*: a greenfield Restricted BAR can't be flipped to Autonomous to "go faster." What Part 7 installed is the **governance enforcement layer** — the deterministic hook, the custom rules, the impl-provenance gate, and the break-glass lever. The score rises in Part 8 as Alice *builds* celeb-api under that enforcement, each tested, scanned, governed slice earning a piece of the tier. Compare with the brownfield movie-api, which climbed to Supervised through Parts 3–6 by remediating real code.
 
 ---
 
@@ -423,7 +393,7 @@ The chief-trainer test for any custom rule: *if I am on call at 2 AM and the rul
 ## What you learned
 
 - **Advisory vs deterministic enforcement** is a position in time. Advisory rules catch violations after they happen; deterministic rules prevent them from happening. Both have their place; combining them is defense in depth.
-- **The Red Queen ships three control points today:** PreToolUse hook (fast, binary, <10ms), MCP `validate_action` (richer, structured, <500ms), and `impl-provenance.yml` as a required status check (CI-time, verifies the signed audit chain produced by the implementation agent's embedded self-review). A dedicated standalone hard gate (`redqueen-action`) is Queen's Next Act.
+- **The Red Queen ships two control points today:** the deterministic PreToolUse hook (fast, binary, <10ms, fail-closed at the tool-call boundary) and `impl-provenance.yml` as a required status check (CI-time, verifies the signed audit chain produced by the implementation agent's embedded self-review). A dedicated standalone hard gate (`redqueen-action`) is Queen's Next Act. (An earlier draft also wired a live `validate_action` MCP tool; that optional live-mesh layer was retired — the baked policy at the hook is the enforcement.)
 - **The same CALM rule can run at multiple enforcement points.** The Part 4 fitness function and the Part 7 hook are the same rule expressed at different positions in the lifecycle. One policy.json is the source of truth.
 - **Break-glass is scoped, time-limited, and attributable.** Two paths: `REDQUEEN_TOOL_APPROVED=true` / `REDQUEEN_PLAN_APPROVED=true` let a developer through one tool call or one planned Edit, logged with `override: true`, `bypassedRuleId`, `approvalSource`, and the session ID. For a **dispatched agent** on a Restricted repo, the Scorecard's one-click **🔓 Break glass** commits a scoped, time-boxed grant to `.redqueen/approvals.json` that records **who/why/expiry** and is honored as `approvalSource: break-glass#<issue>` — the grant file is read-only to the agent (it can't forge one) and `SEC-001` paths stay denied even under it. Per-epoch budgets, CODEOWNER co-signing, and **signing the grant record** are Queen's Next Act.
 - **The governance is itself governed.** `.redqueen/` files are in `readOnlyPaths`. Agents cannot edit the policy that governs them.
@@ -445,8 +415,8 @@ This is the last Golden Rule. Part 8 does not introduce a new one; it shows how 
 
 ## What is next: Part 8 — Through the Looking Glass
 
-The celeb-api now has every layer: prompt packs (Part 2), live remediation (Part 3), fitness functions (Part 4), scanners (Part 5), versioned prompts with Hatter's Tag (Part 6), and deterministic policy enforcement (Part 7). Part 8 is the capstone. You ship **one cross-cutting feature** across all four IMDB-lite repos with the complete evidence chain attached. Every Golden Rule is exercised. Every artifact connects to the next. The auditor sees the whole chain from *"we wondered"* to *"we shipped"* in one git query.
+You've now seen every layer the framework offers: prompt packs (Part 2), live remediation on the brownfield movie-api (Part 3), fitness tests (Part 4), scanners (Part 5), versioned prompts with Hatter's Tag (Part 6), and deterministic policy enforcement with break-glass on the Restricted greenfield celeb-api (Part 7). Part 8 is the **greenfield capstone**: you build `celeb-api` end-to-end via the agentic SDLC — WHY → HOW → WHAT → implementation fan-out from `OKR-…-IMDB-…-celeb-api` — under the Red Queen enforcement you just installed (break-glass to authorize each governed slice), with the complete signed evidence chain attached. Every Golden Rule is exercised. The auditor sees the whole chain from *"we wondered"* to *"we shipped"* in one git query.
 
-Scorecard goal for Part 8: **~65 → ~80**. The celeb-api crosses into Autonomous tier.
+Scorecard goal for Part 8: celeb-api climbs from a near-empty greenfield score toward Supervised as the build lands tested, scanned, governed code.
 
 [Continue to Part 8 →](/docs/workshop/part8-governance-capstone)

@@ -615,7 +615,7 @@ When the implementation PR opens, its body includes a continuation block: the IM
   <line x1="435" y1="145" x2="475" y2="155" stroke="#a5b4fc" stroke-width="1.5" marker-end="url(#handoffArrow)"/>
   <line x1="435" y1="200" x2="475" y2="230" stroke="#a5b4fc" stroke-width="1.5" marker-end="url(#handoffArrow)"/>
   <rect x="480" y="58" width="280" height="68" rx="8" fill="rgba(125,211,252,0.10)" stroke="rgba(125,211,252,0.4)"/>
-  <text x="620" y="78" text-anchor="middle" fill="#7dd3fc" font-size="11" font-weight="700" font-family="system-ui, sans-serif">celeb-api · brownfield</text>
+  <text x="620" y="78" text-anchor="middle" fill="#7dd3fc" font-size="11" font-weight="700" font-family="system-ui, sans-serif">celeb-api · greenfield</text>
   <text x="620" y="93" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">landing issue + impl agent</text>
   <text x="620" y="106" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">impl chain in /.maintainability/audit/</text>
   <text x="620" y="119" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui, sans-serif">↳ ladder back at merge SHA</text>

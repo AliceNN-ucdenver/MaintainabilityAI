@@ -134,7 +134,7 @@ An AI agent implementing a feature decides: "I'll save time by querying the data
 
 **Without The Red Queen:** The agent ignores the architecture guidance in its prompt, adds the direct connection, and creates a PR. Maybe a human catches it. Maybe they don't.
 
-**With The Red Queen:** The agent calls **validate_action** before making any structural change. The Red Queen's Court **CALM flow constraint rule** checks the architecture model. No **web-frontend** → **user-database** relationship is declared. **Action denied.** The agent receives the denial reason and the correct architectural path: route through **api-gateway**.
+**With The Red Queen:** The deterministic PreToolUse policy intercepts the edit before it is written, fail-closed. The Red Queen's Court **CALM flow constraint rule** checks the architecture model — the CALM model still gates structural changes. No **web-frontend** → **user-database** relationship is declared. **Action denied** and logged to `.redqueen/audit-log.jsonl`. The agent receives the denial reason and the correct architectural path: route through **api-gateway**. (An agent can also call the MCP `validate_action` tool to ask for the same CALM ruling deliberately, but the block does not depend on it choosing to.)
 
 This isn't an LLM judging whether the change is okay. It's a deterministic policy engine evaluating the CALM model. Condition → decision. Auditable. Unfoolable.
 
@@ -221,7 +221,7 @@ Three permission tiers, driven by governance scores:
 <div class="docs-card docs-card-muted">
 <div class="docs-card-kicker">Supervised</div>
 <div class="docs-heading">50-79%</div>
-<div class="docs-muted">Agents need human checkpoints. Security and threat-model guidance is injected where the repo is weak. Structural changes are routed through <code>validate_action</code>; cross-repo contract gates arrive in Queen&rsquo;s Next Act.</div>
+<div class="docs-muted">Agents need human checkpoints. Security and threat-model guidance is injected where the repo is weak. Structural changes are gated by the deterministic PreToolUse policy (the CALM model still gates structural changes); cross-repo contract gates arrive in Queen&rsquo;s Next Act.</div>
 </div>
 <div class="docs-card docs-card-muted">
 <div class="docs-card-kicker">Restricted</div>

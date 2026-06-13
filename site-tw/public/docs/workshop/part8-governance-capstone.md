@@ -9,7 +9,7 @@
   </div>
   <div class="docs-workshop-meta">
     <strong class="docs-strong">Duration:</strong> 120 minutes<br/>
-    <strong class="docs-strong">Prerequisites:</strong> <a href="/docs/workshop/part7-red-queens-court" class="markdown-link">Part 7 complete</a>. All six Golden Rules learned. Scorecard at ~65. The celeb-api has every governance layer wired.<br/>
+    <strong class="docs-strong">Prerequisites:</strong> <a href="/docs/workshop/part7-red-queens-court" class="markdown-link">Part 7 complete</a>. All six Golden Rules learned. The brownfield movie-api in Supervised tier; the greenfield celeb-api has the Red Queen enforcement installed (Restricted). This part builds celeb-api's first real feature under that governance.<br/>
     <strong class="docs-strong">SDLC phase:</strong> All six. This is the synthesis.<br/>
     <strong class="docs-strong">Status:</strong> Available now
   </div>
@@ -32,14 +32,14 @@
     - Rule 5 (version the contract): every PR carries a Hatter's Tag naming the exact pack versions used; the audit chain is one query
     - Rule 6 (deterministic governance): the Red Queen denied two attempted CALM violations during implementation; both denies are in the audit log
 5. **CALM model updated first.** Before any code, you added the new flow `imdb-react-frontend → celeb-api` for the favorites endpoint to `bars/APP-IMDB-002/bar.arch.json` via an architecture-decision ADR. The Red Queen then permits the implementation flows; without the CALM update, the hook would have denied.
-6. Scorecard: **~65 → ~80**. The celeb-api crosses into **Autonomous tier**. Every pillar is green or close. The remaining ~15-20 points are cleanup that does not block ongoing work.
+6. Scorecard: the greenfield celeb-api **climbs from a near-empty Restricted score toward Supervised** as the favorites build lands tested, scanned, governed code under the Red Queen. (The brownfield movie-api already reached Supervised in Parts 3–6; celeb-api earns its tier the same way, one governed slice at a time.)
 7. The auditor-ready summary: one PR description per repo carrying the full Hatter's Tag, plus a top-level "release issue" (`PRJ-IMDB-FAV-001`) that links them all. You can hand this to a SOC 2 or ISO 42001 reviewer with no further explanation.
 
 ---
 
 ## Recap from Part 7
 
-Part 7 installed the Red Queen. The CALM-layer rule from Part 4 (advisory in CI) became deterministic at the agent's tool-call boundary. A custom team rule (`SEC-101`: route handlers must validate input through a Zod schema before passing it to a Mongo selector, and `$where` / `$accumulator` / `$function` are denied outright) was added and is now enforced before the agent's write lands. Every PreToolUse decision and every `validate_action` call appends a JSONL line to `.redqueen/audit-log.jsonl` with the rule that fired, the file path, and the session ID. The repo crossed into Autonomous-tier readiness on score (~65). All six Golden Rules are operational.
+Part 7 installed the Red Queen. The CALM-layer rule from Part 4 (advisory in CI) became deterministic at the agent's tool-call boundary. A custom team rule (`SEC-101`: route handlers must validate input through a Zod schema before passing it to a Mongo selector, and `$where` / `$accumulator` / `$function` are denied outright) was added and is now enforced before the agent's write lands. Every PreToolUse decision appends a JSONL line to `.redqueen/audit-log.jsonl` with the rule that fired, the file path, and the session ID. The greenfield celeb-api still sits at Restricted (nothing built yet) — so the capstone uses a scoped break-glass to authorize Alice to build it. All six Golden Rules are operational.
 
 Today we do the thing the whole workshop has been preparing for: **ship a feature that exercises every layer at once** and produces a single coherent audit trail.
 
@@ -64,7 +64,7 @@ Prerequisites — the **[end-to-end walkthrough](/docs/walkthrough/research-prd-
 
 - The mesh repo has `archeologist.yml`, `prd.yml`, `label-on-merge.yml`, `notify-code-repos.yml`, plus the `.caterpillar/prompts/research/*` and `.caterpillar/prompts/prd/*` packs (one-click via `Looking Glass` → `Settings` → `Deploy mesh workflows`)
 - No workflow files needed on the code repos — the mesh opens the PRD landing-issue directly via the GitHub Issues API
-- `TAVILY_API_KEY`, `ANTHROPIC_API_KEY` (or you have settled on `github-models`), and `GOVERNANCE_MESH_TOKEN` are pushed to the mesh repo's Actions secrets
+- `TAVILY_API_KEY` and `GOVERNANCE_MESH_TOKEN` are pushed to the mesh repo's Actions secrets (research/PRD generation routes through GitHub Models via the workflow token — no Anthropic/OpenAI key)
 - The pre-flight checklist in `New Research / PRD Run` shows all green
 
 The five-minute version of the path:
@@ -75,7 +75,7 @@ The five-minute version of the path:
 4. **The research PR opens on the mesh repo.** Read the rendered doc + Hatter's Tag. Merge it.
 5. **`label-on-merge.yml` labels the source issue `prd-ready`. `prd.yml` fires.** A second row appears in Active Runs — this is the PRD agent's multi-expert refinement loop. The published PRD includes a Refinement Loop Trace table so you can see how the score converged across iterations.
 6. **Merge the PRD PR.** `notify-code-repos.yml` reads `manifest.target_repos` and **opens a PRD landing-issue directly in each code repo on the list** via the GitHub Issues API. The issue body contains the full PRD markdown + manifest JSON + audit pointers. No workflow runs on the code-repo side; the issue just appears.
-7. **You are now at the start of the ad-hoc path's implementation step.** The landing-issues are already in the right repos. Use the Looking Glass **Rabbit Hole** to manually assign one as an RCTRO implementation issue (or comment `@claude please implement` on the landing-issue directly to invoke alice-remediation.yml against the embedded manifest).
+7. **You are now at the start of the ad-hoc path's implementation step.** The landing-issues are already in the right repos. Enrich one into an RCTRO implementation issue and **dispatch Alice** (the `alice-maintenance-agent` Copilot persona) to implement against the embedded manifest — one click from the Cheshire Scorecard, no magic comment.
 
 What this gives the team to discuss before they start implementing:
 
@@ -163,9 +163,9 @@ Confirm packs. Click **Generate**. Cheshire creates the three issues in their re
 
 ### Step 4. Assign agents per repo
 
-Per repo, comment `@claude please remediate` on the RCTRO issue. The `alice-remediation` workflow fires. Within 3-5 minutes per repo, four draft PRs open.
+Per repo, **dispatch Alice** on the RCTRO issue (the `alice-maintenance-agent` Copilot persona, one click from the Scorecard — no magic comment). Within 3-5 minutes per repo, draft PRs open.
 
-Tier check: the celeb-api is at Supervised (this is what Part 7's policy says). The Red Queen will allow `Edit` and most `Bash` for the agent, but will deny anything crossing the rules from Part 7 (raw `req.body` into Mongo selectors, `$where` / `$accumulator` / `$function` operators, undeclared CALM flows). Watch the audit feed in Looking Glass during the runs. If you see a deny event, that is the Red Queen earning its keep mid-run.
+Tier check: **celeb-api is Restricted** (greenfield — Part 7's policy puts it at the strictest posture), so the Red Queen denies `Write`/`Bash` outright. Grant the one-click **🔓 Break glass** on the celeb-api issue first — a scoped, audited, time-boxed `.redqueen/approvals.json` grant — so Alice can build the favorites feature; even under the grant, `SEC-001` security-critical paths stay denied. The brownfield movie-api + imdb-react-frontend are at Supervised, so Alice can `Edit` there directly. Either way the Red Queen still denies the Part 7 rules (raw `req.body` into Mongo selectors, `$where` / `$accumulator` / `$function`, undeclared CALM flows). Watch the audit feed in Looking Glass; a deny event is the Red Queen earning its keep mid-run.
 
 ### Step 5. Review the celeb-api PR (the big one)
 
@@ -182,7 +182,7 @@ This is the heaviest review. Apply the discipline from Part 3 sharpened by every
 | Tests cover attack vectors | Operator-injection (`{ celebrityId: { $ne: null } }`), IDOR attempt (read another user's favorites), oversized payload, concurrent POST race (both should resolve to one favorite via the unique index). |
 | Hatter's Tag in PR description | Names the pack versions used, the model, the reviewer (will be you when you approve). |
 
-If any row is partial, comment on the specific line. Re-trigger the agent with `@claude please address the review comments.` New commits land on the same PR.
+If any row is partial, comment on the specific line. Re-dispatch Alice to address the review comments. New commits land on the same PR.
 
 **Watch the Part 7 audit log mid-review.** If the Red Queen denied any of the agent's earlier attempts (e.g., it tried to write `await celebrities.find(req.body)` and `SEC-101` blocked it), those denies are in `.redqueen/audit-log.jsonl` with `payload.ruleId == "SEC-101"`, even though the final PR diff does not show the attempt. One `jq` query (`jq 'select(.payload.ruleId == "SEC-101")' .redqueen/audit-log.jsonl`) returns every block. Mention this in the PR thread: *"Red Queen blocked 2 SEC-101 violations during implementation (audit-log timestamps 14:31Z and 14:33Z); the final diff is the result of the agent's retry path."* That is your evidence chain talking.
 
@@ -195,9 +195,9 @@ If any row is partial, comment on the specific line. Re-trigger the agent with `
 ### Step 7. Verify the fitness functions and scanners
 
 Per PR, the CI runs:
-- ESLint + Jest + the 5 fitness functions from Part 4 (complexity, duplicated code, dead code, import boundaries, CALM-layer)
+- ESLint + Jest + the fitness tests from Part 4 (the four categories — complexity, duplicate, dead-code, architecture — each ratcheting against its baseline)
 - CodeQL + Snyk from Part 5
-- Red Queen Review (the Part 7 required status check)
+- `impl-provenance` (the Part 7 required status check — verifies the signed audit chain)
 
 Every gate should be green. If any is red, the merge is blocked. **No exceptions.** The whole point of the workshop has been to wire these gates; ignoring them at the capstone undoes the work.
 
@@ -228,10 +228,10 @@ Implementation PRs:
   - imdb-react-frontend#5012  (Hatter's Tag, merged 15:08Z)
 
 Governance evidence:
-  - 5 fitness functions green on every merge
+  - Fitness tests green on every merge (4 categories, all at/under baseline)
   - CodeQL + Snyk green
-  - Red Queen Review: 3 PRs reviewed, 3 PASS verdicts
-  - Red Queen audit events (.redqueen/audit-log.jsonl): 87 allows, 2 denies (both SEC-101, both correctly blocked `.find(req.body)` attempts during implementation), 0 overrides
+  - impl-provenance: 3 PRs, signed audit chain verified on each
+  - Red Queen audit events (.redqueen/audit-log.jsonl): 87 allows, 2 denies (both SEC-101, both correctly blocked `.find(req.body)` attempts during implementation), 1 break-glass override (scoped grant authorizing the greenfield build on the Restricted celeb-api BAR; auto-cleared on merge)
   - Prompt packs used:
       .cheshire/prompts/owasp/A01_broken_access_control@v1.0.0
       .cheshire/prompts/owasp/A03_injection@v1.1.0
@@ -239,7 +239,7 @@ Governance evidence:
       .cheshire/prompts/maintainability/complexity-reduction@v1.0.0
       .cheshire/prompts/maintainability/dry-principle@v1.0.0
 
-Scorecard: 65 → 81 (Autonomous tier).
+Scorecard: celeb-api 18 → 52 (greenfield build's first feature landed governed; crossed into Supervised).
 ```
 
 **One issue. Every artifact in one place. Hand this to a SOC 2 or ISO 42001 reviewer and the conversation is short.**
@@ -247,16 +247,16 @@ Scorecard: 65 → 81 (Autonomous tier).
 ### Step 10. Re-read the scorecard
 
 ```
-celeb-api                                 81 / 100      AUTONOMOUS  (up from 65)
-  Code Security                           22 / 25       green   (favorites endpoints added clean coverage)
-  Test Coverage                           17 / 20       green
-  Technical Debt                          11 / 15       green   (paid down during PR review)
-  Dependency Freshness                    12 / 15       green
-  Complexity                              10 / 15       yellow  (still room. Favorites code is clean but one legacy area remains)
-  Architecture                            10 / 10       green
+celeb-api                                 52 / 100      SUPERVISED  (up from 18, greenfield)
+  Code Security                           14 / 25       yellow  (favorites endpoints added clean, scanned coverage)
+  Test Coverage                           12 / 20       green   (favorites tests are the first real coverage)
+  Technical Debt                           7 / 15       yellow
+  Dependency Freshness                    10 / 15       green
+  Complexity                               5 / 15       yellow  (room as more of the service is built)
+  Architecture                             4 / 10       yellow  (first declared flow now implemented against)
 ```
 
-The celeb-api is now Autonomous tier. The Red Queen hook for Autonomous tier denies almost nothing but logs everything. The next agent run on this repo will have more latitude. And the audit chain will keep growing.
+The greenfield celeb-api crossed out of Restricted into **Supervised** — its first real feature shipped tested, scanned, and governed, and the break-glass that authorized the build auto-cleared on merge. From here the score climbs the same way the brownfield movie-api did: one governed slice at a time, until the BAR earns Autonomous. The audit chain keeps growing.
 
 ---
 
@@ -269,7 +269,7 @@ The capstone exercised every rule. The combination is what makes the operating m
 | 1 — Choose the stage before the prompt | You picked AI-Assisted at Supervised tier (cross-cutting; needs human checkpoints); you did NOT pick Agentic |
 | 2 — Write the full contract before code | Cheshire generated RCTRO issues with 5 packs each; the agent received the full contract, not a vibe |
 | 3 — Trust but verify | You reviewed 4 PRs line-by-line; you sent at least one back; the agents addressed the comments |
-| 4 — Measurement enables governance | 5 fitness functions + CodeQL + Snyk + Red Queen Review all green; scorecard moved on every merge |
+| 4 — Measurement enables governance | the four fitness-test categories + CodeQL + Snyk + impl-provenance all green; scorecard moved on every merge |
 | 5 — Version the contract | Each PR carries a Hatter's Tag naming pack versions; the audit chain is one query |
 | 6 — Make governance deterministic | Red Queen denied 2 SEC-101 violations during implementation; those denies are evidence, not failures |
 
@@ -343,7 +343,7 @@ You shipped the big cross-cutting feature together. The capstone exercise is to 
 
 1. Update CALM if a new flow is needed (only the first option; the others reuse existing flows).
 2. Cheshire → New Feature → generate the RCTRO with packs.
-3. `@claude please remediate` → review the agent's plan → `@claude please implement`.
+3. Dispatch Alice → review the plan/summary → let it implement (break-glass first if the target BAR is Restricted).
 4. Review the diff against the Requirements.
 5. Run fitness functions + scanners + Red Queen Review locally.
 6. Merge with the Hatter's Tag footer.
@@ -375,7 +375,7 @@ You shipped a feature governed by all six Golden Rules if you can answer YES to 
 - **Mode + tier + score** is the operating triangle. Mode is the style; tier is the posture; score is the lever that moves the tier. You earn autonomy by improving the score.
 - **The RCTRO + prompt pack is the contract.** Bare prompts produce bare bugs. Pack-driven RCTROs produce reviewable PRs. The contract is the work.
 - **Reviewing an agent's diff is the new core skill.** Compiling and passing are necessary, not sufficient. The reviewer's job is to confirm the code does what the Requirements said.
-- **Fitness functions turn rules into wires.** A rule without a fitness function is a wish. The five canonical functions (complexity, duplicated code, dead code, import boundaries, CALM layer) defend the codebase from the bugs the prompt packs tried to prevent.
+- **Fitness functions turn rules into wires.** A rule without a fitness function is a wish. The four committed fitness-test categories (complexity, duplicate, dead-code, architecture — the last reading the CALM model), each ratcheting against a baseline, defend the codebase from the bugs the prompt packs tried to prevent.
 - **Scanners produce volume; triage matrices produce decisions.** CodeQL + Snyk + SARIF triage with the right policy is defense in depth.
 - **Prompts are versioned assets.** The Hatter's Tag is the manifest that ties every PR to the exact pack, model, and reviewer that produced it.
 - **Governance is deterministic at the agent's tool-call boundary.** Red Queen hooks block bad changes before they happen; the audit chain records every allow, deny, and override.
@@ -406,7 +406,7 @@ The current workshop ends here. Implementation is on you and your team.
 - **The Archeologist** does market research and codebase archaeology grounded in the mesh, produces a versioned research document
 - **The PRD agent** turns research into a structured PRD with mesh-grounded requirements, architecture review, security review, and an iterative refinement loop
 
-The handoff goes: research PR merges in mesh → PRD PR opens → PRD PR merges → Cheshire RCTRO issue lands in code repo → alice-remediation implements (Parts 3-7 above) → ships.
+The handoff goes: research PR merges in mesh → PRD PR opens → PRD PR merges → Cheshire RCTRO issue lands in code repo → Alice (the `alice-maintenance-agent` persona) implements (Parts 3-7 above) → ships.
 
 You can read the [agentic-SDLC design doc](https://github.com/AliceNN-ucdenver/MaintainabilityAI/blob/main/vscode-extension/design/agentic-sdlc.md) for the architectural details: Looking Glass-side placement, mesh-rooted destinations, NCMS-pattern semistructured prompts with full ID-based bidirectional traceability, deterministic API calls (Tavily / arXiv / USPTO / HN), the OKR-driven trigger model, persona-switch self-critique at PRD time (replacing the original four-expert review pattern), audit-chain verification + Knight's Seal v1, and the full Looking Glass UX integration. The future codebase-archaeology research mode (tree-sitter `ObservedArchitecture` extraction) is reserved in that doc's §16.
 

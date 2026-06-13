@@ -9,7 +9,7 @@
   </div>
   <div class="docs-workshop-meta">
     <strong class="docs-strong">Duration:</strong> 60 minutes<br/>
-    <strong class="docs-strong">Prerequisites:</strong> <a href="/docs/workshop/part1-spectrum" class="markdown-link">Part 1 complete</a>. Extension installed, IMDB Lite seeded, <code>celeb-api</code> scaffolded (scorecard ~5/100, Restricted tier).<br/>
+    <strong class="docs-strong">Prerequisites:</strong> <a href="/docs/workshop/part1-spectrum" class="markdown-link">Part 1 complete</a>. Extension installed, IMDB Lite seeded, brownfield <code>movie-api</code> scaffolded (scorecard ~5/100, Restricted tier).<br/>
     <strong class="docs-strong">SDLC phase:</strong> Phase 1 (Design contracts).<br/>
     <strong class="docs-strong">Status:</strong> Available now
   </div>
@@ -23,7 +23,7 @@
 
 1. A clear definition of **why** generic prompts fail and **how** RCTRO closes the gap.
 2. Familiarity with the **three pack families** (`.cheshire/prompts/owasp/`, `/stride/`, `/maintainability/`) and the rule of thumb for when to reach for each.
-3. A hand-drafted RCTRO for the **"Add Celebrity Favorites"** feature, using five real prompt packs as inputs. Not a fix. A *new feature*. This is what your day looks like in 2026-2027.
+3. A hand-drafted RCTRO for the **"Add Celebrity Favorites"** feature, using five real prompt packs as inputs (the same packs Cheshire scaffolded into the movie-api in Part 1). Not a fix. A *new feature* — and a preview of the greenfield celeb-api work that lands in the Part 8 capstone. This is what your day looks like in 2026-2027.
 4. Comparison of your hand-drafted RCTRO against the one Cheshire generates from the same plain-English description, so the value of the packs is concrete, not theoretical.
 5. Golden Rule 2 internalised: **Write the full contract before asking for code.**
 
@@ -31,7 +31,7 @@
 
 ## Recap from Part 1
 
-The celeb-api scored 5/100 because nothing was governed. We scaffolded it with Cheshire. The repo now ships with `.github/workflows/codeql.yml`, `.github/workflows/codeql-to-issues.yml`, `.github/workflows/alice-remediation.yml`, and a `.cheshire/prompts/` directory pre-populated with OWASP, STRIDE, and Maintainability packs. Part 2 is the part of the class where we open those packs and learn the language they speak.
+The movie-api scored 5/100 because nothing was governed. We scaffolded it with Cheshire. The repo now ships with `.github/workflows/codeql.yml`, `.github/workflows/codeql-to-issues.yml` (which can dispatch Alice), the **Alice agent persona** (`alice-maintenance-agent`), and a `.cheshire/prompts/` directory pre-populated with OWASP, STRIDE, and Maintainability packs. Part 2 is the part of the class where we open those packs and learn the language they speak.
 
 ---
 
@@ -180,7 +180,7 @@ Save the RCTRO Cheshire generated. We will come back to it.
 
 Modern agents (Claude Opus, Sonnet 4.6, Copilot Coding Agent on GPT-5) handle 200K+ tokens of context. The Cheshire RCTRO for the favorites feature, with all five pack checklists expanded, comes in around 6,000 tokens. That is well within the budget.
 
-What you *should* worry about is the agent **acknowledging** the constraints versus **applying** them. This is why the alice-remediation workflow runs in two phases: a planning phase where the agent restates the Requirements and writes an implementation plan, and an implementation phase where it produces the diff. Reviewers should read the plan *first* and check that every Requirement is named. If a Requirement is missing from the plan, do not let the agent proceed; comment, regenerate the plan, then implement.
+What you *should* worry about is the agent **acknowledging** the constraints versus **applying** them. This is why Alice (the `alice-maintenance-agent` persona, dispatched with one click from the Cheshire Security Scorecard) works plan-first: she restates the Requirements and writes an implementation plan before producing the diff. Reviewers should read the plan *first* and check that every Requirement is named. If a Requirement is missing from the plan, do not let the agent proceed; comment, re-dispatch, then let her implement.
 
 </details>
 
@@ -289,6 +289,6 @@ A common miss: missing the legal sign-off question. GDPR Article 15 says you mus
 
 ## What is next: Part 3. Alice Remediates
 
-You have the contract language and the library. Part 3 is the live class. We push the celeb-api to GitHub, CodeQL fires, four `codeql-finding` issues appear, and we walk through the full Cheshire enrich → assign agent → review PR → merge loop on the planted A03 NoSQL injection in `/search` (Mongo operator injection — `$ne`, `$where`, unbounded regex, raw `req.query` selectors). By the end of Part 3 the celeb-api has shipped its first AI-assisted PR and the scorecard moves from 5 to roughly 15.
+You have the contract language and the library. Part 3 is the live class. We push the movie-api to GitHub, CodeQL fires, four `codeql-finding` issues appear, and we walk through the full Cheshire enrich → dispatch Alice → review PR → merge loop on the planted A03 NoSQL injection in `GET /movies?genre=` (Mongoose operator injection — `$ne`, `$where`, unbounded regex, raw `req.query` selectors). By the end of Part 3 the movie-api has shipped its first AI-assisted PR and the scorecard moves from 5 to roughly 15.
 
 [Continue to Part 3 →](/docs/workshop/part3-live-remediation)

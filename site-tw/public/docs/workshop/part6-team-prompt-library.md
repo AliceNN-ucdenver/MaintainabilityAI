@@ -9,7 +9,7 @@
   </div>
   <div class="docs-workshop-meta">
     <strong class="docs-strong">Duration:</strong> 60 minutes<br/>
-    <strong class="docs-strong">Prerequisites:</strong> <a href="/docs/workshop/part5-security-pipeline" class="markdown-link">Part 5 complete</a>. Two scanners and five fitness gates running. Scorecard at ~50. Repo in Supervised tier.<br/>
+    <strong class="docs-strong">Prerequisites:</strong> <a href="/docs/workshop/part5-security-pipeline" class="markdown-link">Part 5 complete</a>. Two scanners and the four-category fitness tests (complexity, duplicate, dead-code, architecture) running in CI. Scorecard at ~50. Repo in Supervised tier.<br/>
     <strong class="docs-strong">SDLC phase:</strong> Phase 6 (Evolution).<br/>
     <strong class="docs-strong">Status:</strong> Available now
   </div>
@@ -33,7 +33,7 @@
 
 ## Recap from Part 5
 
-Part 5 wired CodeQL plus Snyk and taught the triage matrix. The celeb-api crossed 50 and reached Supervised tier. The PreToolUse hook loosened. The Code Security pillar reached green. **What is missing**: when an auditor (or your future self) asks *"which version of which prompt produced PR #4129"*, the answer today is *"the version that was in the repo at the time of the commit, whatever that was."* That is not a credible answer. Today we make it credible.
+Part 5 wired CodeQL plus Snyk and taught the triage matrix. The movie-api crossed 50 and reached Supervised tier. The PreToolUse hook loosened. The Code Security pillar reached green. **What is missing**: when an auditor (or your future self) asks *"which version of which prompt produced PR #4129"*, the answer today is *"the version that was in the repo at the time of the commit, whatever that was."* That is not a credible answer. Today we make it credible.
 
 ---
 
@@ -61,20 +61,19 @@ A complete Hatter's Tag looks like:
 ---
 🤖 Hatter's Tag
 ---
-agent:           claude-code-action@v1.2.3
+agent:           alice-maintenance-agent (copilot)
 model:           claude-opus-4-7-20260501
 prompt-fingerprint: sha256:5f4dcc3b...   # hash of the assembled RCTRO
 packs:
   - .cheshire/prompts/owasp/A03_injection.md@v1.1.0
   - .cheshire/prompts/maintainability/complexity-reduction.md@v1.0.0
 finding-id:      codeql:js/sql-injection #423
-threat-model:    bars/APP-IMDB-002.threats.yaml@sha:a4b5c6...
+threat-model:    bars/APP-IMDB-001.threats.yaml@sha:a4b5c6...
 fitness-results:
-  complexity:    pass (max cc 8)
-  jscpd:         pass (0.4%)
-  knip:          pass
-  madge:         pass
-  calm-layer:    pass
+  complexity:    pass (within baseline)
+  duplicate:     pass (within baseline)
+  dead-code:     pass
+  architecture:  pass
 reviewer:        @your-handle (approved 2026-05-17T14:32:08Z)
 ```
 
@@ -117,7 +116,7 @@ In the same `.cheshire/` directory, Cheshire's initializer creates `prompt-libra
 
 ```yaml
 library:
-  name: celeb-api-prompts
+  name: movie-api-prompts
   maintainers:
     - @your-handle
     - @your-team-lead
@@ -146,8 +145,8 @@ Cheshire ships a GitHub Action that runs on every AI-assisted PR (detected by th
 
 1. Reads the issue body (the RCTRO) to find which packs were cited.
 2. Looks up each pack's current version from `prompt-library.yaml`.
-3. Reads the agent metadata from the `alice-remediation` workflow run (agent id, model version, system prompt hash).
-4. Reads the threat model from the BAR (`bars/APP-IMDB-002.threats.yaml`).
+3. Reads the agent metadata from Alice's dispatch run (agent id, model version, system prompt hash).
+4. Reads the threat model from the BAR (`bars/APP-IMDB-001.threats.yaml`).
 5. Reads the fitness function CI results.
 6. Writes the assembled Hatter's Tag as a YAML block at the top of the PR description.
 
@@ -184,7 +183,7 @@ Merge.
 
 ### Step 5. Trigger an A03-using PR and read the Hatter's Tag
 
-Pick any open issue labelled `owasp/A03` (or open a small new one: "Add `?genre=` filter to celeb-api movies route with parameterised SQL"). Run the Cheshire enrich step (which now pulls in `A03_injection.md@v1.1.0`). Assign the agent with `@claude please remediate`. Wait for the draft PR.
+Pick any open issue labelled `owasp/A03` (or open a small new one: "Harden the `GET /movies?genre=` filter on the movie-api against Mongoose operator injection"). Run the Cheshire enrich step (which now pulls in `A03_injection.md@v1.1.0`). Dispatch Alice with one click from the Cheshire Security Scorecard. Wait for the draft PR on a `copilot/*` branch.
 
 Open the PR. The description should now start with:
 
@@ -192,19 +191,19 @@ Open the PR. The description should now start with:
 ---
 🤖 Hatter's Tag
 ---
-agent:    claude-code-action@v1.2.3
+agent:    alice-maintenance-agent (copilot)
 model:    claude-opus-4-7-20260501
 prompt-fingerprint: sha256:7b3df982...
 packs:
   - .cheshire/prompts/owasp/A03_injection.md@v1.1.0
   - .cheshire/prompts/maintainability/complexity-reduction.md@v1.0.0
 finding-id:      (none — new feature)
-threat-model:    bars/APP-IMDB-002.threats.yaml@sha:a4b5c6...
+threat-model:    bars/APP-IMDB-001.threats.yaml@sha:a4b5c6...
 fitness-results: pending CI
 reviewer:        unassigned
 ```
 
-The Hatter's Tag is there. The pack version is `v1.1.0`, the one that includes the null-byte test. Review the PR: confirm the agent included a test case for `?genre=action%00DROP%20TABLE`. It should. The pack required it; the agent followed the pack.
+The Hatter's Tag is there. The pack version is `v1.1.0`, the one that includes the null-byte test. Review the PR: confirm Alice included a test case for `?genre=action%00DROP%20TABLE`. She should. The pack required it; the agent followed the pack.
 
 Approve. Merge. The `reviewer:` field updates with your handle and the merge timestamp.
 
@@ -213,7 +212,7 @@ Approve. Merge. The `reviewer:` field updates with your handle and the merge tim
 After merge, Cheshire appends an entry to `.cheshire/prompt-effectiveness.md`:
 
 ```markdown
-## PR #4156 — feat(celeb-api): genre filter on /movies
+## PR #4156 — fix(movie-api): harden genre filter on /movies
 
 - packs: owasp/A03_injection@v1.1.0, maintainability/complexity-reduction@v1.0.0
 - review-iterations: 1
@@ -228,7 +227,7 @@ This file grows over time. After 50 PRs you have data: which packs require the m
 The score moves modestly:
 
 ```
-celeb-api                                 56 / 100      SUPERVISED  (up from 51)
+movie-api                                 56 / 100      SUPERVISED  (up from 51)
   Code Security                           19 / 25       green
   Test Coverage                           14 / 20       green
   Technical Debt                           8 / 15       yellow
@@ -296,7 +295,7 @@ In Step 4 you bumped `owasp/A03_injection.md` together. Now do the same solo on 
 
 ### Setup
 
-Pick a pack that the celeb-api has *actually used* across Parts 3-5 and that you can think of one concrete improvement to. Suggestions:
+Pick a pack that the movie-api has *actually used* across Parts 3-5 and that you can think of one concrete improvement to. Suggestions:
 
 - `owasp/A07_authn_failures.md` (used in Part 3 solo). Add: rate-limit-by-username, not only by IP. (Part 3 Q&A surfaced this as a common miss.)
 - `maintainability/complexity-reduction.md` (used in Part 4). Add: complexity threshold per file type (JSX components allowed 12; backend handlers cap 8).
@@ -354,7 +353,7 @@ A useful sanity check: read the changelog entry and ask *"would a new hire under
 
 Rules 1 through 5 are now operational. Stage and tier (Rule 1). The contract (Rule 2). The reviewer's discipline (Rule 3). The measurement layer (Rule 4). The versioning and audit chain (Rule 5). **But every one of them is still advisory.** An over-eager agent can still violate the CALM model, skip a Requirement, take a Bash action that crosses a security-critical path. Reviewers and fitness functions catch it *after* the work happens.
 
-Part 7 makes the constraints deterministic. We install the Red Queen, watch a PreToolUse hook block a CALM-violating action *before* the write lands, run `validate_action` over MCP to confirm structural changes against the architecture, and promote the CALM-layer fitness function from Part 4 from advisory to hard gate.
+Part 7 makes the constraints deterministic. We install the Red Queen — a baked `.redqueen/policy.json` plus a PreToolUse hook that fails closed and logs every decision to `.redqueen/audit-log.jsonl` — watch it block a CALM-violating action *before* the write lands, see the merge-time `impl-provenance` gate, and exercise the one-click, scoped, audited break-glass for Restricted-tier work. The CALM-layer fitness check from Part 4 is promoted from advisory to hard gate.
 
 Scorecard goal for Part 7: **55 → ~65**. The repo crosses the threshold from Supervised toward Autonomous. The agent's autonomy is no longer trust; it is policy.
 

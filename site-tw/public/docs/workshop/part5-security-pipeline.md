@@ -9,20 +9,20 @@
   </div>
   <div class="docs-workshop-meta">
     <strong class="docs-strong">Duration:</strong> 75 minutes<br/>
-    <strong class="docs-strong">Prerequisites:</strong> <a href="/docs/workshop/part4-fitness-functions" class="markdown-link">Part 4 complete</a>. Five fitness functions running. CodeQL workflow in place from Part 3. Scorecard at ~35.<br/>
+    <strong class="docs-strong">Prerequisites:</strong> <a href="/docs/workshop/part4-fitness-functions" class="markdown-link">Part 4 complete</a>. The fitness tests running across the four structural categories. CodeQL workflow in place from Part 3.<br/>
     <strong class="docs-strong">SDLC phase:</strong> Phase 3 (Verification).<br/>
     <strong class="docs-strong">Status:</strong> Available now
   </div>
 </div>
 
-> *"Who are you?"* asked the Caterpillar. Part 5 is the part of the workshop where the scanners ask the same question of every commit. By the end the celeb-api has CodeQL and Snyk running together, SARIF findings auto-triaged into RCTRO issues, one false-positive handled by a human and one true-positive handled by the agent. Scorecard crosses **35 → ~50**, and the celeb-api earns its way out of Restricted into **Supervised** tier.
+> *"Who are you?"* asked the Caterpillar. Part 5 is the part of the workshop where the scanners ask the same question of every commit. By the end the movie-api has CodeQL and Snyk running together, SARIF findings auto-triaged into RCTRO issues, one false-positive handled by a human and one true-positive handled by the agent. Scorecard crosses **35 → ~50**, and the movie-api earns its way out of Restricted into **Supervised** tier.
 
 ---
 
 ## What you will have built when you leave
 
-1. **Snyk** wired into the celeb-api alongside the existing CodeQL workflow. Two scanners, one SARIF triage pipeline.
-2. Five real findings filed as GitHub Issues: 1 fresh CodeQL finding (XSS in the review render path), 2 Snyk CVE findings (`lodash@4.17.15`, `axios` outdated), 1 Snyk SAST finding (hardcoded secret in image-proxy), 1 deliberately planted false-positive.
+1. **Snyk** wired into the movie-api alongside the existing CodeQL workflow. Two scanners, one SARIF triage pipeline.
+2. Five real findings filed as GitHub Issues: 1 fresh CodeQL finding (XSS in the review render path), 2 Snyk CVE findings (`lodash@4.17.15`, `axios` outdated), 1 Snyk SAST finding (hardcoded secret in `ratings-feed.ts`), 1 deliberately planted false-positive.
 3. The **false-positive triaged by a human** with the recorded rationale that closes the issue and feeds the team's exclusion list.
 4. The **CVE finding remediated by an agent** through the same Cheshire enrich → assign → review loop you ran in Part 3, now extended to scanner findings.
 5. A **severity policy** that decides who gets the issue: critical and high go to humans first, medium and low can be agent-assigned with a labelled review.
@@ -33,7 +33,7 @@
 
 ## Recap from Part 4
 
-Part 4 left you with five fitness functions in CI: complexity, duplicated code, dead code, import boundaries, and CALM layer enforcement. Two are blocking; three are advisory. You also wrote your first team-owned prompt pack (`maintainability/calm-layer-enforcement.md`). The scorecard moved 15 → ~35. **What's missing**: most of the remaining 30 points to reach Supervised tier come from the Code Security pillar, which fitness functions do not cover. That is what scanners do.
+Part 4 left you with fitness tests in CI across four structural categories — complexity, duplicated code, dead code, and architecture (import boundaries + the CALM-layer rule) — each ratcheting against a baseline floor. You also wrote your first team-owned prompt pack (`maintainability/calm-layer-enforcement.md`). The scorecard moved. **What's missing**: most of the points left to reach Supervised tier come from the Code Security pillar, which fitness functions do not cover. That is what scanners do.
 
 ---
 
@@ -56,7 +56,7 @@ The matrix is your team's contract with the scanners. Write it once. Cheshire ap
 
 ### The two scanners and what they catch
 
-**CodeQL** is GitHub's SAST. Source-code analysis for vulnerable patterns. Finds: SQL injection, XSS, SSRF, path traversal, broken authentication, insecure crypto usage. Already running on celeb-api from Part 3.
+**CodeQL** is GitHub's SAST. Source-code analysis for vulnerable patterns. Finds: SQL injection, XSS, SSRF, path traversal, broken authentication, insecure crypto usage. Already running on movie-api from Part 3.
 
 **Snyk** is two scanners in one. **Snyk Open Source** is SCA (Software Composition Analysis) and finds CVEs in dependencies. **Snyk Code** is SAST that overlaps with CodeQL but catches different patterns, particularly in JavaScript/TypeScript. Together they cover the most common attack surfaces a TypeScript Express service has.
 
@@ -74,9 +74,9 @@ What changes in 2026 is the *triage step in front*. In 2024 a security team scan
 
 ## Walkthrough: from a fresh scan to one merged fix and one closed false-positive
 
-### Step 1. Add Snyk to the celeb-api
+### Step 1. Add Snyk to the movie-api
 
-The Cheshire scaffold from Part 1 included CodeQL but left Snyk optional. Open the celeb-api in VS Code, click the **Cheshire Cat** icon, choose **Scaffold SDLC → Add scanner**, pick **Snyk** from the list, and confirm. Cheshire writes:
+The Cheshire scaffold from Part 1 included CodeQL but left Snyk optional. Open the movie-api in VS Code, click the **Cheshire Cat** icon, choose **Scaffold SDLC → Add scanner**, pick **Snyk** from the list, and confirm. Cheshire writes:
 
 - `.github/workflows/snyk.yml` (runs `snyk test` and `snyk code test` on every PR)
 - A `SNYK_TOKEN` secret prompt (you paste yours; the prompt validates against the Snyk API)
@@ -91,7 +91,7 @@ Once Snyk has scanned at least once, go to the **Issues** tab. You should see ne
 ```
 #5  [snyk-finding] [owasp/A06] CVE-2019-10744 in lodash@4.17.15 (high)
 #6  [snyk-finding] [owasp/A06] axios@0.21.4 has known prototype pollution (medium)
-#7  [snyk-finding] [owasp/A02] Hardcoded API key in src/services/news-feed.ts (high)
+#7  [snyk-finding] [owasp/A02] Hardcoded API key in src/services/ratings-feed.ts (high)
 #8  [codeql-finding] [owasp/A03] Stored XSS in review render path (high)
 #9  [snyk-finding] [owasp/A05] Express body-parser uses default config (low)  ← the false positive
 ```
@@ -102,7 +102,7 @@ Issue #9 is the planted false-positive. Snyk flags Express body-parser's default
 
 In VS Code, **Cheshire Cat → Issue Management**, pick issue #5. Click **Enrich with RCTRO**. Cheshire reads the Snyk finding, loads the matching pack (`owasp/A06_vuln_outdated.md`), and writes an RCTRO that names the upgrade target (lodash `4.17.21` or `^4.17.21`), the test surface (any code path that uses `lodash.template` or `lodash.set`), and the rollback plan.
 
-This is a *high-severity, real* finding. From the matrix, the agent can remediate with a labelled review. Comment `@claude please remediate` and watch the `alice-remediation` workflow open a draft PR within minutes.
+This is a *high-severity, real* finding. From the matrix, the agent can remediate with a labelled review. **Dispatch Alice** from the issue and watch a draft PR open within minutes — governed, as always, by the repo's baked Red Queen policy.
 
 ### Step 4. Review the agent's CVE-fix PR
 
@@ -136,12 +136,12 @@ The audit chain is the point. *"We knew about it; we decided not to fix it; here
 
 ### Step 6. The hardcoded-secret finding (#7, high)
 
-This is the *most dangerous category*: a real high-severity finding that requires more than a code change. The hardcoded API key is in git history. Even after the agent removes it from `src/services/news-feed.ts`, the key is still in old commits. Rotation is required.
+This is the *most dangerous category*: a real high-severity finding that requires more than a code change. The hardcoded API key is in git history. Even after the agent removes it from `src/services/ratings-feed.ts`, the key is still in old commits. Rotation is required.
 
 The matrix says: *high severity → human reviews first*. Do this work yourself, do not assign the agent. Steps:
 
-1. **Rotate the key first.** Get a new key from the news-feed vendor. Update the environment variable in your deployment. Confirm the old key is dead.
-2. **Then** assign the agent to remove the key from source and replace with `process.env.NEWS_FEED_API_KEY`. Cheshire's pack for A02 will pull in the relevant requirements (no secrets in source, no secrets in logs, env-based config with a fallback that fails closed).
+1. **Rotate the key first.** Get a new key from the ratings-feed vendor. Update the environment variable in your deployment. Confirm the old key is dead.
+2. **Then** dispatch Alice to remove the key from source and replace with `process.env.RATINGS_FEED_API_KEY`. Cheshire's pack for A02 will pull in the relevant requirements (no secrets in source, no secrets in logs, env-based config with a fallback that fails closed).
 3. Merge. The Snyk re-scan on next push should close the finding automatically.
 4. **Rewrite git history is optional**: in private repos, leaving the dead key in history is acceptable. In public repos, force-push history rewrite with `git-filter-repo` and notify any forks.
 
@@ -150,7 +150,7 @@ The matrix says: *high severity → human reviews first*. Do this work yourself,
 Refresh the Cheshire Cat Security Scorecard. You should see:
 
 ```
-celeb-api                                 51 / 100      SUPERVISED  (up from 36)
+movie-api                                 51 / 100      SUPERVISED  (up from 36)
   Code Security                           19 / 25       green   (4 of 5 findings closed; 1 risk-accepted)
   Test Coverage                           13 / 20       green
   Technical Debt                           7 / 15       yellow
@@ -159,10 +159,10 @@ celeb-api                                 51 / 100      SUPERVISED  (up from 36)
   Architecture                             2 / 10       red     (CALM layer fitness function lives in Part 4)
 ```
 
-The score crossed 50. **The celeb-api is now in Supervised tier.** Read what changes:
+The score crossed 50. **The movie-api is now in Supervised tier.** Read what changes:
 
 - The PreToolUse hook no longer blocks `Read` on the agent. Free exploration is allowed.
-- Structural changes still go through `validate_action`. The CALM model still gates the work.
+- Structural edits still pass the deterministic PreToolUse policy. The CALM model still gates the work.
 - Weak-pillar prompt packs (Architecture, Complexity) are still auto-injected into every agent prompt.
 
 The tier earned the freedom. Each finding closed, each gate added, was the work that earned it.
@@ -224,7 +224,7 @@ Issue #9 walked you through the false-positive flow. Now do the same on a differ
 
 ### Setup
 
-In the celeb-api repo, run:
+In the movie-api repo, run:
 
 ```bash
 gh workflow run codeql.yml
@@ -236,7 +236,7 @@ After CodeQL completes, a new issue should appear:
 #10  [codeql-finding] [owasp/A05] Express trust-proxy not explicitly set (medium)
 ```
 
-This is also a **planted false-positive** in the workshop pack. Express trust-proxy is not set because the celeb-api is intended to run behind a known-good reverse proxy in our deployment, and the relevant header parsing is handled at the proxy layer. In other deployment topologies, this *would* be a real finding.
+This is also a **planted false-positive** in the workshop pack. Express trust-proxy is not set because the movie-api is intended to run behind a known-good reverse proxy in our deployment, and the relevant header parsing is handled at the proxy layer. In other deployment topologies, this *would* be a real finding.
 
 ### Your task
 
@@ -268,7 +268,7 @@ The chief-trainer rule for triage: **when in doubt, escalate to risk-accept-with
 - **CodeQL and Snyk are complementary**, not redundant. CodeQL is semantic flow analysis; Snyk Code is fast pattern matching plus dependency CVE. Together they're defense in depth.
 - **Hardcoded-secret findings need rotation first, code change second.** Removing the secret from `src/` does not remove it from git history. Treat key rotation as a security incident with the right runbook before you touch code.
 - **False-positive close is an audit artifact, not just a cleanup.** Every close-without-fix deserves a written reason, a named owner, an entry in `.cheshire/risk-register.md`, and (where possible) an exclusion rule so the scanner does not refile.
-- **Tier-up is earned.** Crossing 50/100 lifts the celeb-api from Restricted to Supervised. The PreToolUse hook loosens; weak-pillar packs auto-inject; structural changes still go through `validate_action`. Each finding closed bought a piece of that freedom.
+- **Tier-up is earned.** Crossing 50/100 lifts the movie-api from Restricted to Supervised. The PreToolUse hook loosens; weak-pillar packs auto-inject; structural edits still pass the deterministic PreToolUse policy. Each finding closed bought a piece of that freedom.
 
 ---
 
@@ -284,7 +284,7 @@ The chief-trainer rule for triage: **when in doubt, escalate to risk-accept-with
 
 ## What is next: Part 6. The Hatter's Library
 
-You have four scanners (ESLint, Jest, CodeQL, Snyk) and five fitness functions all running. Most importantly, you have a pile of prompts: the OWASP packs Cheshire scaffolded in Part 1, the team-specific CALM-layer pack you co-authored in Part 4, plus the implicit prompt versions baked into every PR you have shipped.
+You have four scanners (ESLint, Jest, CodeQL, Snyk) and a suite of fitness tests all running. Most importantly, you have a pile of prompts: the OWASP packs Cheshire scaffolded in Part 1, the team-specific CALM-layer pack you co-authored in Part 4, plus the implicit prompt versions baked into every PR you have shipped.
 
 **None of them are versioned.** That is what Part 6 fixes. We tag every pack with semver, wire the **Hatter&rsquo;s Tag** signed-manifest preview into every AI-assisted PR, and watch what happens when OWASP refreshes a pack mid-quarter.
 

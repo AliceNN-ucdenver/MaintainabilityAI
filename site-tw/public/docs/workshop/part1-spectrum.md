@@ -23,10 +23,11 @@
 
 1. The MaintainabilityAI VS Code extension installed and signed in.
 2. A governance mesh initialised on your laptop.
-3. The **IMDB Lite** sample platform created in Looking Glass, with two BARs visible: `APP-IMDB-001` (movies) and `APP-IMDB-002` (celebrities).
-4. The `celeb-api` repository (from the workshop pack) scaffolded with Cheshire so you can read its first Security Scorecard. You will see it sitting at roughly **5/100, Restricted tier**.
-5. A defensible answer to "Which AI stage should this work be at?" on three sample features, plus a sense of the concrete decisions that stay in your hands in an agentic SDLC.
-6. Golden Rule 1 internalised: **Choose the stage before you choose the prompt.**
+3. The **IMDB Lite** sample platform created in Looking Glass, with two BARs visible: `APP-IMDB-001` (the brownfield movies app) and `APP-IMDB-002` (the greenfield celebrities app).
+4. The `movie-api` repository (from the workshop pack) scaffolded with Cheshire so you can read its first Security Scorecard. This is the brownfield repo with real, planted-vulnerable code; you will see it sitting low and Restricted, and Parts 2 through 6 work directly on it.
+5. A look at the **celeb-api** BAR (`APP-IMDB-002`), the greenfield sibling that ships no code yet and that you build from scratch in the Part 8 capstone, so you can see why a sparse, no-code BAR also lands in Restricted tier.
+6. A defensible answer to "Which AI stage should this work be at?" on three sample features, plus a sense of the concrete decisions that stay in your hands in an agentic SDLC.
+7. Golden Rule 1 internalised: **Choose the stage before you choose the prompt.**
 
 ---
 
@@ -179,32 +180,32 @@ The stage is the *style of work*. The tier is the *posture of the repo*, and the
 | Score | Tier | What the AI can do without per-step approval |
 |---|---|---|
 | 80–100 | **Autonomous** | Write, Edit, Bash within issue scope. The Red Queen still validates flows and controls. Autonomy is not lawlessness. |
-| 50–79 | **Supervised** | Read freely. Structural changes go through `validate_action` over MCP. Weak-pillar OWASP and STRIDE packs are injected into every prompt. |
+| 50–79 | **Supervised** | Read freely. Structural changes must pass the deterministic PreToolUse policy (the CALM model still gates the work). Weak-pillar OWASP and STRIDE packs are injected into every prompt. |
 | 0–49 | **Restricted** | Plan-first. Bash and Write are blocked by a PreToolUse hook. Edit requires a recorded human approval. Every decision is audited. |
 
-A Restricted repo cannot run Stage 3 agentic work because the hooks refuse. An Autonomous repo *can* run Stage 1 vibe work, but you should not. The autonomy is for the agent, not for sloppy prompting. The combination this workshop targets is **Stage 2 (AI-Assisted) at the tier the repo has earned**. Today the celeb-api has earned exactly one: Restricted.
+A Restricted repo cannot run Stage 3 agentic work because the hooks refuse. An Autonomous repo *can* run Stage 1 vibe work, but you should not. The autonomy is for the agent, not for sloppy prompting. The combination this workshop targets is **Stage 2 (AI-Assisted) at the tier the repo has earned**. Today both IMDB Lite repos have earned exactly one tier: Restricted — the brownfield movie-api because its planted-vulnerable code scores low, the greenfield celeb-api because its governance is sparse and nothing is built yet.
 
 ---
 
 ## The agentic shift
 
-In 2024, governance was a code review at the end. A human reading a diff, deciding if the AI made sense, merging or not. In 2026-2027, governance is a tier gate at the start. The scorecard decides what your AI is permitted to do before the first prompt is written. That is why the celeb-api (5/100, Restricted, every Bash blocked) feels nothing like a mature platform service (85/100, Autonomous, AI ships PRs unattended within policy).
+In 2024, governance was a code review at the end. A human reading a diff, deciding if the AI made sense, merging or not. In 2026-2027, governance is a tier gate at the start. The scorecard decides what your AI is permitted to do before the first prompt is written. That is why a low-scoring repo (Restricted, every Bash blocked) feels nothing like a mature platform service (85/100, Autonomous, AI ships PRs unattended within policy).
 
-The rest of this workshop is the celeb-api's journey from **5 → 65+**. Each part adds one capability that lifts the score and earns the repo more autonomy.
+The rest of this workshop is the **movie-api**'s journey from a low score to **65+**. The movie-api is the brownfield repo: it ships with real code and planted vulnerabilities, so it is the repo Parts 2 through 6 actually work on. Each part adds one capability that lifts its score and earns the repo more autonomy. The **celeb-api** is the greenfield sibling — no code yet — that you build from scratch as the Part 8 capstone.
 
-- Part 2 adds prompt packs. **Code Security** pillar up.
-- Part 3 ships a fix using those packs. **Test Coverage** and **Code Security** up.
+- Part 2 adds prompt packs to the movie-api. **Code Security** pillar up.
+- Part 3 ships a remediation on the movie-api using those packs. **Test Coverage** and **Code Security** up.
 - Part 4 adds fitness functions. **Complexity** and **Dependency Freshness** under control.
 - Part 5 wires scanners. **Code Security** to green.
 - Part 6 versions the prompts. Reproducibility ratchet.
-- Part 7 installs the Red Queen. Tier becomes deterministic instead of advisory.
-- Part 8 ships one PR with the full evidence chain. Capstone.
+- Part 7 installs the Red Queen: a deterministic policy + PreToolUse hook, plus a one-click, scoped, audited break-glass for Restricted-tier work. Tier becomes deterministic instead of advisory.
+- Part 8 builds the greenfield celeb-api from scratch and ships one PR with the full evidence chain. Capstone.
 
 ---
 
 ## Walkthrough: from zero to a Restricted-tier scorecard
 
-This walkthrough is self-contained. You will install the extension, initialise a governance mesh, seed the **IMDB Lite** sample platform, and scaffold the `celeb-api` repo from the workshop pack. By the end you will be looking at a real Security Scorecard.
+This walkthrough is self-contained. You will install the extension, initialise a governance mesh, seed the **IMDB Lite** sample platform, inspect the greenfield **celeb-api** BAR, and scaffold the brownfield `movie-api` repo from the workshop pack. By the end you will be looking at a real Security Scorecard.
 
 ### Step 1. Install the MaintainabilityAI VS Code extension
 
@@ -234,12 +235,12 @@ In the Looking Glass panel toolbar, click **Create Sample Platform**. A quick-pi
 
 Choose **IMDB Lite**. The extension scaffolds two BARs into your mesh.
 
-- `APP-IMDB-001` — IMDB Lite Application (movies, reviews, ratings)
-- `APP-IMDB-002` — IMDB Celebs (celebrity profiles, search, news)
+- `APP-IMDB-001` — IMDB Lite Application (movies, reviews, ratings). **Brownfield**: ships with real code (`movie-api`, `imdb-identity`, `imdb-react-frontend`) and planted vulnerabilities. This is the remediation track.
+- `APP-IMDB-002` — IMDB Celebs (celebrity profiles, search, news). **Greenfield**: no code yet, and an intentionally sparse governance model (no security pillar). This is the repo you build from scratch in the Part 8 capstone.
 
 Each BAR comes with a CALM architecture template, capability mappings, and an empty governance scorecard waiting on real artifacts.
 
-### Step 4. Inspect the celeb-api BAR
+### Step 4. Inspect the celeb-api BAR — the sparse-Restricted asymmetry
 
 In Looking Glass, expand **Portfolio → IMDB Lite → APP-IMDB-002 (IMDB Celebs)**. You will see the CALM architecture for this BAR.
 
@@ -249,44 +250,46 @@ In Looking Glass, expand **Portfolio → IMDB Lite → APP-IMDB-002 (IMDB Celebs
 
 Memorise that last line. It is what the Red Queen will block in Part 7 when an over-eager AI tries to query the database directly from the frontend.
 
-### Step 5. Scaffold the celeb-api code repo with Cheshire
+Note *why* this BAR is Restricted: not because of planted code vulnerabilities (there is no code yet), but because the BAR's governance is intentionally sparse (no security pillar) **and** nothing has been built. A no-code, under-governed BAR lands in Restricted tier just as surely as a brownfield repo full of bugs. That asymmetry — same tier, two completely different causes — is the lesson here. The celeb-api is the greenfield sibling you build in Part 8; the rest of the hands-on work below targets the brownfield `movie-api`.
 
-The workshop pack already cloned the four repos to `imdb-lite-workshop-pack/repos/`. Open the `celeb-api` folder in a new VS Code window (`File → Open Folder`).
+### Step 5. Scaffold the movie-api code repo with Cheshire
 
-Click the **Cheshire Cat** icon. Choose **Scaffold SDLC Structure**. A panel opens with a multi-select of artifact groups. Leave the defaults for now (CLAUDE.md, GitHub workflows, PR template, SECURITY.md, `.cheshire/prompts/` directory). **Uncheck** the `Red Queen governance files` option for now; we will come back to it in Part 7.
+The workshop pack already cloned the repos to `imdb-lite-workshop-pack/repos/`. Open the `movie-api` folder in a new VS Code window (`File → Open Folder`). This is the brownfield repo with real, planted-vulnerable code — the repo Parts 2 through 6 work on.
+
+Click the **Cheshire Cat** icon. Choose **Scaffold SDLC Structure**. A panel opens with a multi-select of artifact groups. Leave the defaults for now (Alice agent persona, repo metadata, GitHub workflows, PR template, SECURITY.md, `.cheshire/prompts/` directory). **Uncheck** the `Red Queen governance files` option for now; we will come back to it in Part 7.
 
 Click **Scaffold**. Cheshire writes about 20 files. Watch the side panel show each step. The repo now has:
 
 - A `.cheshire/prompts/` directory pre-seeded with OWASP, STRIDE, and maintainability prompt packs.
-- GitHub workflows for CodeQL, CI, and an Alice remediation flow.
-- A `CLAUDE.md` declaring the BAR context for any agent that opens the repo.
+- GitHub workflows for CodeQL, CI, and a CodeQL-to-issues flow that can dispatch Alice.
+- The **Alice agent persona** (`alice-maintenance-agent`) plus repo-metadata declaring the BAR context for any agent that opens the repo.
 
 ### Step 6. Read the score
 
 Still in the Cheshire Cat panel, click **Security Scorecard**. You will see something close to this.
 
 ```
-celeb-api                                  5 / 100      RESTRICTED
-  Code Security                            0 / 25       red    (planted CVEs, no scanners run)
+movie-api                                  5 / 100      RESTRICTED
+  Code Security                            0 / 25       red    (planted vulnerabilities, no scanners run)
   Test Coverage                            5 / 20       red    (only smoke tests)
   Technical Debt                           0 / 15       red    (4 open TODO items)
-  Dependency Freshness                     0 / 15       red    (3 deps > 6 months old)
+  Dependency Freshness                     0 / 15       red    (lodash CVE + deps > 6 months old)
   Complexity                               0 / 15       red    (one function over 12)
   Architecture                             0 / 10       red    (no CALM linkage yet)
 ```
 
-This is the honest baseline. The celeb-api ships with planted vulnerabilities and stale dependencies on purpose. Every subsequent part of the workshop fixes one slice of this scorecard.
+This is the honest baseline. The movie-api ships with planted vulnerabilities (A03 NoSQL/operator injection on `GET /movies?genre=`, A01 unauthenticated `POST /movies`, A10 SSRF in `poster-proxy`, A02 hardcoded secret in `ratings-feed`, a lodash CVE) and stale dependencies on purpose. Every subsequent part of the workshop fixes one slice of this scorecard.
 
-The small number is the point. The celeb-api is a fresh, unsecured CRUD service in the same shape thousands of internal APIs start in. We are using it because it is the most honest starting point you can give a real class.
+The small number is the point. The movie-api is an existing, unsecured CRUD service in the same shape thousands of internal APIs start in. We are using it because it is the most honest starting point you can give a real class.
 
 ---
 
 ## Q&amp;A
 
 <details class="docs-details docs-card docs-card-muted">
-<summary class="docs-details-summary">▶ Question 1. The celeb-api scores 5/100 and lands in Restricted tier. Can a teammate flip it to Autonomous so the AI can move faster?</summary>
+<summary class="docs-details-summary">▶ Question 1. The movie-api scores 5/100 and lands in Restricted tier. Can a teammate flip it to Autonomous so the AI can move faster?</summary>
 
-No. The tier is computed from the scorecard, not selected from a dropdown. The Red Queen reads the score and applies the matching policy. The only way to move from Restricted to Supervised to Autonomous is to **change the artifacts that feed the score**. Add prompt packs (Part 2), raise test coverage (Part 3), add fitness gates (Part 4), close TODOs and refresh dependencies (Parts 4 and 5). That is the entire arc of this workshop. Today a per-session break-glass exists via `REDQUEEN_TOOL_APPROVED` / `REDQUEEN_PLAN_APPROVED` and every use lands in `.redqueen/audit-log.jsonl`; the full UX (scoped budgets, written reasons captured at override time, signed override events, CODEOWNER co-signing) is <a href="/docs/red-queens-court#queens-next-act" class="markdown-link">Queen&rsquo;s Next Act</a>. "The AI was being slow" is not on the allowed list under either model.
+No. The tier is computed from the scorecard, not selected from a dropdown. The Red Queen reads the score and applies the matching policy. The only way to move from Restricted to Supervised to Autonomous is to **change the artifacts that feed the score**. Add prompt packs (Part 2), raise test coverage (Part 3), add fitness gates (Part 4), close TODOs and refresh dependencies (Parts 4 and 5). That is the entire arc of this workshop. For Restricted-tier work there is a one-click, scoped, time-limited, audited **break-glass** override; every grant and every decision lands in `.redqueen/audit-log.jsonl`. The richer UX (scoped budgets, written reasons captured at override time, signed override events, CODEOWNER co-signing) is <a href="/docs/red-queens-court#queens-next-act" class="markdown-link">Queen&rsquo;s Next Act</a>. "The AI was being slow" is not on the allowed list under either model.
 
 </details>
 
@@ -337,7 +340,7 @@ We will deep-dive on the RCTRO format in Part 2. For Part 1, just see the **shap
 Senior backend engineer adding a query endpoint to the celeb-api.
 
 ## Context
-- BAR: APP-IMDB-002 (celeb-api). Tier: Restricted (5/100). Stack: TypeScript / Express / MongoDB (via the official `mongodb` driver).
+- BAR: APP-IMDB-002 (celeb-api, greenfield). Tier: Restricted. Stack: TypeScript / Express / MongoDB (Mongoose).
 - Existing CALM flow: celeb-frontend → celeb-api → celeb-db (unchanged).
 - Applicable prompt packs: /docs/prompts/owasp/A03_injection, /docs/prompts/owasp/A01_broken_access_control.
 - Relevant fitness functions: complexity ≤10, coverage ≥80% on new code.
@@ -371,7 +374,7 @@ contains the query string.
 
 **Stage 2 (AI-Assisted).** The RCTRO is specific, the constraints are real (Zod `$`-key reject, escaped regex, server-side `.limit(20)`, projection allowlist), and the security categories are named. This is exactly the work AI-Assisted mode is for. A human writes the contract, the AI fills it in, the human reviews every line.
 
-**Tier needed: Supervised (50–79) at minimum.** Search endpoints are an A03 injection surface. The Red Queen wants `validate_action` over MCP to confirm the new route respects the existing CALM flow before the PR can merge. Today the celeb-api is Restricted. We *cannot* ship this feature yet. The arc from Part 2 onward is what earns the score lift. **Do not ship until the tier matches the work.**
+**Tier needed: Supervised (50–79) at minimum.** Search endpoints are an A03 injection surface. The new route must pass the Red Queen's deterministic PreToolUse policy — the CALM model still gates the work, confirming the route respects the existing flow before any write lands. Today the greenfield celeb-api is Restricted, so to ship this you either earn the tier first or open a scoped, time-limited, audited break-glass for the work. The arc from Part 2 onward (on the brownfield movie-api) is what earns the score lift. **Do not ship until the tier matches the work, or you have a recorded break-glass for it.**
 
 </details>
 
@@ -418,8 +421,8 @@ Knowing **when not to reach for the governance tooling** is part of Golden Rule 
 - **The maturity progression is a staircase, not a menu.** Vibe → AI-Assisted → Agentic. Each step requires more governance enforcement than the one before.
 - **A repository's autonomy tier is computed from its scorecard**, not chosen by a developer. Score travels with the code; the engineer cannot flip a Restricted repo to Autonomous to ship faster.
 - **The smell test is the honest self-check.** The right stage is the one the *work and the repo can both sustain*, not the one you feel most productive in.
-- **The IMDB Lite sample is real.** Looking Glass → Initialize Mesh → Create Sample Platform creates two BARs (`APP-IMDB-001`, `APP-IMDB-002`) with full CALM models. The `celeb-api` BAR you scaffolded is your scenario for Parts 2 through 8.
-- **The Cheshire workflow is the template** you will repeat every part: plain-English description → Cheshire generates an RCTRO → decide stage and tier → assign (or do not assign) an agent. We saw it once today; we run it for real in Part 3.
+- **The IMDB Lite sample is real, and it is two tracks.** Looking Glass → Initialize Mesh → Create Sample Platform creates two BARs (`APP-IMDB-001`, `APP-IMDB-002`) with full CALM models. The brownfield `movie-api` (under `APP-IMDB-001`) you scaffolded is the remediation scenario for Parts 2 through 6; the greenfield `celeb-api` (under `APP-IMDB-002`) is the from-scratch capstone in Part 8.
+- **The Cheshire workflow is the template** you will repeat every part: plain-English description → Cheshire generates an RCTRO → decide stage and tier → dispatch (or do not dispatch) Alice. We saw it once today; we run it for real on the movie-api in Part 3.
 
 ---
 
@@ -435,8 +438,8 @@ We will add one Golden Rule per part. By Part 8 you will have the full set.
 
 ## What is next: Part 2. Cheshire's Prompt Pack
 
-The celeb-api is open. The score is honest. Stage and tier are decided. The six areas where humans still own the work are named.
+The movie-api is open. The score is honest. Stage and tier are decided. The six areas where humans still own the work are named.
 
-Part 2 introduces the **contract language** we use to talk to the AI on a Restricted repo. We will tour `.cheshire/prompts/`, learn the **RCTRO** pattern (Role, Context, Task, Requirements, Output), and generate the first prompt pack against the celeb-api's biggest scorecard weakness: Code Security.
+Part 2 introduces the **contract language** we use to talk to the AI on a Restricted repo. We will tour `.cheshire/prompts/`, learn the **RCTRO** pattern (Role, Context, Task, Requirements, Output), and write contracts against the movie-api's biggest scorecard weakness: Code Security.
 
 [Continue to Part 2 →](/docs/workshop/part2-security-prompting)
