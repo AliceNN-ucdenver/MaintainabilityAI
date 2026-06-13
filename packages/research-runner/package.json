@@ -1,6 +1,6 @@
 {
   "name": "@maintainabilityai/research-runner",
-  "version": "0.1.73",
+  "version": "0.1.74",
   "description": "Deterministic skill-rails backend (knowledge/context reads, search, self-review gating, Ed25519 audit chain, Pocket Watch drift) for the MaintainabilityAI agentic-SDLC Copilot agents",
   "license": "MIT",
   "author": "MaintainabilityAI",
