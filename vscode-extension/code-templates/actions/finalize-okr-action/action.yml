@@ -348,3 +348,41 @@ runs:
           git fetch origin main && git rebase origin/main
         done
         echo "::notice::Finalized $PHASE_UPPER phase for ${{ inputs.okr-id }} (run=$RUN_ID, chain_root=${CHAIN_ROOT_HASH:0:12}, ${META_FRAGMENT})"
+
+    # The synthesis PR usually merges with NO `Closes #N` (the Copilot agent
+    # omits it: PR #235 -> issue #234 stayed open), so GitHub never auto-closes
+    # the originating phase issue. Close it deterministically here, on merge,
+    # for every phase. Non-fatal: a miss must never fail the finalize.
+    - name: Close the originating phase issue on merge
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        PHASE: ${{ inputs.phase }}
+        RUN_ID: ${{ inputs.run-id }}
+        PR_NUMBER: ${{ inputs.pr-number }}
+      run: |
+        set -euo pipefail
+        # Map phase -> the Looking Glass dispatch label carried by the issue.
+        case "$PHASE" in
+          why)  LABEL='oraculum-research' ;;
+          how)  LABEL='oraculum-prd' ;;
+          what) LABEL='oraculum-design' ;;
+          *)    echo "::notice::Unknown phase '$PHASE' — skipping issue close."; exit 0 ;;
+        esac
+        REPO="$GITHUB_REPOSITORY"
+        # Join key: the run_id the Looking Glass embeds in the issue body
+        # (`<!-- run_id: ... -->`), scoped to this phase's dispatch label. If the
+        # agent DID include `Closes #N`, GitHub already closed it and the
+        # state:open search below simply finds nothing.
+        ISSUES=$(gh issue list --repo "$REPO" \
+          --search "\"$RUN_ID\" in:body label:$LABEL state:open" \
+          --json number --jq '.[].number' 2>/dev/null || true)
+        if [ -z "$ISSUES" ]; then
+          echo "::notice::No open $LABEL issue carrying run $RUN_ID — nothing to close."
+          exit 0
+        fi
+        for N in $ISSUES; do
+          gh issue close "$N" --repo "$REPO" --reason completed \
+            --comment "Finalized on merge of #$PR_NUMBER (run \`$RUN_ID\`)." || true
+          echo "Closed issue #$N (run $RUN_ID)."
+        done
