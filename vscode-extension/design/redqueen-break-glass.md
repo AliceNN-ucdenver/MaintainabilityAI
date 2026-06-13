@@ -1,7 +1,11 @@
 # Red Queen Break-Glass — human-approved override for restricted-tier maintenance
 
-> Status: **design** (not built). Surfaced 2026-06-12 from the Cheshire v2 Alice
-> work — see [`cheshire-cat-maintenance-agent.md`](cheshire-cat-maintenance-agent.md).
+> Status: ✅ **shipped + live-validated 2026-06-12** (S1 hook · S2 grant writer +
+> dispatch · S2 UI + inline-dispatch break-glass · S3 auto-clear · TIER-003 Edit
+> fix). Proven on celeb-api: a granted run flipped TIER-001/002 Write/Bash/Edit
+> to audited `override:true / approvalSource:break-glass#<n>` while SEC-001 /
+> CTRL-001 held. Surfaced 2026-06-12 from the Cheshire v2 Alice work — see
+> [`cheshire-cat-maintenance-agent.md`](cheshire-cat-maintenance-agent.md).
 
 ## The problem
 
