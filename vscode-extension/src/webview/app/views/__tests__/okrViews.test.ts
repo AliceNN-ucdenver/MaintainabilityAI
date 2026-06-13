@@ -1007,5 +1007,25 @@ describe('renderOkrDetailView', () => {
       expect(html).toContain('okr-dot-fail');              // Harness check red
       expect(html).not.toContain('okr-fanout-entry-ready');
     });
+
+    it('an open impl PR row offers Approve-and-run + Merge (Scorecard parity)', () => {
+      const html = renderOkrDetailView({
+        okr: withRepo(), affectedBars: [],
+        fanOutPreflight: { report: {
+          ok: true, okrId: withRepo().meta.id, readyRepos: [], waves: [['acme/movie-api']],
+          entries: [{ slug: 'acme/movie-api', status: 'connected',
+            decision: { status: 'pr-opened' },
+            coordinationRow: { fanout_wave: 1, coordination_role: 'independent', depends_on: [] },
+            implPrUrl: 'https://github.com/acme/movie-api/pull/24', implPrNumber: 24,
+            implPrIsDraft: false, workflowsAwaitingApproval: 1 }],
+        } },
+      });
+      expect(html).toContain('data-action="fanout-approve-runs"');
+      expect(html).toContain('Approve and run');
+      expect(html).toContain('data-action="fanout-merge-pr"');
+      expect(html).toContain('Merge impl PR');
+      // PR is ready (draft=false) → no stale "Mark PR ready"
+      expect(html).not.toContain('Mark PR ready');
+    });
   });
 });

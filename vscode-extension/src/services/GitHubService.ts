@@ -806,6 +806,34 @@ export class GitHubService {
     }
   }
 
+  /**
+   * Approve every workflow run GitHub is HOLDING at action_required on a PR's
+   * head SHA (Copilot-bot PRs trip this — the Implementation Provenance gate
+   * can't run until approved). Fetches the PR for its head SHA, lists the held
+   * runs, and approves each. Returns counts; soft-fails. Mirrors the Scorecard's
+   * per-run approve but batched for the fan-out row's "Approve and run".
+   */
+  async approveHeldWorkflowRunsForPr(owner: string, repo: string, prNumber: number): Promise<{ approved: number; failed: number }> {
+    try {
+      const client = await this.getClient();
+      const { data: pr } = await client.rest.pulls.get({ owner, repo, pull_number: prNumber });
+      const headSha = pr.head?.sha;
+      if (!headSha) { return { approved: 0, failed: 0 }; }
+      const { data } = await client.rest.actions.listWorkflowRunsForRepo({ owner, repo, head_sha: headSha, per_page: 100 });
+      const held = (data.workflow_runs ?? []).filter(r =>
+        r.status === 'waiting' || r.status === 'action_required' || r.conclusion === 'action_required',
+      );
+      let approved = 0;
+      let failed = 0;
+      for (const r of held) {
+        if (await this.approveWorkflowRun(owner, repo, r.id)) { approved++; } else { failed++; }
+      }
+      return { approved, failed };
+    } catch {
+      return { approved: 0, failed: 0 };
+    }
+  }
+
   async listAssignees(owner: string, repo: string): Promise<{ login: string; type: string }[]> {
     try {
       const client = await this.getClient();

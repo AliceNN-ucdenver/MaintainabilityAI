@@ -582,6 +582,8 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     // the pre-flight pane. Distinct from markOkrPrReady, which hardcodes
     // the mesh repo for WHY/HOW/WHAT artifact PRs.
     'markFanOutImplPrReady':       (m) => this.onMarkFanOutImplPrReady(m.okrId, m.repoSlug, m.prNumber),
+    'approveFanOutImplRuns':       (m) => this.onApproveFanOutImplRuns(m.okrId, m.repoSlug, m.prNumber),
+    'mergeFanOutImplPr':           (m) => this.onMergeFanOutImplPr(m.okrId, m.repoSlug, m.prNumber),
     'rerunOkrAudit':               (m) => this.onRerunOkrAudit(m.okrId, m.phase, m.prNumber),
     'reviseWithAgent':             (m) => this.onReviseWithAgent(m.okrId, m.phase, m.prNumber),
     'scaffoldOkrSample':           () => this.onScaffoldOkrSample(),
@@ -3853,6 +3855,80 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       this.postMessage({ type: 'error', message: `Failed to mark impl PR #${prNumber} on ${repoSlug} ready-for-review.` });
     }
     await this.onFanOutPreflight(okrId);
+  }
+
+  /**
+   * "Approve and run" on a fan-out impl-PR row — approve the workflow runs
+   * GitHub is holding at action_required so the Implementation Provenance gate
+   * actually executes (Scorecard parity). Falls back to the PR's Checks tab when
+   * the token can't approve (Actions:write / maintainer-only). Re-runs pre-flight.
+   */
+  private async onApproveFanOutImplRuns(okrId: string, repoSlug: string, prNumber: number): Promise<void> {
+    const [owner, name] = repoSlug.split('/');
+    if (!owner || !name) {
+      this.postMessage({ type: 'error', message: `Cannot resolve owner/repo from "${repoSlug}" for Approve and run.` });
+      return;
+    }
+    const { approved, failed } = await this.githubService.approveHeldWorkflowRunsForPr(owner, name, prNumber);
+    if (approved > 0) {
+      void vscode.window.showInformationMessage(`Approved ${approved} held run${approved === 1 ? '' : 's'} on impl PR #${prNumber} (${repoSlug}). The Implementation Provenance gate will now run.`);
+    } else if (failed > 0) {
+      const choice = await vscode.window.showWarningMessage(
+        `Couldn't approve the held runs from here (token may lack Actions:write, or only a maintainer can approve). Approve them on GitHub instead.`,
+        'Open PR checks',
+      );
+      if (choice === 'Open PR checks') {
+        await vscode.env.openExternal(vscode.Uri.parse(`https://github.com/${owner}/${name}/pull/${prNumber}/checks`));
+      }
+    } else {
+      void vscode.window.showInformationMessage(`No held runs to approve on impl PR #${prNumber} (${repoSlug}).`);
+    }
+    await this.onFanOutPreflight(okrId);
+  }
+
+  /**
+   * "Merge impl PR" on a fan-out row (Scorecard parity). Squash-merges via the
+   * REST API; branch protection is still GitHub's call, so a merge with the
+   * Implementation Provenance gate un-run only goes through for an admin who can
+   * override protection. Re-runs pre-flight so the row advances to pr-merged.
+   */
+  private async onMergeFanOutImplPr(okrId: string, repoSlug: string, prNumber: number): Promise<void> {
+    const [owner, name] = repoSlug.split('/');
+    if (!owner || !name) {
+      this.postMessage({ type: 'error', message: `Cannot resolve owner/repo from "${repoSlug}" for Merge.` });
+      return;
+    }
+    const result = await this.githubService.mergePullRequest(owner, name, prNumber);
+    if (!result.ok) {
+      this.postMessage({ type: 'error', message: `Merge failed for impl PR #${prNumber} on ${repoSlug}: ${result.reason}` });
+      await this.onFanOutPreflight(okrId);
+      return;
+    }
+    void vscode.window.showInformationMessage(`Merged impl PR #${prNumber} on ${repoSlug}.`);
+    // Scorecard parity: the Copilot agent frequently omits `Closes #N`, so GitHub
+    // won't auto-close the landing issue on merge — close it ourselves by the
+    // tracked number, and clear any break-glass grant on it.
+    await this.closeFanOutLandingIssue(okrId, repoSlug);
+    await this.onFanOutPreflight(okrId);
+  }
+
+  /**
+   * Best-effort close of a merged impl PR's landing issue (+ break-glass revoke),
+   * resolved from design-fan-out.yaml's tracked `landingIssueUrl` for the repo.
+   * GitHub won't auto-close it (the Copilot agent omits `Closes #N`), so without
+   * this a merged fan-out leaves an orphaned open landing issue — the same gap
+   * the Scorecard's onMergeAgentPr closes by tracked number.
+   */
+  private async closeFanOutLandingIssue(okrId: string, repoSlug: string): Promise<void> {
+    const meshPath = MeshService.getMeshPath();
+    if (!meshPath) { return; }
+    const url = this.meshService.readDesignFanOut(meshPath, okrId)?.rows.find(r => r.repo === repoSlug)?.landingIssueUrl;
+    const m = url?.match(/github\.com\/([\w.-]+)\/([\w.-]+)\/issues\/(\d+)/);
+    if (!m) { return; }
+    const [, owner, repo, num] = m;
+    const issueNumber = parseInt(num, 10);
+    try { await this.githubService.closeIssue(owner, repo, issueNumber); } catch { /* may already be closed */ }
+    try { await this.githubService.revokeBreakGlass(owner, repo, issueNumber); } catch { /* grant may be gone */ }
   }
 
   /**

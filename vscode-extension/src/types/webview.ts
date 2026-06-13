@@ -429,6 +429,8 @@ export type LookingGlassWebviewMessage =
   // code repo (carried by repoSlug) to ready-for-review so the
   // Implementation Provenance gate re-fires, then re-polls the pane.
   | { type: 'markFanOutImplPrReady'; okrId: string; repoSlug: string; prNumber: number }
+  | { type: 'approveFanOutImplRuns'; okrId: string; repoSlug: string; prNumber: number }
+  | { type: 'mergeFanOutImplPr'; okrId: string; repoSlug: string; prNumber: number }
   // 🔁 Re-run audit — removes + re-applies the trigger label after a
   // degraded verdict so the workflow fires again on the latest commit.
   | { type: 'rerunOkrAudit'; okrId: string; phase: string; prNumber: number }

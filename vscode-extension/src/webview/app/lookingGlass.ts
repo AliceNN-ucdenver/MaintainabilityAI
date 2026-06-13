@@ -3189,6 +3189,18 @@ function onFanOutMarkPrReadyClick(button: HTMLElement): void {
   vscode.postMessage({ type: 'markFanOutImplPrReady', okrId, repoSlug, prNumber });
 }
 
+/** Post a fan-out impl-PR action (approve held runs / merge) — shared shape with
+ *  onFanOutMarkPrReadyClick; validation kept in the helper to hold the delegated
+ *  listener's complexity within the fitness budget. */
+function postFanOutImplPrAction(button: HTMLElement, type: 'approveFanOutImplRuns' | 'mergeFanOutImplPr'): void {
+  const okrId = button.dataset.okrId ?? '';
+  const repoSlug = button.dataset.repoSlug ?? '';
+  const prNumber = parseInt(button.dataset.prNumber ?? '', 10);
+  if (!okrId || !repoSlug || Number.isNaN(prNumber)) { return; }
+  if (!state.currentOkr || state.currentOkr.meta.id !== okrId) { return; }
+  vscode.postMessage({ type, okrId, repoSlug, prNumber });
+}
+
 function attachEventHandlers() {
   // Refresh
   document.getElementById('btn-refresh')?.addEventListener('click', () => {
@@ -4128,6 +4140,13 @@ function attachEventHandlers() {
       onFanOutMarkPrReadyClick(markPrReady);
       return;
     }
+
+    // Scorecard-parity impl-PR actions on the fan-out row: approve the held
+    // workflow runs (so the Implementation Provenance gate runs) and merge.
+    const approveRuns = target.closest('[data-action="fanout-approve-runs"]') as HTMLElement | null;
+    if (approveRuns) { postFanOutImplPrAction(approveRuns, 'approveFanOutImplRuns'); return; }
+    const mergeImplPr = target.closest('[data-action="fanout-merge-pr"]') as HTMLElement | null;
+    if (mergeImplPr) { postFanOutImplPrAction(mergeImplPr, 'mergeFanOutImplPr'); return; }
     });
   }
 

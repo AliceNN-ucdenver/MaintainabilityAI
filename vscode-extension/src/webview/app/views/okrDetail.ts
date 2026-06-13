@@ -2023,11 +2023,23 @@ function renderFanOutEntryRow(entry: FanOutRepoEntryUi, okr: OkrCard, availableB
   // "Mark PR ready" button: flips the Copilot agent's draft impl PR (on
   // the target code repo) to ready-for-review, which re-fires the
   // Implementation Provenance gate.
+  // Scorecard-parity actions on an open impl PR: approve the held workflow runs
+  // (so the Implementation Provenance gate runs) and merge. The Merge button is
+  // offered regardless of gate state — branch protection is GitHub's call, so
+  // merging with the gate un-run only goes through for an admin override.
+  const approveRunsBtn = (awaitingCount > 0 && entry.implPrNumber != null)
+    ? `<button class="okr-button-small okr-button-primary" data-action="fanout-approve-runs" data-okr-id="${escapeAttr(okr.meta.id)}" data-repo-slug="${escapeAttr(entry.slug)}" data-pr-number="${entry.implPrNumber}" title="Approve the ${awaitingCount} held workflow run${awaitingCount === 1 ? '' : 's'} so the Implementation Provenance gate runs against the impl chain.">▶ Approve and run</button>`
+    : '';
+  const mergeImplBtn = entry.implPrNumber != null
+    ? `<button class="okr-button-small okr-button-secondary" data-action="fanout-merge-pr" data-okr-id="${escapeAttr(okr.meta.id)}" data-repo-slug="${escapeAttr(entry.slug)}" data-pr-number="${entry.implPrNumber}" title="Squash-merge this impl PR. Branch protection still applies — merging with the Implementation Provenance gate un-run requires admin override (it bypasses the verification this flow exists to enforce).">✓ Merge impl PR</button>`
+    : '';
   const prReadyActions = (entry.decision.status === 'pr-opened' && entry.implPrUrl)
     ? `
       <div class="okr-fanout-entry-actions">
         <a class="okr-link-button" href="${escapeAttr(entry.implPrUrl)}" target="_blank" rel="noopener">#${entry.implPrNumber ?? ''} Impl PR ↗</a>
         ${entry.implPrNumber != null && entry.implPrIsDraft !== false ? `<button class="okr-button-small okr-button-primary" data-action="fanout-mark-pr-ready" data-okr-id="${escapeAttr(okr.meta.id)}" data-repo-slug="${escapeAttr(entry.slug)}" data-pr-number="${entry.implPrNumber}" title="Flip the Copilot agent's draft impl PR to ready-for-review so the Implementation Provenance gate fires. (If GitHub is also holding the run for approval, you'll still click Approve on the PR.)">✅ Mark PR ready</button>` : ''}
+        ${approveRunsBtn}
+        ${mergeImplBtn}
         ${awaitingApproval}
       </div>`
     : '';
