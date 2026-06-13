@@ -2563,11 +2563,15 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
           : 0;
 
         // Skip if nothing material changed AND we're not retry-append — but
-        // still refresh the held-count (it drops to 0 once the user approves,
-        // and we want the affordance to clear without a status change).
+        // still refresh the held-count (drops to 0 once the user approves) AND
+        // the draft flag. A draft impl PR marked ready (draft true->false) keeps
+        // the same `pr-opened` status + URL, so without re-syncing implPrIsDraft
+        // here the "Mark PR ready" button never clears on Re-check.
         if (row.status === newStatus && row.implPrUrl === observed.url && !isRetryAppend) {
-          if ((row.workflowsAwaitingApproval ?? 0) !== awaiting) {
-            updatedRows[i] = { ...row, workflowsAwaitingApproval: awaiting, updatedAt: nowIso };
+          const heldChanged = (row.workflowsAwaitingApproval ?? 0) !== awaiting;
+          const draftChanged = (row.implPrIsDraft ?? true) !== observed.draft;
+          if (heldChanged || draftChanged) {
+            updatedRows[i] = { ...row, implPrIsDraft: observed.draft, workflowsAwaitingApproval: awaiting, updatedAt: nowIso };
             anyChanged = true;
           }
           continue;
