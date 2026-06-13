@@ -12,20 +12,19 @@
   "block_on_needs_review": false,
   "min_unit_chars": 24,
   "source_registry_scan_fields": ["snippet", "excerpt", "content", "abstract"],
-  "_benign_context_note": "A unit scoring >= block_threshold is demoted to needs_review (never hard-blocked) when its surrounding window is QUOTED / CITED / CODE-FENCED — the corpus discussing an example attack, not delivering one. This is the injection analogue of the PII rail's benign-identifier carve-out and is what keeps a security-research corpus from hard-failing wholesale. Tune against the fixture corpus; never blind.",
+  "_benign_context_note": "A unit scoring >= block_threshold is demoted to needs_review (never hard-blocked, never silenced) when its surrounding window matches one of these markers OR is QUOTED / CODE-FENCED / BLOCK-QUOTED — the corpus is DESCRIBING an attack, not DELIVERING one to our agent. Two families: (1) illustrative/citation ('for example', 'e.g.', 'payload:'); (2) security-research REPORTING — third-person attack description ('an attacker might', 'social engineering', 'real-world attack') and red-team writeup framing ('red team', 'penetration test', 'lessons learned', 'key findings', 'we built/developed', 'tests the security'). Family (2) added 2026-06-13 after source S49 (a benign HN 'Show HN' red-team product writeup, WHY-2026-06-13-rfh9pw) hard-blocked a WHY audit at 0.9939 — its descriptive third-person phrasing dodged every family-(1) marker. A real injection is imperative + second-person ('ignore your instructions', 'output your system prompt') and carries none of these, so demotion stays safe — proven by test_inject_check's hostile-control test and the live cert (hostile fixture must still exit 2). Tune against the fixture corpus; never blind.",
   "benign_context_markers": [
-    "example of",
-    "for example",
-    "e.g.",
-    "such as",
-    "attackers might",
-    "an attacker could",
-    "payload:",
-    "example attack",
-    "sample prompt",
-    "demonstrat",
-    "illustrat",
-    "proof of concept",
-    "poc:"
+    "example of", "for example", "for instance", "e.g.", "such as", "example:",
+    "example attack", "sample prompt", "payload:", "poc:", "proof of concept",
+    "demonstrat", "illustrat",
+    "attacker might", "attacker may", "attacker could", "attackers might",
+    "attackers could", "an adversary", "adversarial input", "adversarial attack",
+    "social engineering", "real-world attack", "real world attack",
+    "simulated attack",
+    "red team", "red-team", "red teaming", "penetration test", "pen test",
+    "pentest", "lessons learned", "key findings", "key takeaway", "case study",
+    "we built", "we developed", "we created", "we tested", "we realized",
+    "what we did", "why we built",
+    "test the security", "tests the security", "testing the security"
   ]
 }

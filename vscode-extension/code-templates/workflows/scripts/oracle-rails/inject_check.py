@@ -225,11 +225,30 @@ def compare_reports(committed: dict, fresh: dict) -> list[str]:
 
 # A unit scored high is treated as CONTENT (not an attack) when its surrounding
 # window carries one of these markers — the corpus is quoting / citing / fencing
-# an example rather than instructing our agent.
+# an example, or REPORTING on security work in the third person, rather than
+# instructing our agent. Two families: (1) illustrative/citation; (2) security-
+# research reporting (third-person attack description + red-team writeup framing).
+# Family (2) was added after source S49 — a benign HN red-team product writeup —
+# hard-blocked a WHY audit at 0.9939 by dodging every family-(1) marker. Kept in
+# sync with injection.json's benign_context_markers (that config wins at runtime;
+# this is the fallback default). A real imperative injection carries none of
+# these, so demotion stays safe — see test_inject_check's hostile-control test.
 _DEFAULT_BENIGN_MARKERS = [
-    "example of", "for example", "e.g.", "such as", "attackers might",
-    "an attacker could", "payload:", "example attack", "sample prompt",
-    "demonstrat", "illustrat", "proof of concept", "poc:",
+    # (1) illustrative / citation
+    "example of", "for example", "for instance", "e.g.", "such as", "example:",
+    "example attack", "sample prompt", "payload:", "poc:", "proof of concept",
+    "demonstrat", "illustrat",
+    # (2) third-person attack DESCRIPTION
+    "attacker might", "attacker may", "attacker could", "attackers might",
+    "attackers could", "an adversary", "adversarial input", "adversarial attack",
+    "social engineering", "real-world attack", "real world attack",
+    "simulated attack",
+    # (2) red-team / security-research REPORTING framing
+    "red team", "red-team", "red teaming", "penetration test", "pen test",
+    "pentest", "lessons learned", "key findings", "key takeaway", "case study",
+    "we built", "we developed", "we created", "we tested", "we realized",
+    "what we did", "why we built",
+    "test the security", "tests the security", "testing the security",
 ]
 
 
