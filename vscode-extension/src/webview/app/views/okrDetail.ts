@@ -406,9 +406,14 @@ export function renderOkrDetailView(state: OkrDetailRenderState): string {
       ${renderTargetRepos(state, mode)}
 
       <h2 class="okr-section-heading">Actions</h2>
-      ${renderActionCard(okr, 'why', state)}
-      ${renderActionCard(okr, 'how', state)}
-      ${renderActionCard(okr, 'what', state)}
+      <div class="okr-actions-row">
+        ${renderActionCard(okr, 'why', state)}
+        <div class="okr-actions-connector" aria-hidden="true">→</div>
+        ${renderActionCard(okr, 'how', state)}
+        <div class="okr-actions-connector" aria-hidden="true">→</div>
+        ${renderActionCard(okr, 'what', state)}
+      </div>
+      ${renderPhaseGates(okr, primaryTier)}
 
       ${mode === 'view' ? renderFanOutPreflightPane(okr, state.fanOutPreflight, state.availableBars ?? []) : ''}
 
@@ -743,9 +748,9 @@ function renderTargetRepos(state: OkrDetailRenderState, mode: OkrDetailMode): st
       };
       const statusSelect = `
         <select class="okr-repo-status-picker" data-action="set-repo-status" data-okr-id="${escapeAttr(okr.meta.id)}" data-repo-url="${escapeAttr(r)}" aria-label="Repo status for ${escapeAttr(r)}">
-          ${opt('connected',     '✓ Connected',          'Repo exists on GitHub and Actions + app install are approved. Phase D code-design agent will clone + ground on the actual code.')}
-          ${opt('not-connected', '○ Not Connected',      'Repo exists on GitHub but not wired to Looking Glass yet. Phase D will refuse to dispatch until you Connect or mark as Create.')}
-          ${opt('create',        '✨ Create (greenfield)', "Repo does NOT exist yet — Phase D will design from PRD + mesh only, and the fan-out manifest will flag it for scaffolding. Use this when you're building a new repo from this OKR.")}
+          ${opt('connected',     '✓ Connected',          'Repo exists on GitHub and Actions + app install are approved. The code-design agent will clone + ground on the actual code.')}
+          ${opt('not-connected', '○ Not Connected',      'Repo exists on GitHub but not wired to Looking Glass yet. Code design will refuse to dispatch until you Connect or mark as Create.')}
+          ${opt('create',        '✨ Create (greenfield)', "Repo does NOT exist yet — code design will design from PRD + mesh only, and the fan-out manifest will flag it for scaffolding. Use this when you're building a new repo from this OKR.")}
         </select>
       `;
       return `
@@ -759,7 +764,7 @@ function renderTargetRepos(state: OkrDetailRenderState, mode: OkrDetailMode): st
     return `
       <h2 class="okr-section-heading">Target Code Repos</h2>
       <ul class="okr-repo-list">${items}</ul>
-      <p class="okr-muted okr-section-note">Pick a status per repo. <strong>Connected</strong> = exists + wired (Phase D clones + grounds on real code). <strong>Not Connected</strong> = exists, not wired (click <strong>Connect Repo ↗</strong> to enable Actions + approve the app install). <strong>Create</strong> = greenfield (repo doesn't exist; Phase D designs from PRD + mesh, fan-out scaffolds it). Phase D won't dispatch until every repo is either Connected or Create.</p>
+      <p class="okr-muted okr-section-note">Pick a status per repo. <strong>Connected</strong> = exists + wired (code design clones + grounds on real code). <strong>Not Connected</strong> = exists, not wired (click <strong>Connect Repo ↗</strong> to enable Actions + approve the app install). <strong>Create</strong> = greenfield (repo doesn't exist; code design works from PRD + mesh, fan-out scaffolds it). The code-design phase won't dispatch until every repo is either Connected or Create.</p>
     `;
   }
 
@@ -878,13 +883,10 @@ function renderActionCard(okr: OkrCard, phase: OkrPhase, state: OkrDetailRenderS
   const signal = state.phaseSignals?.[phase];
   const phaseSignals = renderPhaseSignals(phase, latest, signal);
   const startButton = renderStartButton(phase, substate, okr, primaryTier);
-  // Phase C-PR3 — HumanGate panel surfaces when the latest action's
-  // status is `human_gate` (auto-revision cycle exhausted) or `blocked`
-  // (e.g. Restricted tier on What). Approve / Re-run / Reject buttons
-  // post messages the extension handles via the GitHub API.
-  const humanGate = latest && (latest.status === 'human_gate' || latest.status === 'blocked')
-    ? renderHumanGate(okr, latest, primaryTier)
-    : '';
+  // The HumanGate panel (Approve / Re-run / Reject when the latest action is
+  // `human_gate` / `blocked`) is rendered full-width BELOW the actions row by
+  // renderPhaseGates — not inside this ⅓-width card — so the decision UI has
+  // room when the three phase cards sit side-by-side.
   // "Cancel run" affordance for actions stuck in an in-flight state
   // when the user has already closed the GitHub issue/PR manually
   // (or the run died and we want to re-fire cleanly). Only renders for
@@ -926,7 +928,6 @@ function renderActionCard(okr: OkrCard, phase: OkrPhase, state: OkrDetailRenderS
       </div>
       <p class="okr-action-rationale">${escapeHtml(substate.rationale)}</p>
       ${phaseSignals}
-      ${humanGate}
       <div class="okr-action-footer">
         ${startButton}
         ${cancelRun}
@@ -934,6 +935,30 @@ function renderActionCard(okr: OkrCard, phase: OkrPhase, state: OkrDetailRenderS
       </div>
     </div>
   `;
+}
+
+/**
+ * HumanGate panels for any phase whose latest action awaits a human decision
+ * (`human_gate` / `blocked`). Rendered full-width BELOW the actions row — not
+ * inside the ⅓-width phase card — so the Approve / Re-run / Reject UI has room
+ * when the three phase cards sit side-by-side. Phases are sequential, so
+ * usually at most one is gated at a time.
+ */
+function renderPhaseGates(
+  okr: OkrCard,
+  primaryTier: 'autonomous' | 'supervised' | 'restricted',
+): string {
+  const phases: OkrPhase[] = ['why', 'how', 'what'];
+  return phases.map(phase => {
+    const latest = latestActionFor(okr, phase);
+    if (!latest || (latest.status !== 'human_gate' && latest.status !== 'blocked')) { return ''; }
+    return `
+      <div class="okr-phase-gate">
+        <div class="okr-phase-gate-label">${escapeHtml(PHASE_LABEL[phase])} — needs you</div>
+        ${renderHumanGate(okr, latest, primaryTier)}
+      </div>
+    `;
+  }).join('');
 }
 
 /**
@@ -2042,6 +2067,21 @@ export function getOkrDetailStyles(): string {
     .okr-action-card-progress { border-color: rgba(252, 211, 77, 0.4); }
     .okr-action-card-block { border-color: rgba(248, 113, 113, 0.4); }
     .okr-action-card-done { border-color: rgba(74, 222, 128, 0.4); }
+    /* WHY → HOW → WHAT pipeline: a vertical stack by default, a 3-up row when
+       the editor panel is wide. Equal-height columns with footers bottom-aligned;
+       the in-flight / blocked phase gets a 2px ring so the eye lands on it. */
+    .okr-actions-row { display: flex; flex-direction: column; gap: 0.75rem; }
+    .okr-actions-row .okr-action-card { margin-bottom: 0; display: flex; flex-direction: column; box-sizing: border-box; }
+    .okr-action-card-progress, .okr-action-card-block { border-width: 2px; }
+    .okr-actions-connector { display: none; }
+    @media (min-width: 760px) {
+      .okr-actions-row { flex-direction: row; align-items: stretch; }
+      .okr-actions-row .okr-action-card { flex: 1 1 0; min-width: 0; }
+      .okr-actions-row .okr-action-footer { margin-top: auto; }
+      .okr-actions-connector { display: flex; align-items: center; flex: 0 0 auto; color: var(--vscode-descriptionForeground); font-size: 1.1rem; }
+    }
+    .okr-phase-gate { margin-top: 0.75rem; }
+    .okr-phase-gate-label { font-size: 0.8125rem; font-weight: 600; margin-bottom: 0.4rem; color: var(--vscode-foreground); }
     .okr-action-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
     .okr-action-phase { font-weight: 700; font-size: 0.95rem; }
     .okr-action-substate { font-size: 0.875rem; font-weight: 500; }

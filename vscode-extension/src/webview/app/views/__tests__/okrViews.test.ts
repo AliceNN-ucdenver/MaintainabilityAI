@@ -370,6 +370,16 @@ describe('renderOkrDetailView', () => {
     expect(css).toContain('.okr-action-card-done');
   });
 
+  it('lays WHY/HOW/WHAT out as a responsive pipeline row (3-up when wide, stacked when narrow)', () => {
+    const html = renderOkrDetailView({ okr: sampleCard(), affectedBars: [] });
+    expect(html).toContain('class="okr-actions-row"');
+    expect(html).toContain('okr-actions-connector');
+    const css = getOkrDetailStyles();
+    expect(css).toContain('.okr-actions-row');
+    expect(css).toContain('@media (min-width: 760px)');
+    expect(css).toContain('margin-top: auto');
+  });
+
   it('view mode shows an Edit button', () => {
     const html = renderOkrDetailView({ okr: sampleCard(), affectedBars: [], mode: 'view' });
     expect(html).toContain('data-action="edit-okr"');
@@ -480,6 +490,10 @@ describe('renderOkrDetailView', () => {
     expect(html).toContain('data-action="okr-reject"');
     // No dual-signature warning at supervised tier
     expect(html).not.toContain('dual signature');
+    // The gate breaks out full-width below the actions row with a phase label
+    // (not inside the ⅓-width phase card).
+    expect(html).toContain('okr-phase-gate-label');
+    expect(html).toContain('How · PRD — needs you');
   });
 
   it('renders the dual-signature warning when the HumanGate fires on Restricted tier', () => {
