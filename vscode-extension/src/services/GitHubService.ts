@@ -1439,6 +1439,93 @@ export class GitHubService {
     }
   }
 
+  // ─────────────────────────────────────────────────────────────────────
+  // Sample-repo staging (clean-slate reset for the IMDB-Lite sample).
+  //
+  // Used by SampleRepoStager when "Create Sample Platform → IMDB-Lite"
+  // re-stages the workshop repos to a fresh starting state: close open
+  // PRs/issues (reuse closePullRequest/closeIssue above), delete non-default
+  // branches, and — for the greenfield celeb-api — reset `main` to a fresh
+  // root commit. `closeIssue`/`closePullRequest` already exist above.
+  // ─────────────────────────────────────────────────────────────────────
+
+  /** Open PR numbers in a repo (paginated). */
+  async listOpenPullNumbers(owner: string, repo: string): Promise<number[]> {
+    const client = await this.getClient();
+    const prs = await client.paginate(client.rest.pulls.list, {
+      owner, repo, state: 'open', per_page: 100,
+    });
+    return prs.map(p => p.number);
+  }
+
+  /**
+   * Open issue numbers in a repo (paginated). The issues API returns PRs too
+   * (GitHub models PRs as issues) — anything with a `pull_request` field is a
+   * PR and is excluded here (handled by listOpenPullNumbers).
+   */
+  async listOpenIssueNumbers(owner: string, repo: string): Promise<number[]> {
+    const client = await this.getClient();
+    const items = await client.paginate(client.rest.issues.listForRepo, {
+      owner, repo, state: 'open', per_page: 100,
+    });
+    return items.filter(it => !it.pull_request).map(it => it.number);
+  }
+
+  /** Branch names other than the repo's default branch (paginated). */
+  async listNonDefaultBranches(owner: string, repo: string): Promise<string[]> {
+    const client = await this.getClient();
+    const { data: repoData } = await client.rest.repos.get({ owner, repo });
+    const def = repoData.default_branch ?? 'main';
+    const branches = await client.paginate(client.rest.repos.listBranches, {
+      owner, repo, per_page: 100,
+    });
+    return branches.map(b => b.name).filter(n => n !== def);
+  }
+
+  /** Delete a branch (git ref). Throws on failure — callers soft-fail per branch. */
+  async deleteBranch(owner: string, repo: string, branch: string): Promise<void> {
+    const client = await this.getClient();
+    await client.rest.git.deleteRef({ owner, repo, ref: `heads/${branch}` });
+  }
+
+  /**
+   * Force-reset `branch` to a brand-new ROOT commit (no parent) carrying
+   * exactly `files`. Orphans all prior history — this is the greenfield wipe
+   * for celeb-api. Creates the ref if it doesn't exist yet (freshly-created
+   * empty repo with no commits).
+   */
+  async resetBranchToRootCommit(
+    owner: string,
+    repo: string,
+    branch: string,
+    files: Array<{ path: string; content: string }>,
+    message = 'Initial commit',
+  ): Promise<{ commitSha: string }> {
+    const client = await this.getClient();
+    const tree = await Promise.all(files.map(async f => {
+      const { data: blob } = await client.rest.git.createBlob({
+        owner, repo, content: f.content, encoding: 'utf-8',
+      });
+      return { path: f.path, mode: '100644' as const, type: 'blob' as const, sha: blob.sha };
+    }));
+    const { data: treeObj } = await client.rest.git.createTree({ owner, repo, tree });
+    const { data: commit } = await client.rest.git.createCommit({
+      owner, repo, message, tree: treeObj.sha, parents: [],
+    });
+    const ref = `heads/${branch}`;
+    try {
+      await client.rest.git.updateRef({ owner, repo, ref, sha: commit.sha, force: true });
+    } catch (err) {
+      // 422 = ref doesn't exist yet (empty repo) → create it instead.
+      if ((err as { status?: number })?.status === 422) {
+        await client.rest.git.createRef({ owner, repo, ref: `refs/${ref}`, sha: commit.sha });
+      } else {
+        throw err;
+      }
+    }
+    return { commitSha: commit.sha };
+  }
+
   async createRepo(name: string, description: string, isPrivate: boolean): Promise<RepoInfo> {
     const client = await this.getClient();
 

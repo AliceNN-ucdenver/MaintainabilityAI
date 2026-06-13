@@ -232,6 +232,22 @@ describe('MeshService.scaffoldImdbLiteOkr — Celebs-anchored sample', () => {
     expect(okrDirs).toHaveLength(1);
   });
 
+  it('reset:true wipes the existing OKR (incl. fan-out state) and re-seeds fresh', () => {
+    const first = svc.scaffoldImdbLiteOkr(tmpRoot)!;
+    // Simulate accumulated fan-out state on the existing OKR.
+    const fanoutPath = path.join(tmpRoot, 'okrs', first.meta.id, 'design-fan-out.yaml');
+    fs.writeFileSync(fanoutPath, 'stale: true\n', 'utf8');
+    expect(fs.existsSync(fanoutPath)).toBe(true);
+
+    const reset = svc.scaffoldImdbLiteOkr(tmpRoot, { reset: true })!;
+    // Fresh seed: new intent thread, the prior fan-out state is gone, and
+    // there's still exactly one celeb-api OKR on disk (no dupe).
+    expect(reset.meta.intentThreadUuid).not.toBe(first.meta.intentThreadUuid);
+    expect(fs.existsSync(path.join(tmpRoot, 'okrs', reset.meta.id, 'design-fan-out.yaml'))).toBe(false);
+    const celebOkrs = fs.readdirSync(path.join(tmpRoot, 'okrs')).filter(d => /-celeb-api$/.test(d));
+    expect(celebOkrs).toHaveLength(1);
+  });
+
   it('self-heals stale <org> URLs in targetCodeRepos when BARs are re-scaffolded with a real org', () => {
     // 1. First scaffold with default <org> placeholder — OKR + BARs all stale.
     const first = svc.scaffoldImdbLiteOkr(tmpRoot)!;
@@ -338,6 +354,14 @@ describe('MeshService.scaffoldImdbLiteMovieApiOkr — movie-api recommendations 
     expect(second.meta.intentThreadUuid).toBe(first.meta.intentThreadUuid);
     const movieOkrs = fs.readdirSync(path.join(tmpRoot, 'okrs'))
       .filter(d => /-movie-api$/.test(d));
+    expect(movieOkrs).toHaveLength(1);
+  });
+
+  it('reset:true re-seeds the movie-api OKR fresh (new intent thread, one on disk)', () => {
+    const first = svc.scaffoldImdbLiteMovieApiOkr(tmpRoot)!;
+    const reset = svc.scaffoldImdbLiteMovieApiOkr(tmpRoot, { reset: true })!;
+    expect(reset.meta.intentThreadUuid).not.toBe(first.meta.intentThreadUuid);
+    const movieOkrs = fs.readdirSync(path.join(tmpRoot, 'okrs')).filter(d => /-movie-api$/.test(d));
     expect(movieOkrs).toHaveLength(1);
   });
 

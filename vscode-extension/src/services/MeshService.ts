@@ -566,8 +566,14 @@ export class MeshService {
    */
   scaffoldImdbLiteOkr(
     meshPath: string,
-    opts: { owner?: string; githubOrg?: string } = {},
+    opts: { owner?: string; githubOrg?: string; reset?: boolean } = {},
   ): OkrCard | null {
+    // Reset path (fresh-start staging): wipe any existing celeb-api sample OKR
+    // dir(s) first so we re-seed from the template — discards prior fan-out
+    // state + audit. Default stays idempotent: an existing sample wins.
+    if (opts.reset) {
+      this.resetMatchingOkrs(meshPath, /^OKR-\d{4}Q[1-4]-IMDB-\d+-celeb-api$/);
+    }
     // Idempotent: any existing sample wins. Pattern: OKR-<quarter>-IMDB-<NNN>-celeb-api
     const existing = this.okrService.readAll(meshPath)
       .find(s => /^OKR-\d{4}Q[1-4]-IMDB-\d+-celeb-api$/.test(s.id));
@@ -702,8 +708,11 @@ export class MeshService {
    */
   scaffoldImdbLiteMovieApiOkr(
     meshPath: string,
-    opts: { owner?: string; githubOrg?: string } = {},
+    opts: { owner?: string; githubOrg?: string; reset?: boolean } = {},
   ): OkrCard | null {
+    if (opts.reset) {
+      this.resetMatchingOkrs(meshPath, /^OKR-\d{4}Q[1-4]-IMDB-\d+-movie-api$/);
+    }
     const existing = this.okrService.readAll(meshPath)
       .find(s => /^OKR-\d{4}Q[1-4]-IMDB-\d+-movie-api$/.test(s.id));
     if (existing) {
@@ -785,6 +794,27 @@ export class MeshService {
     const app = this.findBarById(meshPath, 'APP-IMDB-001');
     const found = (app?.repos ?? []).find(url => url.split('/').filter(Boolean).pop() === 'movie-api');
     return [found ?? `https://github.com/${fallbackOrg}/movie-api`];
+  }
+
+  /**
+   * Fresh-start reset helper: delete every on-disk OKR whose id matches
+   * `pattern` — the whole `okrs/<id>/` dir (okr.yaml + why/how/what +
+   * design-fan-out.yaml + audit/) — so the subsequent seed starts from a
+   * clean pre-fan-out state. Best-effort per OKR; returns the removed ids.
+   * Used by the IMDB-Lite sample seeds when `opts.reset` is set (the Looking
+   * Glass "Create Sample Platform → fresh start" flow).
+   */
+  private resetMatchingOkrs(meshPath: string, pattern: RegExp): string[] {
+    const removed: string[] = [];
+    for (const s of this.okrService.readAll(meshPath)) {
+      if (!pattern.test(s.id)) { continue; }
+      const dir = path.join(meshPath, 'okrs', s.id);
+      try {
+        fs.rmSync(dir, { recursive: true, force: true });
+        removed.push(s.id);
+      } catch { /* best-effort — a locked/partial dir shouldn't abort the reset */ }
+    }
+    return removed;
   }
 
   // ==========================================================================

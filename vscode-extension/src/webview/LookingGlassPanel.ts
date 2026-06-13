@@ -30,6 +30,7 @@ import { isFanOutImplPr } from '../services/coordination/fanOutArtifacts';
 import { BarService } from '../services/BarService';
 import { GovernanceScorer } from '../services/GovernanceScorer';
 import { GitHubService, githubService } from '../services/GitHubService';
+import { SampleRepoStager, type StageScan, type StageResult } from '../services/SampleRepoStager';
 import { AgentStatusService } from '../services/AgentStatusService';
 import { OrgScannerService } from '../services/OrgScannerService';
 import { ThreatModelService, exportThreatModelCsv } from '../services/ThreatModelService';
@@ -7086,52 +7087,138 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     ], { placeHolder: 'Select a sample platform template' });
     if (!choice) { return; }
 
-    this.postMessage({ type: 'loading', active: true, message: `Creating ${choice.label}...` });
+    if (choice.value === 'imdb-lite') {
+      await this.onSampleImdbLite(meshPath);
+      return;
+    }
 
+    // Insurance — local-only scaffold (no GitHub sample repos).
+    this.postMessage({ type: 'loading', active: true, message: `Creating ${choice.label}...` });
     try {
-      // Detect the org from the mesh's git remote so the sample BARs end
-      // up with real repo URLs (https://github.com/<that-org>/<repo>)
-      // instead of the <org> placeholder. Falls back to <org> if the mesh
-      // isn't a git repo or has no GitHub remote — same behavior as before.
-      const githubOrg = await this.detectMeshOwner(meshPath);
-      const result = choice.value === 'imdb-lite'
-        ? this.meshService.scaffoldImdbLitePlatform(meshPath, githubOrg ? { githubOrg } : {})
-        : this.meshService.scaffoldSamplePlatform(meshPath);
-      // IMDB-Lite ships with its sample Celebs OKR — seed it inline so the
-      // OKR tab is populated immediately. Idempotent at the MeshService
-      // layer (returns the existing card if one is already present), so
-      // re-running Sample Platform never accumulates dupes. OKR inherits
-      // URLs from BAR app.yaml directly, so no need to pass githubOrg here.
-      if (choice.value === 'imdb-lite') {
-        try {
-          this.meshService.scaffoldImdbLiteOkr(meshPath);
-          // Also seed the movie-api recommendations OKR (the Pocket Watch /
-          // groundedness cert OKR). Idempotent — only creates if absent — so a
-          // user can delete it from disk and regenerate it from scratch here.
-          this.meshService.scaffoldImdbLiteMovieApiOkr(meshPath);
-        } catch (okrErr) {
-          // Non-fatal: platform is already on disk; surface as info so the
-          // user can re-trigger from the OKR tab if needed.
-          this.postMessage({
-            type: 'info',
-            message: `Platform created; sample OKR seed failed: ${toErrorMessage(okrErr)}`,
-          });
-        }
-      }
-      this.postMessage({
-        type: 'samplePlatformCreated',
-        platformCount: result.platformCount,
-        barCount: result.barCount,
-      });
+      const result = this.meshService.scaffoldSamplePlatform(meshPath);
+      this.postMessage({ type: 'samplePlatformCreated', platformCount: result.platformCount, barCount: result.barCount });
       await this.loadPortfolio();
     } catch (err) {
-      this.postMessage({
-        type: 'error',
-        message: `Failed to create sample platform: ${toErrorMessage(err)}`,
-      });
+      this.postMessage({ type: 'error', message: `Failed to create sample platform: ${toErrorMessage(err)}` });
     } finally {
       this.postMessage({ type: 'loading', active: false });
     }
+  }
+
+  /**
+   * IMDB-Lite sample: (re)seed the governance mesh AND stage the 4 GitHub
+   * sample repos to a fresh starting state so a clean agentic-SDLC OKR run
+   * starts from zero accumulated test state.
+   *
+   * Staging is gated by an explicit modal confirm whenever existing state is
+   * detected (the mesh platform already on disk, or open PRs/issues/branches /
+   * a populated greenfield celeb-api on GitHub), because it's destructive on
+   * the real repos (closes PRs/issues, deletes `copilot/*` branches, and
+   * rewrites celeb-api's history back to an empty greenfield commit). The user
+   * can pick "Mesh only (skip GitHub)" to keep today's local-only behavior, or
+   * Cancel to abort. With no GitHub remote on the mesh, we silently fall back
+   * to mesh-only.
+   */
+  private async onSampleImdbLite(meshPath: string) {
+    const githubOrg = await this.detectMeshOwner(meshPath);
+    const stager = githubOrg ? new SampleRepoStager(this.githubService) : null;
+
+    // Decide: full fresh (mesh reset + repo staging) vs mesh-only.
+    let resetMesh = false;   // re-seed OKRs from template (discard fan-out state)
+    let doStaging = false;   // touch the GitHub sample repos
+
+    if (stager && githubOrg) {
+      this.postMessage({ type: 'loading', active: true, message: 'Scanning IMDB-Lite sample repos…' });
+      let scan: StageScan | null = null;
+      try { scan = await stager.scan(githubOrg); } catch { scan = null; }
+      this.postMessage({ type: 'loading', active: false });
+
+      if (!scan) {
+        this.postMessage({ type: 'info', message: `Could not reach the sample repos on ${githubOrg}; creating the IMDB-Lite mesh only. Re-run once access is available to stage the repos.` });
+      } else {
+        const platformExists = fs.existsSync(path.join(meshPath, 'platforms', 'imdb-lite'));
+        const existingState = scan.hasExistingState || platformExists;
+        if (existingState) {
+          const pick = await vscode.window.showWarningMessage(
+            'Reset the IMDB-Lite sample to a fresh start?',
+            { modal: true, detail: this.buildImdbResetDetail(githubOrg, scan) },
+            'Reset to fresh',
+            'Mesh only (skip GitHub)',
+          );
+          if (pick === undefined) { return; }                  // cancelled — do nothing
+          if (pick === 'Reset to fresh') { resetMesh = true; doStaging = true; }
+          // else: "Mesh only" → resetMesh stays false, doStaging stays false
+        } else {
+          // Fresh org, nothing destructive — create + stage without a prompt.
+          resetMesh = true; doStaging = true;
+        }
+      }
+    } else {
+      this.postMessage({ type: 'info', message: 'The mesh has no GitHub remote/org; creating the IMDB-Lite mesh only (no repo staging). Add a GitHub remote to stage the sample repos.' });
+    }
+
+    this.postMessage({ type: 'loading', active: true, message: `Creating IMDB Lite${doStaging ? ' + staging repos' : ''}…` });
+    try {
+      const result = this.meshService.scaffoldImdbLitePlatform(meshPath, githubOrg ? { githubOrg } : {});
+      // OKR seeds inherit URLs from BAR app.yaml. On a fresh start we reset them
+      // (discard prior fan-out state); otherwise idempotent (existing wins).
+      try {
+        this.meshService.scaffoldImdbLiteOkr(meshPath, { reset: resetMesh });
+        this.meshService.scaffoldImdbLiteMovieApiOkr(meshPath, { reset: resetMesh });
+      } catch (okrErr) {
+        this.postMessage({ type: 'info', message: `Platform created; sample OKR seed failed: ${toErrorMessage(okrErr)}` });
+      }
+
+      let stageResult: StageResult | null = null;
+      if (doStaging && stager && githubOrg) {
+        this.postMessage({ type: 'loading', active: true, message: `Staging sample repos on ${githubOrg}…` });
+        stageResult = await stager.execute(githubOrg);
+      }
+
+      this.postMessage({ type: 'samplePlatformCreated', platformCount: result.platformCount, barCount: result.barCount });
+      await this.loadPortfolio();
+
+      if (stageResult) {
+        const summary = this.summarizeStaging(stageResult);
+        this.postMessage({ type: 'info', message: `IMDB-Lite repos staged: ${summary}` });
+        void vscode.window.showInformationMessage(`IMDB-Lite staged fresh — ${summary}`);
+      }
+    } catch (err) {
+      this.postMessage({ type: 'error', message: `Failed to create IMDB-Lite sample: ${toErrorMessage(err)}` });
+    } finally {
+      this.postMessage({ type: 'loading', active: false });
+    }
+  }
+
+  /** Modal-confirm detail text for the IMDB-Lite fresh-start reset. */
+  private buildImdbResetDetail(org: string, scan: StageScan): string {
+    const greenfield = scan.repos.filter(r => r.mode === 'greenfield').map(r => r.slug);
+    const brownfield = scan.repos.filter(r => r.mode === 'brownfield').map(r => r.slug);
+    return [
+      'Re-seeds the governance mesh: PLT-IMDB + APP-IMDB-001/002 + the celeb-api & movie-api sample OKRs (discards prior fan-out + audit state).',
+      '',
+      `On GitHub (${org}), across all four sample repos:`,
+      `• Close ${scan.totalOpenPrs} open PR(s) + ${scan.totalOpenIssues} open issue(s); delete ${scan.totalBranches} non-default branch(es).`,
+      `• Reset ${greenfield.join(', ') || '(none)'} main to an empty greenfield commit (README + .gitignore) — discards current contents and rewrites history.`,
+      `• Keep ${brownfield.join(', ')} main as the brownfield baseline.`,
+      '',
+      'This cannot be undone. Choose "Mesh only" to skip all GitHub changes.',
+    ].join('\n');
+  }
+
+  /** One-line human summary of a staging run. */
+  private summarizeStaging(res: StageResult): string {
+    const prs = res.repos.reduce((n, r) => n + r.closedPrs, 0);
+    const issues = res.repos.reduce((n, r) => n + r.closedIssues, 0);
+    const branches = res.repos.reduce((n, r) => n + r.deletedBranches, 0);
+    const reset = res.repos.filter(r => r.resetMain).map(r => r.slug);
+    const created = res.repos.filter(r => r.created).map(r => r.slug);
+    const errs = res.repos.flatMap(r => r.errors);
+    const parts = [`closed ${prs} PR(s) + ${issues} issue(s), deleted ${branches} branch(es)`];
+    if (reset.length) { parts.push(`reset ${reset.join(', ')} to greenfield`); }
+    if (created.length) { parts.push(`created ${created.join(', ')}`); }
+    if (errs.length) { parts.push(`${errs.length} warning(s)`); }
+    return parts.join('; ');
   }
 
   private async onUpdateBarField(barPath: string, field: string, value: string) {
