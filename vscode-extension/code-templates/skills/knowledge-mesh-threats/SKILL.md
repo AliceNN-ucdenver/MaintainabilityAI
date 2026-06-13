@@ -34,7 +34,7 @@ echo '{"concern":"identity-disambiguation"}' \
 
 ## Implementation
 
-Walks `threats/` library, filters by tag/keyword match. Backed by `packages/research-runner/src/mesh/threat-model-reader.ts`. CLI subcommand backend lands in B-PR1a.
+Walks `threats/` library, filters by tag/keyword match. Implemented by the `knowledge-mesh-threats` handler in `packages/research-runner/src/runner/skills.ts` (walks the top-level `threats/` library + each `<bar>/architecture/threat-model.yaml`).
 
 ## Error contract
 

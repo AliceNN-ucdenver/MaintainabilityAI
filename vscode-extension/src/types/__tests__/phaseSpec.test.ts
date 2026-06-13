@@ -965,11 +965,12 @@ describe('review-pack CHANGES bracket form (Bug-Q / Q9)', () => {
  * False-positive exclusions (verified by hand):
  *   - `runtime: research-runner` YAML frontmatter key — describes the
  *     pure-data skill's runtime; not an invocation.
- *   - `npx research-runner archeologist|prd` — local invocation of a
- *     pre-installed runner (the `npm install ... @~0.1.42` step
- *     above is what carries the version pin).
  *   - Prose mentions of `research-runner` as a package name in
  *     comments/docs (no `npx` / `npm install` adjacent).
+ *
+ * (The `archeologist`/`prd` subcommands were retired 2026-06-13 — the
+ * runner is skill-only — so there are no longer any non-`skill-*`
+ * invocations to exclude.)
  *
  * Test logic: any `@maintainabilityai/research-runner` substring
  * MUST be followed by `@<version>`. References without the `@`

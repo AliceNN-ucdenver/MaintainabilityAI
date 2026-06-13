@@ -369,32 +369,44 @@ PR → merge → issue auto-closes via the `Closes #N` + filename fallback).
   otherwise hard-deny `Write`/`Bash`. Designed separately in
   [`redqueen-break-glass.md`](redqueen-break-glass.md).
 
-## Future cleanup — come back to this
+## Future cleanup — RESOLVED (2026-06-13): option (a), retired
 
-- **The research-runner's `llm-router` / `callLlm` generation path is dormant
+- **The research-runner's `llm-router` / `callLlm` generation path was dormant
   in production** (surfaced 2026-06-12 while removing the dead Anthropic client).
   Confirmed by tracing the whole chain:
-  - `callLlm` is called only by the four LLM nodes (`planQueries`,
+  - `callLlm` was called only by the four LLM nodes (`planQueries`,
     `runGapAnalysis`, `synthesizePrd`, `runExpertReview`).
-  - Those nodes are driven only by `runArcheologist` / `runPrd`.
-  - `runArcheologist` / `runPrd` are called only by `cli.ts` (the
+  - Those nodes were driven only by `runArcheologist` / `runPrd`.
+  - `runArcheologist` / `runPrd` were called only by `cli.ts` (the
     `archeologist` / `prd` subcommands).
-  - **No deployed workflow invokes those subcommands.** The mesh agent
-    workflows (`market-research-agent.yml`, `prd-agent.yml`,
-    `code-design-agent.yml`) run the `research-runner` binary only for the
-    deterministic skill rails — `skill-audit-verify-chain` and
-    `skill-pocket-watch` — neither of which touches `llm-router`. The actual
-    research/PRD/design *generation* is done by the Copilot Coding Agent
-    persona (`.github/agents/<name>.agent.md`), dispatched by Looking Glass via
-    `assignCustomCopilotAgent` (the workflows' Job 1 only sanity-checks that the
-    `.agent.md` file is deployed; they explicitly do NOT dispatch).
+  - **No deployed workflow, `.agent.md`, or SKILL.md invoked those
+    subcommands** (verified across the repo). The mesh agent workflows
+    (`market-research-agent.yml`, `prd-agent.yml`, `code-design-agent.yml`) and
+    personas run the `research-runner` binary only for `skill-*` rails
+    (`skill-audit-verify-chain`, `skill-pocket-watch`, `skill-audit-emit-event`,
+    knowledge/context/self-review/search skills) — none touch `llm-router`. The
+    actual research/PRD/design *generation* is done by the Copilot Coding Agent
+    persona, dispatched by Looking Glass via `assignCustomCopilotAgent` (the
+    workflows' Job 1 only sanity-checks that the `.agent.md` file is deployed;
+    they explicitly do NOT dispatch).
   - So `llm-router` + `callLlm` + the four nodes + `runArcheologist` / `runPrd`
-    are reachable only via a manual `npx research-runner archeologist|prd` or
-    the test suite — not on any CI path.
-- **Decision needed:** either (a) retire the dormant CLI `archeologist`/`prd`
-  generation pipeline + nodes + `llm-router` entirely (research generation has
-  moved to the Copilot agents), keeping only the `skill-*` subcommands the
-  workflows actually use; or (b) keep it as a supported local/CLI escape hatch
-  and document that it is intentionally off the deployed path. Don't half-retire
-  — pick one. (The Anthropic removal already trimmed it; this is the larger
-  question of whether the whole LLM-generation half of the runner should go.)
+    were reachable only via a manual `npx research-runner archeologist|prd` or
+    the test suite — an LLM escape hatch off every CI path.
+- **Decision (made 2026-06-13): option (a) — retire entirely.** "We don't want
+  to half-retire; not a local escape hatch." Research/PRD/design generation has
+  moved to the Copilot agents, so the in-runner LLM-generation half was removed
+  wholesale, keeping only the `skill-*` subcommands the agents actually call.
+  Removed (38 files, verified disjoint from the live skill rails via the
+  `skills.ts` import graph): both orchestrators (`archeologist.ts`, `prd.ts`),
+  the `llm/` directory (`llm-router`, `github-models-client`), the 13
+  LLM/PRD/archaeology nodes (`plan-queries`, `gap-analysis`, `synthesize-prd`,
+  `expert-review`, `verify-grounding`, `generate-prd-manifest`,
+  `deterministic-review`, `prd-validator`, `validation-types`, `identify-gaps`,
+  `format-for-human`, `analyze-architecture`, `clone-and-index`), the `mesh/`
+  context layer (`mesh-reader`, `prompt-loader`, `threat-model-reader`,
+  `get-mesh-sha`), and the pipeline infra (`audit-emitter`,
+  `hatters-tag-builder`) — plus their tests + orphaned test-helpers. `cli.ts` is
+  now skill-only; `archeologist`/`prd` abort with a retirement message. Kept
+  (the deployed rails): every `skill-*` handler, the search nodes, Pocket Watch
+  (`drift/*`), `guardrails/envelope`, `schemas/*`, `court-recorder`,
+  `redqueen-sign`. research-runner typecheck + 227 tests + build green.

@@ -31,7 +31,7 @@ This skill is NOT called by agents. Agents use `audit-emit-event` (which produce
 
 ## Verification rules
 
-Same rules as `verifyChain()` in `packages/research-runner/src/runner/audit-emitter.ts`:
+Same chain rules implemented by the `audit-verify-chain` handler in `packages/research-runner/src/runner/skills.ts`:
 
 1. First event's `prev_event_hash` MUST be `null`.
 2. Each subsequent event's `prev_event_hash` MUST equal the preceding event's `event_hash`.

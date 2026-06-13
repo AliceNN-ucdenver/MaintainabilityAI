@@ -3,15 +3,16 @@
  * verifying the Hatter's Tag YAML block embedded in every agent-produced
  * artifact (research-doc.md, prd.md, code-design.md) and in the PR body.
  *
- * The Tag is built by `packages/research-runner/src/runner/hatters-tag-builder.ts`
- * via `buildHattersTag()` — this service is the read side. UI surface (the
+ * The Tag is authored by the agent personas in their PR / issue bodies (the
+ * runner's `hatters-tag-builder.ts` was retired 2026-06-13 with the
+ * archeologist/prd pipeline) — this service is the read side. UI surface (the
  * slide-out sheet on the OKR detail Action card) calls `parseHatterTag` to
  * render the tag's full provenance.
  *
  * `verifyChain` is stubbed for B-PR4 — it returns the expected shape so the
- * UI can render a placeholder badge. Real chain verification lives in
- * `research-runner verify-chain` CLI (Phase E E2); this service is the
- * adapter Looking Glass will call once that CLI ships.
+ * UI can render a placeholder badge. Real chain verification lives in the
+ * `skill-audit-verify-chain` runner skill (Phase E E2); this service is the
+ * adapter Looking Glass will call once that surface is wired in.
  *
  * See vscode-extension/design/agentic-sdlc.md §11 for the Tag schema and
  * §11.6 for the verify-chain contract.

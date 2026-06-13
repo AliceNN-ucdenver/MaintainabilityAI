@@ -12,8 +12,12 @@
  *   2. Workflow gate — code-templates/workflows/<wf>.yml  REQUIRED_H2=( … )
  *                      (the LIVE enforcement; entries are `^## <regex>` prefixes,
  *                       may carry `A|B` alternations)
- *   3. Runner validator — packages/research-runner CANONICAL_* arrays
- *                      (HOW only — see "no node-validator by design" below)
+ *   3. Runner validator — RETIRED 2026-06-13. The HOW phase used to carry a
+ *                      `CANONICAL_PRD_SECTIONS` array in research-runner's
+ *                      nodes/prd-validator.ts, but that file was removed with
+ *                      the PRD generation pipeline. All three phases are now
+ *                      workflow-canonical (surface 2); a guard below asserts no
+ *                      runner CANONICAL_*SECTIONS constant is reintroduced.
  *   4. Pocket Watch  — objective-renderer.ts PHASE_SCOPE_SECTIONS (mission-
  *                      bearing SUBSET; first alias is canonical)
  *
@@ -21,10 +25,11 @@
  * the research-runner package would break typecheck — and parsing the literal
  * bytes is what actually catches drift.
  *
- * BY DESIGN: WHY and WHAT have NO runner node-validator. WHY is validated by
- * the workflow (`market-research-agent.yml`), not a TS helper — the dead
- * `synthesis-validator.ts` was removed. A guard below asserts it stays gone so
- * nobody reintroduces it and mistakes it for canonical.
+ * BY DESIGN: WHY, HOW, and WHAT have NO runner node-validator. Each is
+ * validated by its workflow's inline `structure` step, not a TS helper — the
+ * dead `synthesis-validator.ts` (WHY) and `prd-validator.ts` (HOW, retired
+ * 2026-06-13 with the PRD generation pipeline) were removed. Guards below
+ * assert they stay gone so nobody reintroduces one and mistakes it for canonical.
  */
 import * as fs from 'fs';
 import * as path from 'path';
@@ -122,7 +127,11 @@ const CONTRACTS: PhaseContract[] = [
     phase: 'how', pack: 'prd', wf: 'prd-agent.yml',
     canonical: ['input premises', 'problem statement', 'goals/non-goals', 'functional requirements', 'non-functional requirements', 'security requirements', 'coverage analysis', 'risk matrix', 'success metrics', 'references'],
     pocket: ['problem statement', 'goals/non-goals', 'functional requirements', 'security requirements'],
-    validator: { file: 'nodes/prd-validator.ts', constName: 'CANONICAL_PRD_SECTIONS' },
+    // Runner node-validator retired 2026-06-13 with the PRD generation pipeline
+    // — HOW is now workflow-canonical like WHY/WHAT. The live gate is
+    // prd-agent.yml REQUIRED_H2 (cross-checked above); the section contract is
+    // pinned by pack ↔ workflow ↔ Pocket Watch.
+    validator: null,
   },
   {
     phase: 'what', pack: 'code-design', wf: 'code-design-agent.yml',
@@ -156,11 +165,12 @@ describe('phase artifact contract parity (pack ↔ workflow ↔ validator ↔ Po
         });
       } else {
         it('has NO runner node-validator by design (workflow is the canonical gate)', () => {
-          // WHY/WHAT are validated by the workflow inline `structure` step, not a
-          // TS node-validator. Assert no phase-specific CANONICAL_* constant exists.
+          // WHY/HOW/WHAT are validated by the workflow inline `structure` step,
+          // not a TS node-validator. Assert no phase CANONICAL_*SECTIONS constant
+          // exists (prd-validator's CANONICAL_PRD_SECTIONS was retired 2026-06-13).
           const nodeFiles = fs.readdirSync(path.join(RUNNER, 'nodes')).filter(f => f.endsWith('.ts'));
-          const offenders = nodeFiles.filter(f => /CANONICAL_(?!PRD_SECTIONS)\w*SECTIONS/.test(fs.readFileSync(path.join(RUNNER, 'nodes', f), 'utf8')));
-          expect(offenders, `${c.phase}: unexpected runner CANONICAL_* validator constant in ${offenders.join(', ')} — WHY/WHAT are workflow-canonical by design`).toEqual([]);
+          const offenders = nodeFiles.filter(f => /CANONICAL_\w*SECTIONS/.test(fs.readFileSync(path.join(RUNNER, 'nodes', f), 'utf8')));
+          expect(offenders, `${c.phase}: unexpected runner CANONICAL_* validator constant in ${offenders.join(', ')} — all phases are workflow-canonical by design`).toEqual([]);
         });
       }
     });
@@ -172,8 +182,8 @@ describe('phase artifact contract parity (pack ↔ workflow ↔ validator ↔ Po
     });
 
     it('no validateSynthesis / CANONICAL_SECTIONS DECLARATION anywhere in runner nodes or drift', () => {
-      // Match code declarations, not prose: validation-types.ts legitimately
-      // documents the removal in a comment, which must not trip the guard.
+      // Match code declarations, not prose, so a doc comment that mentions the
+      // removed validator (e.g. the retirement note in the runner) can't trip it.
       const DECL = [
         /\b(?:function|const|let|var)\s+validateSynthesis\b/,
         /\b(?:const|let|var)\s+CANONICAL_SECTIONS\b/,
