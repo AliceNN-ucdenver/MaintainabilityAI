@@ -617,6 +617,42 @@ describe('Config Scaffold', () => {
       }
     });
 
+    it('fitness ratchet: baselines.json is CTRL-001 read-only (even under a grant), the test file is not', () => {
+      const redQueen = new RedQueenService();
+      const result = scaffoldAgentConfig(reader, 'Test Bar Empty', redQueen);
+      if ('error' in result) { throw new Error(`scaffold failed: ${result.error}`); }
+
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'redqueen-fitness-'));
+      try {
+        writeScaffoldFiles(tmpDir, result.files);
+        const wrapperPath = path.join(tmpDir, '.redqueen/hooks/validate-tool.sh');
+        // Active grant so the tier denies are flipped — proving baselines.json is
+        // read-only at the CTRL-001 layer, NOT merely tier-blocked (not break-glassable).
+        const future = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+        fs.writeFileSync(path.join(tmpDir, '.redqueen', 'approvals.json'),
+          JSON.stringify({ version: 1, approvals: [{ issue: 42, expiresAt: future }] }));
+
+        // The agent cannot raise its own ratchet floor.
+        const denyBaseline = spawnSync(wrapperPath, {
+          input: JSON.stringify({ tool_name: 'Write', tool_input: { file_path: 'tests/fitness/baselines.json', content: '{"duplicate":{"floor":99}}' } }),
+          encoding: 'utf8',
+          cwd: tmpDir,
+        });
+        expect(denyBaseline.status).toBe(2);
+        expect(denyBaseline.stderr).toContain('governance-managed (read-only)');
+
+        // …but authoring the fitness TEST file is fine (Alice writes these).
+        const allowTest = spawnSync(wrapperPath, {
+          input: JSON.stringify({ tool_name: 'Write', tool_input: { file_path: 'tests/fitness/duplicate.test.ts', content: '// fitness test' } }),
+          encoding: 'utf8',
+          cwd: tmpDir,
+        });
+        expect(allowTest.stderr).not.toContain('governance-managed (read-only)');
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
     it('hook walks customRules and denies on regex match against file content', () => {
       const redQueen = new RedQueenService();
       const result = scaffoldAgentConfig(reader, 'Test Bar Good', redQueen);
@@ -874,6 +910,15 @@ describe("Red Queen's Court — Policy Engine", () => {
     it('matches nested wildcard patterns', () => {
       expect(matchesPattern('deep/path/secret.key', '**/*secret*')).toBe(true);
       expect(matchesPattern('config/credential.json', '**/*credential*')).toBe(true);
+    });
+
+    it('matches the fitness baseline ratchet (**/fitness/baselines.json) but not the test files', () => {
+      // The ratchet floor is governance-managed (read-only); the fitness TEST
+      // files Alice authors are not.
+      expect(matchesPattern('tests/fitness/baselines.json', '**/fitness/baselines.json')).toBe(true);
+      expect(matchesPattern('packages/api/tests/fitness/baselines.json', '**/fitness/baselines.json')).toBe(true);
+      expect(matchesPattern('tests/fitness/duplicate.test.ts', '**/fitness/baselines.json')).toBe(false);
+      expect(matchesPattern('tests/fitness/baselines.json.bak', '**/fitness/baselines.json')).toBe(false);
     });
   });
 

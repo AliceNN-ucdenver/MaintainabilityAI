@@ -8,8 +8,12 @@ ratchet/baselines, the Scorecard tile, and the assign-Alice loop. **Deferred** (
 yet built): the `performance` + `accessibility` categories, and the fuzzy
 content-signature / LLM-residue detection layers (the "best-effort bonus" path for
 pre-existing tests outside the convention). The keystone — `baselines.json` is
-agent-read-only (the `CTRL-001` pattern) — is the design intent; confirm it's wired
-as a hard read-only path before relying on it.
+agent-read-only (the `CTRL-001` pattern) — is **wired** (2026-06-13):
+`**/fitness/baselines.json` is in the policy's `DEFAULT_READ_ONLY_PATHS`
+(`policy-engine.ts`), so an agent `Edit`/`Write` to it is denied `CTRL-001`,
+fail-closed and **not break-glassable** (same as `.redqueen/approvals.json`). The
+test's runtime self-bootstrap (a `npm test` side-effect, not a tool call) and the
+human/pawl ratchet are unaffected — they don't go through an agent Edit/Write tool.
 
 ## What it detects (and why it's NOT the dashboard)
 

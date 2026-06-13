@@ -194,6 +194,12 @@ const DEFAULT_READ_ONLY_PATHS = [
   'AGENTS.md',
   '.redqueen/**',
   '.github/hooks/**',
+  // Fitness-test ratchet baseline (CTRL-001, same keystone as .redqueen/approvals.json):
+  // the agent must fix a failing fitness test by improving the code, never by raising
+  // its own floor. The test self-bootstraps the file at runtime (a `npm test` side-effect,
+  // not an Edit/Write tool call) and a human/the pawl ratchets it — both unaffected; this
+  // only denies the agent directly editing the baseline to game the gate.
+  '**/fitness/baselines.json',
 ];
 
 /**
