@@ -31,8 +31,9 @@ export const SECRETS: SecretDefinition[] = [
   // code-repo consumer (alice-remediation) was replaced by the Alice persona
   // (GITHUB_TOKEN / copilot env, no key), and research/PRD route through
   // GitHub Models. No secret is `mesh+code` anymore — everything below is
-  // mesh-only. (The local Claude RCTRO provider still reads the
-  // `maintainabilityai.llm.claudeApiKey` SETTING directly; that's unaffected.)
+  // mesh-only. The local Claude/OpenAI RCTRO providers (and their
+  // `maintainabilityai.llm.*` API-key settings) were retired too — the RCTRO
+  // engine is the VS Code Language Model only.
   {
     id: 'tavily',
     envName: 'TAVILY_API_KEY',

@@ -1,9 +1,6 @@
 import type { LlmProvider, RctroPrompt, TechStack } from '../../types';
-import { configService } from '../ConfigService';
 import { TechStackDetector } from '../TechStackDetector';
-import { ClaudeProvider } from './ClaudeProvider';
 import { VsCodeLmProvider } from './VsCodeLmProvider';
-import { OpenAiProvider } from './OpenAiProvider';
 
 const RCTRO_SYSTEM_PROMPT = `You are a security-first software architect generating RCTRO-formatted development prompts for the MaintainabilityAI framework.
 
@@ -59,37 +56,10 @@ Respond with ONLY valid JSON (no markdown code fences) matching this interface:
 }`;
 
 export class LlmService {
-  private provider: LlmProvider;
-
-  constructor() {
-    this.provider = this.createProvider();
-  }
-
-  private createProvider(): LlmProvider {
-    const providerType = configService.llmProvider;
-
-    switch (providerType) {
-      case 'claude': {
-        const apiKey = configService.claudeApiKey;
-        const model = configService.llmModel;
-        if (!apiKey) {
-          throw new Error('Anthropic API key is required when using the Claude provider. Set it in Settings > MaintainabilityAI > Claude API Key.');
-        }
-        return new ClaudeProvider(apiKey, model);
-      }
-      case 'openai': {
-        const apiKey = configService.openaiApiKey;
-        const model = configService.llmModel;
-        if (!apiKey) {
-          throw new Error('OpenAI API key is required when using the OpenAI provider. Set it in Settings > MaintainabilityAI > OpenAI API Key.');
-        }
-        return new OpenAiProvider(apiKey, model);
-      }
-      case 'vscode-lm':
-      default:
-        return new VsCodeLmProvider();
-    }
-  }
+  // Cheshire v2 uses a single engine: the VS Code Language Model (Copilot /
+  // GitHub Models, via the editor's `vscode.lm` API). The Anthropic/OpenAI
+  // providers + their API-key settings were retired with the @claude path.
+  private readonly provider: LlmProvider = new VsCodeLmProvider();
 
   async generateRctro(
     description: string,
@@ -99,8 +69,6 @@ export class LlmService {
     modelOverride?: string,
     repoContext?: string
   ): Promise<RctroPrompt> {
-    // Refresh provider in case settings changed
-    this.provider = this.createProvider();
     return this.provider.generateRctro(description, techStack, promptPackContents, existingRctro, modelOverride, repoContext);
   }
 

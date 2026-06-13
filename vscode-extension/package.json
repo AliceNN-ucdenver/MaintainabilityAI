@@ -153,26 +153,6 @@
     "configuration": {
       "title": "MaintainabilityAI",
       "properties": {
-        "maintainabilityai.llm.provider": {
-          "type": "string",
-          "enum": [
-            "vscode-lm",
-            "claude",
-            "openai"
-          ],
-          "default": "vscode-lm",
-          "description": "LLM provider for RCTRO prompt generation"
-        },
-        "maintainabilityai.llm.claudeApiKey": {
-          "type": "string",
-          "default": "",
-          "description": "Anthropic API key (required if provider is 'claude')"
-        },
-        "maintainabilityai.llm.openaiApiKey": {
-          "type": "string",
-          "default": "",
-          "description": "OpenAI API key (required if provider is 'openai')"
-        },
         "maintainabilityai.llm.tavilyApiKey": {
           "type": "string",
           "default": "",
@@ -243,11 +223,6 @@
           "default": 200000,
           "description": "Default per-run token budget for the research and PRD pipelines (warn before exceeding)."
         },
-        "maintainabilityai.llm.model": {
-          "type": "string",
-          "default": "",
-          "description": "Model override (e.g., claude-sonnet-4-5-20250929, gpt-4o)"
-        },
         "maintainabilityai.llm.preferredFamily": {
           "type": "string",
           "default": "gpt-4o",
@@ -305,14 +280,12 @@
     "vitest": "^4.1.6"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.32.0",
     "@modelcontextprotocol/sdk": "^1.27.1",
     "@octokit/rest": "^21.0.0",
     "@xyflow/react": "^12.10.1",
     "elkjs": "^0.9.3",
     "html-to-image": "^1.11.13",
     "mermaid": "^11.12.3",
-    "openai": "^4.68.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "yaml": "^2.9.0",

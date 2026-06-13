@@ -294,6 +294,13 @@ already-scaffolded repos (mirror `DEPRECATED_MESH_FILES`). NOT
 - **`COPILOT_MCP_MESH_TOKEN`** — drop the only reference (the generated
   `copilot-governance-steps.yml` snippet). It had no provisioning and was run by
   nothing; the deterministic policy needs no token.
+- **Retire the Claude/OpenAI RCTRO provider code (✅ 2026-06-12).** With the keys
+  and settings gone, the providers were unreachable dead code. `ClaudeProvider.ts`
+  and `OpenAiProvider.ts` are deleted, `LlmService` collapses to the single
+  `VsCodeLmProvider` (no provider switch), the `llm.provider` / `llm.claudeApiKey`
+  / `llm.openaiApiKey` / `llm.model` settings + the `@anthropic-ai/sdk` and
+  `openai` dependencies are removed. The RCTRO engine is the VS Code Language
+  Model only — knip + the full quality chain green; VSIX dropped ~0.13 MB.
 
 ## Migration phases (each independently shippable, gates green)
 

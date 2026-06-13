@@ -20,22 +20,9 @@ class ConfigService implements vscode.Disposable {
   }
 
   // ---- LLM settings ----
-
-  get llmProvider(): 'vscode-lm' | 'claude' | 'openai' {
-    return this.get<'vscode-lm' | 'claude' | 'openai'>('llm.provider', 'vscode-lm');
-  }
-
-  get claudeApiKey(): string {
-    return this.get<string>('llm.claudeApiKey', '');
-  }
-
-  get openaiApiKey(): string {
-    return this.get<string>('llm.openaiApiKey', '');
-  }
-
-  get llmModel(): string {
-    return this.get<string>('llm.model', '');
-  }
+  // Cheshire v2 runs a single engine (the VS Code Language Model / Copilot).
+  // The Anthropic/OpenAI provider + its `llm.provider` / `llm.claudeApiKey` /
+  // `llm.openaiApiKey` / `llm.model` settings were retired with the @claude path.
 
   get preferredFamily(): string {
     return this.get<string>('llm.preferredFamily', 'gpt-4o');
