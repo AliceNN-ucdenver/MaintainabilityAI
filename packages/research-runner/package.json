@@ -1,7 +1,7 @@
 {
   "name": "@maintainabilityai/research-runner",
   "version": "0.1.73",
-  "description": "Research + PRD agent runner — orchestrates the Archeologist and PRD pipelines for the MaintainabilityAI governance mesh",
+  "description": "Deterministic skill-rails backend (knowledge/context reads, search, self-review gating, Ed25519 audit chain, Pocket Watch drift) for the MaintainabilityAI agentic-SDLC Copilot agents",
   "license": "MIT",
   "author": "MaintainabilityAI",
   "homepage": "https://maintainability.ai",
@@ -14,13 +14,12 @@
     "url": "https://github.com/AliceNN-ucdenver/MaintainabilityAI/issues"
   },
   "keywords": [
-    "research",
-    "prd",
+    "skills",
     "governance",
     "calm",
     "ai-agents",
-    "tavily",
-    "anthropic"
+    "audit-chain",
+    "tavily"
   ],
   "bin": {
     "research-runner": "./bin/research-runner.js"

@@ -1,194 +1,52 @@
 /**
  * @maintainabilityai/research-runner CLI entry.
  *
- * Two subcommands: `archeologist` (research pipeline) and `prd` (PRD pipeline).
- * Parses argv into a typed brief, runs the orchestrator, prints structured
- * outputs that the calling GitHub Action consumes via `core.setOutput`.
+ * The runner is the deterministic **skill-rails** backend for the agentic-SDLC
+ * Skills surface declared in `vscode-extension/code-templates/skills/<name>/
+ * SKILL.md`. Every subcommand is `skill-<name>`: it reads a JSON object from
+ * stdin, does pure/deterministic work (mesh reads, search APIs, self-review
+ * gating, audit-chain emit/verify, Pocket Watch drift), and writes JSON to
+ * stdout. The calling Copilot agent — dispatched by Looking Glass via
+ * `assignCustomCopilotAgent`, NOT by this CLI — invokes them with
+ * `npx -y @maintainabilityai/research-runner@<pin> skill-<name>`.
  *
- * Zero dep on a CLI framework — argv parsing is hand-rolled to keep the
- * package small. The flag surface is fixed by the design doc and shouldn't
- * grow without intent.
+ * Retired 2026-06-13: the former `archeologist` (research) and `prd`
+ * (PRD) **LLM-generation** pipelines — and the in-runner `llm-router` /
+ * `callLlm` path they drove — were removed. Research / PRD / design
+ * *generation* now runs entirely on the Copilot Coding Agent personas
+ * (`.github/agents/<name>.agent.md`); the runner's job is the deterministic
+ * skill rails those agents call. There is intentionally no local LLM escape
+ * hatch. See `vscode-extension/design/cheshire-cat-maintenance-agent.md`
+ * ("Future cleanup — resolved").
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { ResearchBrief, PrdBrief } from './schemas';
-import { runArcheologist } from './runner/archeologist';
-import { runPrd } from './runner/prd';
 import { isSkillName, readStdin, runSkill, SKILLS } from './runner/skills';
 
 const PKG = JSON.parse(
   fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8'),
 ) as { version: string };
 
-interface ParsedFlags {
-  brief?: string;
-  scope_level?: string;
-  scope_id?: string;
-  path?: string;
-  target_repo?: string;
-  guardrails?: string;
-  research_pr?: string;
-  mode?: string;
-  grounding?: string;
-  max_iterations?: string;
-  output?: string;
-  audit?: string;
-  emit_issue_body?: string;
-  emit_pr_body?: string; // retained for PRD subcommand which still opens PRs
-  mesh?: string;
-  llm_provider?: string;
-}
-
-function parseFlags(argv: string[]): ParsedFlags {
-  const flags: ParsedFlags = {};
-  for (let i = 0; i < argv.length; i++) {
-    const arg = argv[i];
-    if (!arg.startsWith('--')) { continue; }
-    const key = arg.slice(2).replace(/-/g, '_') as keyof ParsedFlags;
-    const value = argv[i + 1];
-    if (!value || value.startsWith('--')) {
-      // boolean flag — not used yet
-      continue;
-    }
-    flags[key] = value;
-    i++;
-  }
-  return flags;
-}
-
-function emitGithubOutput(outputs: Record<string, string | number>): void {
-  // Run inside GitHub Actions, write to GITHUB_OUTPUT so `steps.<id>.outputs.*` works.
-  //
-  // GH Actions output file format:
-  //   single-line:  key=value
-  //   multi-line:   key<<EOF\nvalue\nEOF
-  //
-  // A research brief can be multi-line markdown (the wizard appends a
-  // "## Run metadata" footer to it), so naive `key=value` produced
-  // `Error: Unable to process file command 'output' successfully.` when
-  // the topic carried newlines. Switch every value to the heredoc form
-  // — works for both single- and multi-line values.
-  const githubOutput = process.env.GITHUB_OUTPUT;
-  if (!githubOutput) { return; }
-  const lines: string[] = [];
-  // Use a random delimiter to avoid collisions with content that happens
-  // to contain a literal "EOF" line. crypto.randomUUID is in Node 19+.
-  const delimiter = `gho_${process.pid}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-  for (const [k, v] of Object.entries(outputs)) {
-    const value = String(v);
-    lines.push(`${k}<<${delimiter}`);
-    lines.push(value);
-    lines.push(delimiter);
-  }
-  fs.appendFileSync(githubOutput, lines.join('\n') + '\n', 'utf8');
-}
-
 function abort(msg: string, code = 1): never {
   process.stderr.write(`research-runner: ${msg}\n`);
   process.exit(code);
-}
-
-async function archeologistCmd(argv: string[]): Promise<void> {
-  const flags = parseFlags(argv);
-  if (!flags.brief) { abort('--brief is required'); }
-  if (!flags.scope_level) { abort('--scope-level is required'); }
-  if (!flags.scope_id) { abort('--scope-id is required (portfolio scope was removed; pass platform slug or BAR id)'); }
-
-  const briefInput: Partial<ResearchBrief> = {
-    topic: flags.brief,
-    scope: {
-      level: flags.scope_level as ResearchBrief['scope']['level'],
-      id: flags.scope_id,
-    },
-    path: (flags.path as ResearchBrief['path']) || 'research',
-    target_repo: flags.target_repo || undefined,
-    guardrails: (flags.guardrails as ResearchBrief['guardrails']) || 'default',
-    llm_provider: (flags.llm_provider as ResearchBrief['llm_provider']) || undefined,
-    trigger: {
-      kind: process.env.GITHUB_ACTIONS === 'true' ? 'workflow_dispatch' : 'local_dev',
-      actor: process.env.GITHUB_ACTOR,
-    },
-  };
-
-  const result = await runArcheologist({
-    brief: briefInput,
-    meshDir: flags.mesh ? path.resolve(flags.mesh) : process.cwd(),
-    outputDir: flags.output || 'research',
-    auditDir: flags.audit || '.research-audit',
-    emitIssueBodyPath: flags.emit_issue_body,
-    agentVersion: PKG.version,
-  });
-
-  process.stdout.write(JSON.stringify(result, null, 2) + '\n');
-  emitGithubOutput({
-    run_id: result.run_id,
-    topic: result.topic,
-    artifact_path: result.artifact_path,
-    chain_root_hash: result.chain_root_hash,
-    issue_body_path: result.issue_body_path || '',
-  });
-}
-
-async function prdCmd(argv: string[]): Promise<void> {
-  const flags = parseFlags(argv);
-  if (!flags.research_pr) { abort('--research-pr is required'); }
-  if (!flags.scope_level) { abort('--scope-level is required'); }
-  if (!flags.scope_id) { abort('--scope-id is required (portfolio scope was removed; pass platform slug or BAR id)'); }
-
-  const isUrl = /^https?:\/\//.test(flags.research_pr);
-
-  const briefInput: Partial<PrdBrief> = {
-    research_source: isUrl
-      ? { kind: 'pr', url: flags.research_pr }
-      : { kind: 'path', relative_path: flags.research_pr },
-    scope: {
-      level: flags.scope_level as PrdBrief['scope']['level'],
-      id: flags.scope_id,
-    },
-    mode: (flags.mode as PrdBrief['mode']) || 'deep',
-    grounding: (flags.grounding as PrdBrief['grounding']) || 'default',
-    max_iterations: flags.max_iterations ? parseInt(flags.max_iterations, 10) : 3,
-    llm_provider: (flags.llm_provider as PrdBrief['llm_provider']) || undefined,
-    trigger: {
-      kind: process.env.GITHUB_ACTIONS === 'true' ? 'workflow_dispatch' : 'local_dev',
-      actor: process.env.GITHUB_ACTOR,
-    },
-  };
-
-  const result = await runPrd({
-    brief: briefInput,
-    meshDir: flags.mesh ? path.resolve(flags.mesh) : process.cwd(),
-    outputDir: flags.output || 'prds',
-    auditDir: flags.audit || '.research-audit',
-    emitPrBodyPath: flags.emit_pr_body,
-    agentVersion: PKG.version,
-  });
-
-  process.stdout.write(JSON.stringify(result, null, 2) + '\n');
-  emitGithubOutput({
-    run_id: result.run_id,
-    topic: result.topic,
-    artifact_path: result.artifact_path,
-    chain_root_hash: result.chain_root_hash,
-    pr_body_path: result.pr_body_path || '',
-    final_score: result.final_score,
-    iterations: result.iterations,
-  });
 }
 
 function help(): void {
   const skillNames = Object.keys(SKILLS).map(n => `skill-${n}`).sort().join('\n  ');
   process.stdout.write(`research-runner v${PKG.version}
 
-Usage:
-  research-runner archeologist --brief "<topic>" --scope-level <platform|bar> --scope-id ID [--path research|archaeology] [...]
-  research-runner prd --research-pr <url|path> --scope-level <platform|bar> --scope-id ID [...]
-  research-runner skill-<name>   # one-shot skill subcommand; reads JSON from stdin, writes JSON to stdout
+The runner is skill-only. Each subcommand reads JSON from stdin and writes
+JSON to stdout; the assigned Copilot agent invokes them.
 
-Skills (called by .agent.md tools: declarations under \$MESH_PATH):
+Usage:
+  research-runner skill-<name>   # one-shot skill subcommand
+  echo '{"...":...}' | npx -y @maintainabilityai/research-runner@~0.1.0 skill-<name>
+
+Skills (declared by .agent.md tools: blocks under $MESH_PATH):
   ${skillNames}
 
-See README.md for the full flag surface.
+See README.md for the per-skill input/output contracts.
 `);
 }
 
@@ -219,21 +77,23 @@ async function skillCmd(skillName: string): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  const [, , subcommand, ...rest] = process.argv;
+  const [, , subcommand] = process.argv;
   if (subcommand && subcommand.startsWith('skill-')) {
     await skillCmd(subcommand.slice('skill-'.length));
     return;
   }
   switch (subcommand) {
-    case 'archeologist': await archeologistCmd(rest); break;
-    case 'prd':          await prdCmd(rest); break;
     case 'help':
     case '--help':
     case '-h':
     case undefined:      help(); break;
     case '--version':
     case '-v':           process.stdout.write(`${PKG.version}\n`); break;
-    default:             abort(`unknown subcommand: ${subcommand}`);
+    case 'archeologist':
+    case 'prd':
+      abort(`subcommand "${subcommand}" was retired — research/PRD generation now runs on the Copilot agent personas, not the runner. The runner is skill-only; run \`research-runner help\` for the skill surface.`);
+      break;
+    default:             abort(`unknown subcommand: ${subcommand} (the runner is skill-only; run \`research-runner help\`)`);
   }
 }
 
