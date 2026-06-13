@@ -163,7 +163,7 @@ In 2024 a prompt was personal: a developer wrote it, kept it in chat history, th
   <span class="docs-rule-preview-chip">Preview</span>
 </div>
 
-Prompts are advisory. Reviews are advisory. Fitness functions are advisory in the sense that they fire *after* the code is written. The Red Queen makes the same constraints **deterministic**: the PreToolUse hook blocks the write *before* it lands; the MCP `validate_action` call checks the proposed change against the CALM model; the policy engine evaluates flow constraints as code, not as LLM suggestions.
+Prompts are advisory. Reviews are advisory. Fitness functions are advisory in the sense that they fire *after* the code is written. The Red Queen makes the same constraints **deterministic**: the PreToolUse hook blocks the write *before* it lands; the policy engine evaluates flow constraints as code, not as LLM suggestions.
 
 **Smell test. You are breaking this rule when:**
 

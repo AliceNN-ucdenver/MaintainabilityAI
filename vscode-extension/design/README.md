@@ -30,12 +30,13 @@ Legend: ✅ shipped · 🚧 in progress · 📐 designed, not built · 📋 refe
 | [governance-diagram-req.md](governance-diagram-req.md) | Looking Glass architecture design surface (Phase 2) |
 | [governance-prompt-packs.md](governance-prompt-packs.md) | Unified governance prompt-pack design |
 | [pocket-watch-alignment-rail.md](pocket-watch-alignment-rail.md) | Contrastive v2 Pocket Watch alignment rail |
+| [fitness-probe-registry.md](fitness-probe-registry.md) | Fitness-test detection + ratchet/baselines + assign-Alice recipe across the 4 structural categories (duplicate/dead-code/complexity/architecture); `performance`/`accessibility` categories + fuzzy content-signature/LLM detection layers deferred |
+| [workshop-starter-imdb-lite.md](workshop-starter-imdb-lite.md) | IMDB-Lite workshop substrate — greenfield `celeb-api` (build) / brownfield `movie-api` (remediate); Looking Glass "Sample Platform" also stages the 4 sample repos fresh |
 
 ## 🚧 In progress (shipping in slices)
 
 | Doc | Covers |
 |---|---|
-| [fitness-probe-registry.md](fitness-probe-registry.md) | Fitness-test detection + Alice remediation (duplicate/dead-code/complexity slices shipping) |
 | [next-acts-tier-2-and-3.md](next-acts-tier-2-and-3.md) | Tier 2 BUILD fan-out (shipped) + Tier 2.5 Queen's Next Act + Tier 3 auditor hardening |
 | [research-agent-alignment.md](research-agent-alignment.md) | Research (Archeologist) agent-with-skills migration (review Phase 6) |
 | [governance-mesh.md](governance-mesh.md) | Governance mesh extension — status & roadmap |

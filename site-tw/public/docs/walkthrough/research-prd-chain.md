@@ -18,7 +18,7 @@
 2. **The Archeologist run output** — a published research PR with the Hatter's Tag and JSONL audit chain.
 3. **A PRD** with multi-expert grounding, refinement-loop trace, and a sidecar `.manifest.json`.
 4. **A PRD landing-issue** opened by the mesh in each target code repo, body containing the full PRD markdown + manifest JSON for downstream assignment via the Rabbit Hole.
-5. **One implementation PR** opened by `alice-remediation.yml`, carrying `derived_from_prd_run_id` and `derived_from_research` so the chain joins across both repos by one `jq` filter.
+5. **One implementation PR** opened by Alice (the `alice-maintenance-agent` Copilot persona, dispatched one-click from Looking Glass / the Cheshire Scorecard), carrying `derived_from_prd_run_id` and `derived_from_research` so the chain joins across both repos by one `jq` filter.
 6. **The full evidence chain**: `gh search` from either repo lands on every artifact in the run.
 
 The whole loop closes itself on the GitHub side — your job is to scaffold once, then approve the two PR merges (research, then PRD). Everything between those checkpoints is the agents working.
@@ -31,7 +31,7 @@ The whole loop closes itself on the GitHub side — your job is to scaffold once
 - `gh` CLI authenticated (`gh auth status` returns OK)
 - A governance mesh repo with at least one BAR
 - A target code repo that the BAR's `app.yaml` lists in `repos:`
-- One LLM provider key configured (`github-models` works free via `GITHUB_TOKEN`; `anthropic` or `openai` if you prefer those models)
+- No LLM provider key to configure — research/PRD generation routes through **GitHub Models** on the Actions `GITHUB_TOKEN` (no Anthropic/OpenAI key)
 - Optional: a Tavily key for the Archeologist's web search (free tier at [tavily.com](https://tavily.com))
 
 If you are starting fresh — `Looking Glass` → `Initialize Mesh` scaffolds everything below for you. **The next section is the checklist for users with an existing pre-v0.3 mesh.**
@@ -60,24 +60,18 @@ The **`New Research / PRD Run`** command's pre-flight panel verifies every one o
 
 ### On each target code repo
 
-The Cheshire **`Scaffold SDLC Structure`** command writes these. Only one workflow file is needed on the code-repo side now — the mesh creates landing-issues directly via the GitHub Issues API, no dispatch-handler required.
-
-| Artifact | Path | Purpose |
-|---|---|---|
-| Alice remediation | `.github/workflows/alice-remediation.yml` | Picks up the landing-issue on `@claude please implement`, opens the implementation PR |
+The Cheshire **`Scaffold SDLC Structure`** command writes the code-repo enforcement (PreToolUse hooks + `.redqueen/policy.json` + the `impl-provenance.yml` gate). The mesh creates landing-issues directly via the GitHub Issues API — no dispatch-handler workflow required on the code-repo side. Implementation is picked up by **Alice**, the `alice-maintenance-agent` Copilot persona, dispatched one-click from Looking Glass / the Cheshire Scorecard (via `assignCustomCopilotAgent`) — no magic-comment workflow to scaffold. Alice opens the implementation PR carrying `derived_from_prd_run_id`.
 
 ### Secrets — one configuration step, fanned out everywhere
 
-The Research + PRD pipeline reads five secrets total. The Looking Glass **Research** settings panel manages all of them with three distinct push patterns: **Push to mesh** (mesh-only secrets), **Push to mesh + code repos** (secrets the code-repo workflows also consume), and **Create** (GOVERNANCE_MESH_TOKEN-specific — guides you through minting a correctly-scoped GitHub PAT, then auto-saves and pushes).
+The Research + PRD pipeline reads three secrets total — no LLM provider key among them, since research/PRD generation routes through **GitHub Models** on the built-in `GITHUB_TOKEN`. The Looking Glass **Research** settings panel manages them with three distinct push patterns: **Push to mesh** (mesh-only secrets), **Push to mesh + code repos** (secrets the code-repo workflows also consume), and **Create** (GOVERNANCE_MESH_TOKEN-specific — guides you through minting a correctly-scoped GitHub PAT, then auto-saves and pushes).
 
 | Secret | Required when | Lives on | How to push |
 |---|---|---|---|
 | `TAVILY_API_KEY` | Always (research path uses web search) | Mesh only | "Push to mesh" |
 | `USPTO_API_KEY` | Optional patent coverage | Mesh only | "Push to mesh" |
-| `ANTHROPIC_API_KEY` | `llm_provider: anthropic` on mesh AND `alice-remediation.yml` on each code repo | Mesh + every linked code repo | "Push to mesh + code repos" |
-| `OPENAI_API_KEY` | `llm_provider: openai` on mesh + code repos | Mesh + every linked code repo | "Push to mesh + code repos" |
 | `GOVERNANCE_MESH_TOKEN` | Per-code-repo landing-issue creation (`notify-code-repos.yml` → `POST /repos/.../issues`) | Mesh only | "Create" (guided) or "Push to mesh" |
-| `GITHUB_TOKEN` | Built-in | Auto-provided per workflow | n/a — required for `llm_provider: github-models` (free Copilot routing) |
+| `GITHUB_TOKEN` | Built-in | Auto-provided per workflow | n/a — research/PRD generation routes through GitHub Models on this token (no Anthropic/OpenAI key); Alice the implementation agent runs on it too |
 
 **About `GOVERNANCE_MESH_TOKEN` — mesh-only token, narrow scope:**
 
@@ -99,7 +93,7 @@ The token lives **on the mesh repo only**. The code-repo side never sees it. The
 
 **`Looking Glass` → `Settings` → `Research`** sets your defaults:
 
-- **LLM provider** — `github-models` is the cheapest path; `anthropic` for synthesis-tier quality
+- **LLM provider** — `github-models` on the built-in `GITHUB_TOKEN` (no Anthropic/OpenAI key); pick the synthesis-tier model exposed through GitHub Models
 - **Grounding mode** — `default` (lenient blocks BLOCKING; strict blocks any below-threshold)
 - **Grounding threshold** — composite score floor (default `0.85`)
 - **Max iterations** — refinement-loop cap before EXHAUSTED (default `3`)
@@ -250,10 +244,10 @@ The landing-issue carries `derived_from_prd_run_id: <run_id>` so the implementat
 
 Two paths from the landing-issue:
 
-- **Manual (recommended).** Open the issue in **Looking Glass → Rabbit Hole**. The Rabbit Hole reads the embedded manifest, lets you pick prompt packs, and emits an RCTRO-formatted assignment issue you can hand to Copilot or `@claude please implement`.
-- **Direct.** Comment `@claude please implement` on the landing-issue directly. `alice-remediation.yml` reads the manifest from the issue body and opens an implementation PR.
+- **RCTRO-shaped (recommended).** Open the issue in **Looking Glass → Rabbit Hole**. The Rabbit Hole reads the embedded manifest, lets you pick prompt packs, and emits an RCTRO-formatted assignment issue.
+- **Direct dispatch.** From the landing-issue in Looking Glass / the Cheshire Scorecard, dispatch **Alice** in one click — it assigns the `alice-maintenance-agent` Copilot persona (via `assignCustomCopilotAgent`) to the issue. Alice reads the manifest from the issue body and opens an implementation PR. No magic comment, no Anthropic/OpenAI key — Alice runs on the Actions `GITHUB_TOKEN`.
 
-Either way, `alice-remediation.yml` opens the implementation PR carrying `derived_from_prd_run_id`, closing the loop.
+Either way, Alice opens the implementation PR carrying `derived_from_prd_run_id`, closing the loop.
 
 ### Step 9 — Check the evidence chain
 

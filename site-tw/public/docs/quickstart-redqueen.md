@@ -20,7 +20,7 @@
   <div class="docs-card docs-card-rose">
     <div class="docs-card-kicker">Phase 2 &middot; Steps 2&ndash;6</div>
     <h3 class="docs-card-title">Bootstrap the celeb-api repo</h3>
-    <p class="docs-card-body">Create the GitHub repo, run the Cheshire scaffold against the low-scoring BAR, inspect the generated hooks and MCP runner, set the secrets, push and open a PR.</p>
+    <p class="docs-card-body">Create the GitHub repo, run the Cheshire scaffold against the low-scoring BAR, inspect the generated PreToolUse hooks and baked <code>.redqueen/policy.json</code>, set the secrets, push and open a PR.</p>
   </div>
   <div class="docs-card docs-card-emerald">
     <div class="docs-card-kicker">Phase 3 &middot; Steps 7&ndash;10</div>
@@ -30,7 +30,7 @@
 </div>
 
 <div class="docs-panel">
-  <p class="docs-panel-copy"><strong>Enforcement boundary today:</strong> Red Queen ships two working control points &mdash; pre-tool hooks (fast local / agent feedback) and MCP <code>validate_action</code> (deterministic architecture validation). Implementation PRs are guarded server-side by the always-on <code>impl-provenance.yml</code> gate, which verifies the signed audit chain, skill manifest, Hatter Tag, and Red Queen decision log &mdash; and the implementation agent runs its own embedded Architect + Security self-review (the "Tweedles") inside its loop. The standalone <code>redqueen-action</code> hard gate and the Hatter-grade signed evidence chain for Red Queen decisions are planned for <a href="/docs/red-queens-court#queens-next-act" class="markdown-link">Queen's Next Act</a>.</p>
+  <p class="docs-panel-copy"><strong>Enforcement boundary today:</strong> the shipped code-repo control point is the <strong>PreToolUse hook</strong> against the baked <code>.redqueen/policy.json</code> (fast local / agent feedback, deny-before-write). Implementation PRs are guarded server-side by the always-on <code>impl-provenance.yml</code> gate, which verifies the signed audit chain, skill manifest, Hatter Tag, and Red Queen decision log &mdash; and the implementation agent runs its own embedded Architect + Security self-review (the "Tweedles") inside its loop. MCP <code>validate_action</code> (deterministic architecture validation) is available as an optional local enrichment via the standalone <code>@maintainabilityai/redqueen-mcp</code> server run against a mesh checkout &mdash; see the Step 10 experiment. The standalone <code>redqueen-action</code> hard gate and the Hatter-grade signed evidence chain for Red Queen decisions are planned for <a href="/docs/red-queens-court#queens-next-act" class="markdown-link">Queen's Next Act</a>.</p>
 </div>
 
 ---
@@ -45,7 +45,7 @@
 
 (No Anthropic/OpenAI key needed — Alice, the implementation agent, runs as a Copilot persona on the Actions `GITHUB_TOKEN`.)
 
-> **Path conventions:** This guide uses `$MESH_PATH` for your governance mesh and `$REPO_PATH` for the code repo. Substitute your actual paths. Scaffolded repos include a self-contained `.redqueen/mcp-runner.js`; it resolves the live mesh from `RED_QUEEN_MESH_PATH`, `GOVERNANCE_MESH_PATH`, `MESH_PATH`, or a local `./governance-mesh` checkout. On GitHub Actions, the mesh is checked out to `${{ github.workspace }}/governance-mesh` by the workflow.
+> **Path conventions:** This guide uses `$MESH_PATH` for your governance mesh and `$REPO_PATH` for the code repo. Substitute your actual paths. The shipped code-repo enforcement is the **PreToolUse hook** against the baked `.redqueen/policy.json` — the scaffold does **not** write an MCP runner into the code repo. The optional `validate_action` experiment in Step 10 instead uses the standalone `@maintainabilityai/redqueen-mcp` server (from the prereqs) run against your local mesh checkout, resolving the mesh from `$MESH_PATH`. On GitHub Actions, the mesh is checked out to `${{ github.workspace }}/governance-mesh` by the workflow.
 >
 > **Example:**
 > ```bash
@@ -239,7 +239,7 @@ Expected:
 BAR: IMDB Celebs | Tier: restricted | Files: 17
 ```
 
-If you get fewer than the expected file count, the MCP runner, hooks, or the `impl-provenance.yml` gate may be missing — re-run the scaffold and the `--doctor` check (Step 3).
+If you get fewer than the expected file count, the PreToolUse hooks, the baked `.redqueen/policy.json`, or the `impl-provenance.yml` gate may be missing — re-run the scaffold and the `--doctor` check (Step 3).
 
 ---
 
@@ -281,7 +281,7 @@ npx @maintainabilityai/redqueen-mcp \
   --output "$REPO_PATH"
 
 # First-run health check. This verifies required files, executable hooks,
-# MCP runner mesh resolution, Copilot hook shape, policy rules, and manifest fingerprints.
+# Copilot hook shape, policy rules, and manifest fingerprints.
 npx @maintainabilityai/redqueen-mcp \
   --doctor \
   --repo "$REPO_PATH"
@@ -295,7 +295,7 @@ Expected output:
 }
 ```
 
-The scaffold writes the hook wrapper and MCP runner as executable. You should not need a manual `chmod`. The code repo does **not** copy the full governance mesh; it carries a compiled policy snapshot for fast hooks and uses the runner to connect MCP tools to the live mesh.
+The scaffold writes the hook wrapper as executable. You should not need a manual `chmod`. The code repo does **not** copy the full governance mesh; it carries a compiled policy snapshot (`.redqueen/policy.json`) that the PreToolUse hook reads for fast, deny-before-write enforcement. (The `validate_action` MCP tool — used in the optional Step 10 experiment — lives in the standalone `@maintainabilityai/redqueen-mcp` server, not in the scaffolded code repo.)
 
 ---
 
@@ -367,7 +367,7 @@ git commit -m "Add Red Queen governance scaffolding
 
 Scaffolded from governance mesh (IMDB Celebs BAR).
 Score: 5/100 — restricted tier — strictest enforcement path.
-Includes: MCP config + runner, PreToolUse hooks, impl-provenance gate,
+Includes: PreToolUse hooks + baked .redqueen/policy.json, impl-provenance gate,
 governance context.
 
 🤖 AI-assisted with Claude Code using Red Queen scaffold"
@@ -643,7 +643,7 @@ After scaffolding, open `celeb-api` in VS Code with Claude Code. Try asking:
 
 > "Add a MongoDB connection directly from the React frontend to query celebrity data"
 
-Claude will call `validate_action` and get denied. The agent should then propose the architecturally correct approach: add the endpoint to `celeb-api` and have the frontend call the API.
+When the agent tries to write the change, the **PreToolUse hook** checks it against the baked `.redqueen/policy.json` (which carries the compiled CALM flow constraints) and denies the write before it lands. The agent should then propose the architecturally correct approach: add the endpoint to `celeb-api` and have the frontend call the API.
 
 ### Why this matters
 

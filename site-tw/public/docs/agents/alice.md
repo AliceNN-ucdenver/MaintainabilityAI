@@ -13,7 +13,9 @@
 
 > *Why, sometimes I've believed as many as six impossible things before breakfast.* — Alice in Wonderland
 
-Alice is an **agentic AI proof of concept** built on Claude Code that automates security remediation while keeping humans in control. She reads documentation, tests cautiously, questions assumptions, and documents her journey—just like a great maintainer would.
+Alice is an **agentic AI proof of concept** that automates security remediation while keeping humans in control. She reads documentation, tests cautiously, questions assumptions, and documents her journey—just like a great maintainer would.
+
+> **Heads up — the `@alice` magic comment was retired.** Alice is now the **`alice-maintenance-agent`** Copilot persona, dispatched in one click from the **Cheshire Scorecard / Looking Glass** (via `assignCustomCopilotAgent`). No magic comment, no Anthropic key — Alice runs on the Actions `GITHUB_TOKEN`. The storybook chapters below keep the original `@alice` flavor as narrative; the actionable how-to in **How Alice Works** and **Quick Start** reflects the current dispatch model.
 
 <div class="docs-center-block">
   <p class="docs-copy">
@@ -120,7 +122,7 @@ Alice is an **agentic AI proof of concept** built on Claude Code that automates 
 
   <div class="docs-card docs-card-muted">
     <div class="docs-heading">TRIGGER</div>
-    <div class="docs-copy">Comment <strong class="docs-strong">@alice</strong> on any CodeQL issue</div>
+    <div class="docs-copy">Dispatch Alice from the <strong class="docs-strong">Cheshire Scorecard</strong> on any CodeQL issue (one click — assigns the <strong class="docs-strong">alice-maintenance-agent</strong> Copilot persona; no magic comment)</div>
   </div>
 
   <p class="docs-copy">"What's in this bottle? Let me read the label before drinking."</p>
@@ -153,13 +155,13 @@ Alice is an **agentic AI proof of concept** built on Claude Code that automates 
   </ul>
 
   <div class="docs-card docs-card-muted">
-    <div class="docs-heading">✅ To Approve</div>
-    <div class="docs-copy">Comment <strong class="docs-strong">@alice approved</strong></div>
+    <div class="docs-heading">✅ To Authorize</div>
+    <div class="docs-copy">On a Restricted-tier BAR, a human grants a scoped, audited <strong class="docs-strong">break-glass</strong> to let Alice write — review happens on the PR she opens</div>
   </div>
 
   <div class="docs-card docs-card-muted">
     <div class="docs-heading">⚠️ Why This Matters</div>
-    <div class="docs-copy">Alice proposes, humans approve. Critical governance gate.</div>
+    <div class="docs-copy">Alice proposes, humans authorize. Critical governance gate — the break-glass grant is scoped and recorded.</div>
   </div>
 </div>
 
@@ -168,7 +170,7 @@ Alice is an **agentic AI proof of concept** built on Claude Code that automates 
 
   <div class="docs-card docs-card-muted">
     <div class="docs-heading">TRIGGER</div>
-    <div class="docs-copy">Human comments <strong class="docs-strong">@alice approved</strong><br/><span class="docs-copy">(or "go ahead", "implement this", "looks good")</span></div>
+    <div class="docs-copy">Human grants the scoped <strong class="docs-strong">break-glass</strong> on the Restricted-tier BAR<br/><span class="docs-copy">(the deterministic gate that authorizes Alice to write)</span></div>
   </div>
 
   <p class="docs-copy">"The Queen approved. Now I'll test each transformation carefully."</p>
@@ -201,10 +203,10 @@ Alice is an **agentic AI proof of concept** built on Claude Code that automates 
 For complete setup instructions and examples, see the [Alice Agent README](https://github.com/AliceNN-ucdenver/MaintainabilityAI/tree/main/examples/agents) on GitHub.
 
 **Quick summary:**
-1. Alice triggers automatically when CodeQL creates security issues
-2. Comment `@alice` on any issue with the `codeql-finding` label
+1. CodeQL creates security issues with the `codeql-finding` label
+2. Dispatch Alice from the Cheshire Scorecard in one click — it assigns the `alice-maintenance-agent` Copilot persona to the issue (no magic comment)
 3. Review Alice's remediation plan
-4. Comment `@alice approved` to trigger implementation
+4. On a Restricted-tier BAR, grant the scoped, audited break-glass to authorize implementation
 5. Review and merge the PR
 
 ---
@@ -764,7 +766,7 @@ details .chapter-content {
 
 <div class="docs-center-block">
   <p class="docs-copy">
-    🐰 Ready to start? Comment <strong>@alice</strong> on your next CodeQL issue.
+    🐰 Ready to start? Dispatch <strong>Alice</strong> from the Cheshire Scorecard on your next CodeQL issue — one click, no magic comment.
   </p>
 </div>
 

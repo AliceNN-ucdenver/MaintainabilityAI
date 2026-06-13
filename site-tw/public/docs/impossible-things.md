@@ -32,7 +32,7 @@
   </div>
   <div class="docs-card docs-card-rose">
     <div class="docs-heading">♛ Red Queen's Court (enforce)</div>
-    <div class="docs-copy">Deterministic enforcement at the agent's tool-call boundary today: PreToolUse hooks + MCP <code>validate_action</code>. CI hard gate (<code>redqueen-action</code>) and cross-repo semantic governance land in <a href="/docs/red-queens-court#queens-next-act" class="markdown-link">Queen&rsquo;s Next Act</a>.</div>
+    <div class="docs-copy">Deterministic enforcement at the agent's tool-call boundary today: PreToolUse hooks against the baked deterministic <code>.redqueen/policy.json</code>. CI hard gate (<code>redqueen-action</code>) and cross-repo semantic governance land in <a href="/docs/red-queens-court#queens-next-act" class="markdown-link">Queen&rsquo;s Next Act</a>.</div>
     <div class="docs-copy"><a href="/docs/red-queens-court" class="docs-button-secondary">Open →</a></div>
   </div>
 </div>

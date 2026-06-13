@@ -1,6 +1,15 @@
 # Fitness Probe Registry — design sketch
 
-Status: draft (v2 — reframed to detect fitness *tests*, not current values).
+Status: **shipped** (v2 — detect fitness *tests*, not current values). The four
+**structural** categories (duplicate / dead-code / complexity / architecture) ship
+end-to-end: convention-based detection (`tests/fitness/<category>.*`), the
+fast-native-tool recipe (never PMAT at runtime; self-bootstrapping floor),
+ratchet/baselines, the Scorecard tile, and the assign-Alice loop. **Deferred** (not
+yet built): the `performance` + `accessibility` categories, and the fuzzy
+content-signature / LLM-residue detection layers (the "best-effort bonus" path for
+pre-existing tests outside the convention). The keystone — `baselines.json` is
+agent-read-only (the `CTRL-001` pattern) — is the design intent; confirm it's wired
+as a hard read-only path before relying on it.
 
 ## What it detects (and why it's NOT the dashboard)
 

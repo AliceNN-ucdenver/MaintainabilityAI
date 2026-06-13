@@ -199,7 +199,7 @@ Three converging threads:
 <div class="docs-grid docs-grid-wide">
   <div class="docs-card docs-card-cyan">
     <h3 class="docs-card-title">CALM-aware deterministic enforcement</h3>
-    <p class="docs-card-body">Red Queen&rsquo;s <code>validate_action</code> checks the actual CALM flow model before allowing structural changes. No competitor enforces against an architecture-as-code model.</p>
+    <p class="docs-card-body">Red Queen&rsquo;s deterministic policy checks the actual CALM flow model before allowing structural changes. No competitor enforces against an architecture-as-code model.</p>
   </div>
 
   <div class="docs-card docs-card-blue">

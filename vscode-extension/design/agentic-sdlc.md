@@ -1105,7 +1105,7 @@ Implementation reuses `research-runner`'s `audit-emitter.ts` logic exactly.
 
 ## 8. IMDB Lite — worked example (aligned with workshop starter)
 
-This is what `scaffoldImdbLitePlatform()` produces today and what Phase A extends it with. The intent: the workshop starter ([docs/design/workshop-starter-imdb-lite.md](../../docs/design/workshop-starter-imdb-lite.md)) defines a five-service learning environment with four code repos; this design makes the **mesh side** of that environment auto-populate the same shape so learners can wire up real governance from minute one.
+This is what `scaffoldImdbLitePlatform()` produces today and what Phase A extends it with. The intent: the workshop starter ([workshop-starter-imdb-lite.md](workshop-starter-imdb-lite.md)) defines a five-service learning environment with four code repos; this design makes the **mesh side** of that environment auto-populate the same shape so learners can wire up real governance from minute one.
 
 ### Today (current seed)
 
@@ -2246,7 +2246,7 @@ The export is **deterministic** — same OKR + same mesh state produces a byte-i
 
 ## 12. Workshop alignment
 
-The agentic-SDLC design must coexist with [workshop-starter-imdb-lite.md](../../docs/design/workshop-starter-imdb-lite.md), which defines a five-service learning environment learners clone and progressively govern through Parts 1–8.
+The agentic-SDLC design must coexist with [workshop-starter-imdb-lite.md](workshop-starter-imdb-lite.md), which defines a five-service learning environment learners clone and progressively govern through Parts 1–8.
 
 ### 12.1 Division of responsibility
 

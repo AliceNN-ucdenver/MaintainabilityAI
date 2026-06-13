@@ -72,7 +72,7 @@ This CALM model is the **source the Red Queen policy is compiled from** (see bel
 
 ## Red Queen — deterministic governance (current model)
 
-> The workshop's earlier drafts described an interactive `validate_action` MCP tool the agent calls mid-run. **That is not how it works now.** The Red Queen is a **deterministic, baked policy** enforced at the tool-call boundary — see [`docs/red-queens-court`](../../site-tw/public/docs/red-queens-court.md) and the design notes in [`redqueen-break-glass.md`](../../vscode-extension/design/redqueen-break-glass.md).
+> The workshop's earlier drafts described an interactive `validate_action` MCP tool the agent calls mid-run. **That is not how it works now.** The Red Queen is a **deterministic, baked policy** enforced at the tool-call boundary — see [`docs/red-queens-court`](../../site-tw/public/docs/red-queens-court.md) and the design notes in [`redqueen-break-glass.md`](redqueen-break-glass.md).
 
 How it governs an agent working in any of these repos:
 
