@@ -87,6 +87,26 @@ describe('writeDesignFanOut + readDesignFanOut', () => {
     expect(read!.rows[0].status).toBe('pr-merged');
   });
 
+  it('round-trips implPrIsDraft (incl. false) + workflowsAwaitingApproval', () => {
+    // Regression: these two were never serialized, so a ready PR (draft=false)
+    // read back as undefined → "Mark PR ready" never cleared (undefined !== false)
+    // and "Approve and run" never surfaced (held-count lost).
+    const doc: DesignFanOutDoc = {
+      schema: 1,
+      okrId: 'OKR-DRAFT',
+      rows: [
+        { repo: 'acme/ready', status: 'pr-opened', implPrUrl: 'https://github.com/acme/ready/pull/24', implPrIsDraft: false, workflowsAwaitingApproval: 3 },
+        { repo: 'acme/draft', status: 'pr-opened', implPrUrl: 'https://github.com/acme/draft/pull/9', implPrIsDraft: true },
+      ],
+    };
+    writeDesignFanOut(tmpDir, doc);
+    const read = readDesignFanOut(tmpDir, 'OKR-DRAFT');
+    expect(read).not.toBeNull();
+    expect(read!.rows[0].implPrIsDraft).toBe(false);          // the bug: was lost → undefined
+    expect(read!.rows[0].workflowsAwaitingApproval).toBe(3);
+    expect(read!.rows[1].implPrIsDraft).toBe(true);
+  });
+
   it('round-trips multi-row doc with mixed statuses', () => {
     const doc: DesignFanOutDoc = {
       schema: 1,

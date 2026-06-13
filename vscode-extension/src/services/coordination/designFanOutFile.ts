@@ -62,6 +62,13 @@ export function writeDesignFanOut(meshPath: string, doc: DesignFanOutDoc): void 
     if (row.landingIssueUrl) lines.push(`    landingIssueUrl: ${quoteYaml(row.landingIssueUrl)}`);
     if (row.repo_created) lines.push(`    repo_created: true`);
     if (row.implPrUrl) lines.push(`    implPrUrl: ${quoteYaml(row.implPrUrl)}`);
+    // Round-trip the impl-PR live state the poll computes — WITHOUT these the
+    // draft flag + held-run count evaporate on every read, so "Mark PR ready"
+    // never clears (undefined !== false) and "Approve and run" never surfaces.
+    // `implPrIsDraft` uses != null so the ready state (false) is written, not
+    // dropped as falsy.
+    if (row.implPrIsDraft != null) lines.push(`    implPrIsDraft: ${row.implPrIsDraft ? 'true' : 'false'}`);
+    if (row.workflowsAwaitingApproval) lines.push(`    workflowsAwaitingApproval: ${row.workflowsAwaitingApproval}`);
     if (row.implementation_run_id) lines.push(`    implementation_run_id: ${quoteYaml(row.implementation_run_id)}`);
     if (row.openedAt) lines.push(`    openedAt: ${quoteYaml(row.openedAt)}`);
     if (row.updatedAt) lines.push(`    updatedAt: ${quoteYaml(row.updatedAt)}`);
@@ -110,6 +117,8 @@ export function readDesignFanOut(meshPath: string, okrId: string): DesignFanOutD
       landingIssueUrl: typeof r.landingIssueUrl === 'string' ? r.landingIssueUrl : undefined,
       repo_created: r.repo_created === true,
       implPrUrl: typeof r.implPrUrl === 'string' ? r.implPrUrl : undefined,
+      implPrIsDraft: typeof r.implPrIsDraft === 'boolean' ? r.implPrIsDraft : undefined,
+      workflowsAwaitingApproval: typeof r.workflowsAwaitingApproval === 'number' ? r.workflowsAwaitingApproval : undefined,
       implementation_run_id: typeof r.implementation_run_id === 'string' ? r.implementation_run_id : undefined,
       openedAt: typeof r.openedAt === 'string' ? r.openedAt : undefined,
       updatedAt: typeof r.updatedAt === 'string' ? r.updatedAt : undefined,
