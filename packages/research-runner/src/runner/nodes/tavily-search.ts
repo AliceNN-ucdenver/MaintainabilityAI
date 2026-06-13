@@ -1,7 +1,7 @@
 /**
  * tavily_search — pure_api node.
  *
- * Runs every web query from the QueryPlan against Tavily in parallel.
+ * Runs every web query in the input list against Tavily in parallel.
  * Per-query failures are isolated (one query failing doesn't kill the run);
  * the orchestrator records per-query telemetry for the audit log.
  *
@@ -13,7 +13,7 @@ import type { ProviderResult } from '../../search/provider-result';
 
 export interface TavilySearchNodeOpts {
   apiKey: string;
-  queries: string[];        // typically QueryPlan.web (length 5)
+  queries: string[];        // the agent/skill's web-query list (typically ~5)
   maxResultsPerQuery?: number;
   searchDepth?: 'basic' | 'advanced';
   fetchImpl?: typeof fetch;
