@@ -918,13 +918,52 @@ function renderActionCard(okr: OkrCard, phase: OkrPhase, state: OkrDetailRenderS
   // state churn.
   const pollIndicator = renderPollIndicator(signal);
 
+  const refreshBtn = `<button class="okr-signal-card-refresh" data-action="refresh-okr" data-okr-id="${escapeAttr(okr.meta.id)}" title="Re-fetch this OKR's phase signals from GitHub (PR state, labels, audit verdict).">🔄</button>`;
+
+  // Collapsed view: a phase whose latest action is complete AND sealed (the
+  // audit chain is immutable + the product) recedes to a compact summary —
+  // agent + status lights + always-on Verify / Export / Tag / seal controls,
+  // with the metric numbers tucked behind `Details`. The live / gated phase
+  // stays expanded so the eye lands on the card that needs action. Native
+  // <details>; a manual expand resets on the next signal refresh, but done
+  // phases are static so that's a non-issue in practice.
+  const sealed = okr.actions.some(a => a.phase === phase && !!a.hatterChainRoot);
+  if (latest?.status === 'complete' && sealed) {
+    const parts = buildPhaseSignalParts(phase, latest, signal);
+    const dots = renderPhaseDots(derivePhaseDots(phase, signal, true));
+    const details = parts.metrics.length
+      ? `<details class="okr-phase-details"><summary>Details</summary><div class="okr-action-signals okr-details-inner">${parts.metrics.join('')}</div></details>`
+      : '';
+    return `
+    <div class="okr-action-card okr-action-card-done okr-action-collapsed">
+      <div class="okr-collapsed-header">
+        <div class="okr-collapsed-metarow">
+          ${renderVerdictPill(phase)}
+          <span class="okr-action-card-header-right">${pollIndicator}${refreshBtn}</span>
+        </div>
+        <div class="okr-collapsed-titlerow">
+          <span class="okr-phase-check" title="Phase complete" aria-label="complete">✓</span>
+          <span class="okr-action-phase">${escapeHtml(PHASE_LABEL[phase])}</span>
+        </div>
+      </div>
+      <div class="okr-collapsed-body">
+        ${parts.errorLine}
+        ${parts.agent}
+        ${dots}
+        ${details}
+      </div>
+      ${renderCollapsedControls(phase, latest, signal, okr.meta.id)}
+    </div>
+  `;
+  }
+
   return `
     <div class="okr-action-card okr-action-card-${substate.tone}">
       <div class="okr-action-card-header">
         <span class="okr-action-phase">${escapeHtml(PHASE_LABEL[phase])}</span>
         <span class="okr-action-substate">${escapeHtml(substate.label)}</span>
         ${pollIndicator}
-        <button class="okr-signal-card-refresh" data-action="refresh-okr" data-okr-id="${escapeAttr(okr.meta.id)}" title="Re-fetch this OKR's phase signals from GitHub (PR state, labels, audit verdict).">🔄</button>
+        ${refreshBtn}
       </div>
       <p class="okr-action-rationale">${escapeHtml(substate.rationale)}</p>
       ${phaseSignals}
@@ -1427,89 +1466,79 @@ function renderPrCascade(s: OkrPhaseSignal, phase: OkrPhase): string[] {
   return lines;
 }
 
-function renderPhaseSignals(phase: OkrPhase, action: OkrAction | undefined, signal: OkrPhaseSignal | undefined): string {
-  // Pre-flight: describe the contract before the user clicks Start.
-  if (!action) { return renderPreflightSignal(phase); }
+interface PhaseSignalParts {
+  /** `⚠ …` error line, or ''. */
+  errorLine: string;
+  /** `Agent: <name>` line — always shown (collapsed cards keep it visible). */
+  agent: string;
+  /** Sources · Refine · Findings · Coverage · Drift · Self-review + Run-meta.
+   *  COLLAPSIBLE — a done card tucks these behind a `<details>`. */
+  metrics: string[];
+  /** PR link/cascade + Knight's-Seal + Verify / Export / Tag. ALWAYS-ON —
+   *  a collapsed card keeps these visible (the audit chain is the product). */
+  controls: string[];
+}
 
-  // Post-flight: render the rich layout from the §10.2 mockup, populated
-  // with whatever signal data the extension has fetched from GitHub API.
-  // Loading placeholders show until the fetch returns.
+/**
+ * Split a phase's post-flight signals into agent / collapsible metrics /
+ * always-on controls. The collapsed (done + sealed) action card tucks the
+ * metric numbers behind a `<details>` while keeping the PR + seal + Verify /
+ * Export / Tag controls visible; the expanded card joins them back in the
+ * original order, so its rendered output is byte-identical to the pre-split
+ * renderer (the existing okrViews tests pin that).
+ */
+function buildPhaseSignalParts(phase: OkrPhase, action: OkrAction, signal: OkrPhaseSignal | undefined): PhaseSignalParts {
   const s = signal;
   const loading = s?.loading;
   const errorLine = s?.error ? `<div class="okr-signal-error">⚠ ${escapeHtml(s.error)}</div>` : '';
+  const agent = `<div><strong>Agent:</strong> ${escapeHtml(action.agent)}</div>`;
 
-  const baseLines: string[] = [
-    `<div><strong>Agent:</strong> ${escapeHtml(action.agent)}</div>`,
-  ];
-
-  // Phase-specific signal lines — same labels (Sources · Refine ·
-  // Findings · Coverage · Drift) across WHY/HOW for consistent visual
-  // scan; metrics underneath differ per phase. Each phase's metrics
-  // live in its own renderer to keep this dispatcher trivial.
+  // Phase-specific signal lines — same labels (Sources · Refine · Findings ·
+  // Coverage · Drift) across WHY/HOW/WHAT for consistent visual scan.
+  const metrics: string[] = [];
   if (phase === 'why') {
-    baseLines.push(...renderWhyMetrics(s, loading));
+    metrics.push(...renderWhyMetrics(s, loading));
   } else if (phase === 'how') {
-    baseLines.push(...renderHowMetrics(s, loading));
+    metrics.push(...renderHowMetrics(s, loading));
   } else {
-    baseLines.push(...renderWhatMetrics(s, loading));
+    metrics.push(...renderWhatMetrics(s, loading));
   }
-
-  // Trailer: WHY phase has no reviewers so "Rounds: 0" is meaningless;
-  // its refinement iterations appear in the gap-loop / follow-ups line.
-  // HOW + WHAT have real reviewer round counters worth showing.
+  // WHY has no reviewers so "Rounds: 0" is meaningless; HOW/WHAT show rounds.
   if (phase === 'why') {
-    baseLines.push(`<div class="okr-signal-meta">Run <code>${escapeHtml(action.runId)}</code> · Tier: ${escapeHtml(action.governanceTier)}</div>`);
+    metrics.push(`<div class="okr-signal-meta">Run <code>${escapeHtml(action.runId)}</code> · Tier: ${escapeHtml(action.governanceTier)}</div>`);
   } else {
-    baseLines.push(`<div class="okr-signal-meta">Run <code>${escapeHtml(action.runId)}</code> · Rounds: ${action.rounds} · Tier: ${escapeHtml(action.governanceTier)}</div>`);
+    metrics.push(`<div class="okr-signal-meta">Run <code>${escapeHtml(action.runId)}</code> · Rounds: ${action.rounds} · Tier: ${escapeHtml(action.governanceTier)}</div>`);
   }
 
-  // PR link (live state from GitHub). When the PR exists we show it
-  // first, then — only if the PR is open and has no audit label yet —
-  // surface the Run Audit button so the user doesn't have to navigate
-  // to GitHub to apply the trigger label manually.
-  //
-  // In-flight without PR yet: show a clear "PR pending" placeholder so
-  // the user knows the agent is still building. The signal layer filters
-  // out prior-run PRs via the createdAt comparison, so a missing prUrl
-  // here genuinely means "no PR for THIS run yet."
+  const controls: string[] = [];
+  // In-flight without PR yet → "PR pending" placeholder; merged-but-stuck →
+  // inline Pull. Both are control-row affordances, not metrics.
   const actionInFlight = action.status === 'in_progress' || action.status === 'under_review' || action.status === 'revision_required' || action.status === 'stalled';
   if (!s?.prUrl && actionInFlight) {
-    baseLines.push(`<div class="okr-signal-pr-pending">⏳ PR pending — agent is building. Refresh once the workflow run completes (or switch away and back to auto-refresh).</div>`);
+    controls.push(`<div class="okr-signal-pr-pending">⏳ PR pending — agent is building. Refresh once the workflow run completes (or switch away and back to auto-refresh).</div>`);
   }
-  // Post-merge action-stuck hint: PR is merged on remote, action.status
-  // is still in-flight locally. Two distinct causes:
-  //   (a) Local is BEHIND remote — finalize commit landed, just pull
-  //   (b) Local IS up-to-date — finalize workflow crashed / hasn't
-  //       fired; pulling won't help, need to fix manually or re-run
-  // Show an inline 📥 Pull button so the user doesn't have to scroll
-  // back up to the git-sync banner at the top of the page. The Pull
-  // handler is the same one the top banner uses — divergence-aware,
-  // auto-stashes, tries ff/merge/rebase.
   if (s?.prState === 'merged' && actionInFlight) {
-    baseLines.push(`
+    controls.push(`
       <div class="okr-signal-pr-pending">
         <span>📥 PR merged on GitHub but local <code>action.status</code> still says in-flight. Pull to sync, or if the mesh is already up-to-date, <code>finalize</code> may have crashed (check workflow logs).</span>
         <button id="btn-pull-mesh-inline" class="okr-button-primary okr-button-small" data-action="pull-mesh-inline" title="Same Pull action as the top banner — auto-stash safe.">📥 Pull mesh</button>
       </div>
     `);
   }
-
   if (s?.prUrl && s?.prNumber != null) {
-    baseLines.push(...renderPrCascade(s, phase));
+    controls.push(...renderPrCascade(s, phase));
   }
 
-  // Hatter chain root + View Tag / Verify Chain buttons.
+  // Hatter chain root + Knight's Seal badge + View Tag / Verify Chain / Export.
   const chainRoot = s?.chainRoot ?? action.hatterChainRoot;
   if (chainRoot) {
-    // Knight's Seal (B27) — inline badge next to chain_root so the
-    // sealed/tampered state is visible at the same glance as the hash.
     let sealBadge = '';
     if (s?.sealTampered) {
       sealBadge = ` <span class="okr-seal-badge okr-seal-tampered" title="Partial signatures — chain tampered. PR audit comment has details.">⛔ Tampered</span>`;
     } else if (s?.sealed === true) {
       sealBadge = ` <span class="okr-seal-badge okr-seal-ok" title="Every audit event signed with the run's ephemeral Ed25519 key. CI workflow verifies on PR audit.">🛡 Sealed</span>`;
     }
-    baseLines.push(`
+    controls.push(`
       <div class="okr-signal-chain">
         <strong>Hatter:</strong> chain_root <code>${escapeHtml(chainRoot.slice(0, 12))}…</code>${sealBadge}
         <button class="okr-link-button okr-signal-chain-btn" data-action="view-hatter-tag"
@@ -1522,7 +1551,104 @@ function renderPhaseSignals(phase: OkrPhase, action: OkrAction | undefined, sign
     `);
   }
 
-  return `<div class="okr-action-signals">${errorLine}${baseLines.join('')}</div>`;
+  return { errorLine, agent, metrics, controls };
+}
+
+function renderPhaseSignals(phase: OkrPhase, action: OkrAction | undefined, signal: OkrPhaseSignal | undefined): string {
+  // Pre-flight: describe the contract before the user clicks Start.
+  if (!action) { return renderPreflightSignal(phase); }
+  // Post-flight: agent + metrics + controls in the original order — the
+  // expanded action card renders the full block exactly as before.
+  const p = buildPhaseSignalParts(phase, action, signal);
+  return `<div class="okr-action-signals">${p.errorLine}${p.agent}${p.metrics.join('')}${p.controls.join('')}</div>`;
+}
+
+type DotStatus = 'ok' | 'warn' | 'fail' | 'pend';
+interface PhaseDot { label: string; status: DotStatus; title: string; }
+
+const PASS_LABEL: Record<OkrPhase, string> = { why: 'research-pass', how: 'prd-pass', what: 'design-pass' };
+
+/** Worst-of the two alignment rails (Pocket Watch + Caterpillar): fail beats
+ *  advisory beats pass; an absent/skipped rail contributes nothing. */
+function worstDriftStatus(vals: Array<string | undefined>): DotStatus {
+  if (vals.includes('fail')) { return 'fail'; }
+  if (vals.includes('needs_review')) { return 'warn'; }
+  if (vals.includes('pass')) { return 'ok'; }
+  return 'pend';
+}
+
+/**
+ * Per-phase status lights for the collapsed card. A done + sealed phase
+ * MERGED, so its blocking gates (Sources · Refine · Coverage) passed → green.
+ * Drift + Self-review are advisory / quality lenses that can legitimately sit
+ * at amber on a passed phase, so they're derived from the real signal. A
+ * not-done phase shows pending (gray) dots — the live card is expanded anyway.
+ */
+function derivePhaseDots(phase: OkrPhase, s: OkrPhaseSignal | undefined, done: boolean): PhaseDot[] {
+  const gate: DotStatus = done ? 'ok' : 'pend';
+  const dots: PhaseDot[] = [
+    { label: 'Sources', status: gate, title: 'Evidence gathered via runner skills' },
+    { label: 'Refine', status: done ? (s?.selfReviewExhausted ? 'warn' : 'ok') : 'pend', title: 'Gap-loop / self-review refinement' },
+    { label: 'Coverage', status: gate, title: 'Structural + citation coverage (audit gate)' },
+    { label: 'Drift', status: done ? worstDriftStatus([s?.pocketWatch?.status, s?.caterpillar?.status]) : 'pend', title: 'Pocket Watch + Caterpillar alignment (advisory)' },
+  ];
+  if (phase !== 'why') {
+    const sevs = [s?.selfReviewArchitect?.severity, s?.selfReviewSecurity?.severity].filter((x): x is string => !!x);
+    let sr: DotStatus = 'pend';
+    if (done) {
+      sr = (sevs.length > 0 && sevs.some(x => !['PASS', 'MINOR'].includes(x))) ? 'warn' : 'ok';
+    }
+    dots.push({ label: 'Self-review', status: sr, title: 'Architect + Security persona review' });
+  }
+  return dots;
+}
+
+function renderPhaseDots(dots: PhaseDot[]): string {
+  if (dots.length === 0) { return ''; }
+  const word: Record<DotStatus, string> = { ok: 'pass', warn: 'advisory', fail: 'fail', pend: 'pending' };
+  return `<div class="okr-phase-dots">${dots.map(d =>
+    `<span class="okr-phase-dot" title="${escapeAttr(`${d.label}: ${word[d.status]} — ${d.title}`)}"><span class="okr-dot okr-dot-${d.status}"></span>${escapeHtml(d.label)}</span>`,
+  ).join('')}</div>`;
+}
+
+/** Verdict pill for a collapsed (done + sealed → passed) phase card. */
+function renderVerdictPill(phase: OkrPhase): string {
+  return `<span class="okr-verdict-pill" title="Audit verdict applied on merge">${escapeHtml(PASS_LABEL[phase])}</span>`;
+}
+
+/**
+ * Compact, always-on control row for a collapsed phase card: PR link + Knight's
+ * Seal pill on the first line, then icon+word buttons (Artifact · Tag · Verify ·
+ * Export). Same `data-action` contract as the expanded chain block, just tighter
+ * — the verbose "Audit passed — <label> applied" box + the chain_root line are
+ * dropped (the verdict pill + seal pill + View Tag already carry that). Wired
+ * the same way as renderPhaseSignals' control block so existing handlers fire.
+ */
+function renderCollapsedControls(phase: OkrPhase, action: OkrAction, s: OkrPhaseSignal | undefined, okrId: string): string {
+  const meta: string[] = [];
+  if (s?.prUrl && s?.prNumber != null) {
+    const state = s.prState ?? 'open';
+    const stateLabel = state === 'merged' ? '🟣 merged' : state === 'closed' ? '🔴 closed' : '🟢 open';
+    meta.push(`<a class="okr-link-button" href="${escapeAttr(s.prUrl)}" target="_blank" rel="noopener">#${s.prNumber} ${stateLabel} ↗</a>`);
+  }
+  if (s?.sealTampered) {
+    meta.push(`<span class="okr-seal-badge okr-seal-tampered" title="Partial signatures — chain tampered. PR audit comment has details.">⛔ Tampered</span>`);
+  } else if (s?.sealed === true) {
+    meta.push(`<span class="okr-seal-badge okr-seal-ok" title="Every audit event signed with the run's ephemeral Ed25519 key. CI workflow verifies on PR audit.">🛡 Sealed</span>`);
+  }
+  const aid = escapeAttr(action.id);
+  const rid = escapeAttr(action.runId);
+  const buttons = [
+    `<button class="okr-link-button okr-collapsed-ctl" data-action="toggle-artifact" data-okr-id="${escapeAttr(okrId)}" data-phase="${escapeAttr(phase)}" title="View the produced artifact markdown inline">📄 Artifact</button>`,
+    `<button class="okr-link-button okr-collapsed-ctl" data-action="view-hatter-tag" data-action-id="${aid}" data-run-id="${rid}" title="View the Hatter Tag for this run">🏷 Tag</button>`,
+    `<button class="okr-link-button okr-collapsed-ctl" data-action="verify-chain" data-action-id="${aid}" data-run-id="${rid}" title="Re-verify the per-epoch Ed25519 audit chain via the runner">🔗 Verify</button>`,
+    `<button class="okr-link-button okr-collapsed-ctl" data-action="export-audit" data-action-id="${aid}" data-run-id="${rid}" title="Export the audit report markdown">⬇ Export</button>`,
+  ];
+  return `
+    <div class="okr-action-signals okr-action-controls okr-collapsed-controls">
+      ${meta.length ? `<div class="okr-collapsed-ctl-meta">${meta.join(' ')}</div>` : ''}
+      <div class="okr-collapsed-ctl-btns">${buttons.join('')}</div>
+    </div>`;
 }
 
 function renderStartButton(
@@ -1799,9 +1925,12 @@ function renderFanOutPreflightPane(
           ↺ Reset fan-out
         </button>` : '';
 
+  const summaryDot = (readyCount === totalCount && totalCount > 0) ? 'okr-dot-ok' : readyCount > 0 ? 'okr-dot-warn' : 'okr-dot-pend';
+  const summaryWaves = report.waves.length > 1 ? ` · ${report.waves.length} waves` : (totalCount > 0 ? ' · wave 1' : '');
   return `
     ${heading}
     <div class="okr-fanout-pane okr-fanout-ok">
+      <div class="okr-fanout-summary"><span class="okr-dot ${summaryDot}"></span> ${readyCount} of ${totalCount} ready${summaryWaves}</div>
       <div class="okr-fanout-entries">
         ${entriesHtml}
       </div>
@@ -1818,6 +1947,26 @@ function renderFanOutPreflightPane(
       </div>
     </div>
   `;
+}
+
+/**
+ * Pre-flight readiness as status lights, derived from the single resolved
+ * `decision.status` + `governance` (no new data). A ready / post-fan-out row
+ * lights all green; a blocked row reds exactly the failing check, so the
+ * blocker is legible at a glance instead of buried in the status label.
+ */
+function renderFanOutChecks(entry: FanOutRepoEntryUi): string {
+  const st = entry.decision.status;
+  const gov = entry.governance;
+  const isOneOf = (...s: FanOutPreflightStatusUi[]) => s.includes(st);
+  const dots: PhaseDot[] = [
+    { label: 'Repo', status: isOneOf('repo-not-found', 'repo-exists-conflict', 'pending-scaffold') ? 'fail' : 'ok', title: 'Target repo exists / scaffolded' },
+    { label: 'Harness', status: isOneOf('harness-missing') ? 'fail' : 'ok', title: 'Agentic harness present (workflows + .redqueen policy)' },
+    { label: 'Permissions', status: isOneOf('permission-blocked') ? 'fail' : 'ok', title: 'Token can open issues / PRs on the repo' },
+    { label: 'Upstream', status: isOneOf('pending-on-upstream', 'pending-on-cap') ? 'warn' : 'ok', title: 'Dependency wave: upstream repos cleared' },
+    { label: 'Tier', status: gov ? (gov.severity === 'block' || gov.planOnly ? 'warn' : 'ok') : 'ok', title: gov ? gov.reason : 'BAR governance tier allows full implementation' },
+  ];
+  return renderPhaseDots(dots);
 }
 
 function renderFanOutEntryRow(entry: FanOutRepoEntryUi, okr: OkrCard, availableBars: OkrAvailableBar[]): string {
@@ -1883,14 +2032,16 @@ function renderFanOutEntryRow(entry: FanOutRepoEntryUi, okr: OkrCard, availableB
       </div>`
     : '';
 
+  const readyRing = entry.decision.status === 'ready' ? ' okr-fanout-entry-ready' : '';
   return `
-    <div class="okr-fanout-entry okr-fanout-tone-${presentation.tone}">
+    <div class="okr-fanout-entry okr-fanout-tone-${presentation.tone}${readyRing}">
       <div class="okr-fanout-entry-head">
         <span class="okr-fanout-entry-slug"><code>${escapeHtml(entry.slug)}</code></span>
         ${greenfieldChip}
         ${govChip}
         <span class="okr-fanout-entry-status">${presentation.icon} ${escapeHtml(presentation.label)}</span>
       </div>
+      ${renderFanOutChecks(entry)}
       ${coordHint}
       ${reason}
       ${govNote}
@@ -2075,11 +2226,58 @@ export function getOkrDetailStyles(): string {
     .okr-action-card-progress, .okr-action-card-block { border-width: 2px; }
     .okr-actions-connector { display: none; }
     @media (min-width: 760px) {
-      .okr-actions-row { flex-direction: row; align-items: stretch; }
+      /* Top-align so a collapsed (done) card stays compact while the live phase
+         is free to be taller — the spotlight. Collapsed cards get an equal
+         min-height + controls pinned to a shared baseline so the done phases
+         line up tidily next to each other. */
+      .okr-actions-row { flex-direction: row; align-items: flex-start; }
       .okr-actions-row .okr-action-card { flex: 1 1 0; min-width: 0; }
       .okr-actions-row .okr-action-footer { margin-top: auto; }
+      .okr-actions-row .okr-action-collapsed { min-height: 9.5rem; }
       .okr-actions-connector { display: flex; align-items: center; flex: 0 0 auto; color: var(--vscode-descriptionForeground); font-size: 1.1rem; }
     }
+    /* Collapsed (done + sealed) phase card — compact summary with status lights
+       up top and the always-on controls (Verify / Export / Tag / seal) pinned
+       to the bottom baseline. */
+    .okr-action-collapsed { display: flex; flex-direction: column; }
+    .okr-action-collapsed .okr-action-controls { margin-top: auto; }
+    .okr-action-phase-group { display: inline-flex; align-items: center; gap: 0.4rem; min-width: 0; }
+    .okr-collapsed-body { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.8125rem; color: var(--vscode-descriptionForeground); }
+    .okr-collapsed-body strong { color: var(--vscode-foreground); font-weight: 600; }
+    .okr-verdict-pill { font-size: 0.7rem; padding: 0.0625rem 0.4375rem; border-radius: 0.625rem; font-weight: 600; background: rgba(74, 222, 128, 0.14); border: 1px solid rgba(74, 222, 128, 0.35); color: #4ade80; white-space: nowrap; }
+    .okr-phase-dots { display: flex; flex-wrap: wrap; gap: 0.25rem 0.75rem; margin: 0.4rem 0 0.15rem; }
+    /* Reserve two dot-lines on collapsed cards so WHY (4 signals, one line) lines
+       up with HOW/WHAT (5 signals incl. Self-review, two lines) — equal card
+       heights without inventing a self-review signal WHY doesn't have. */
+    .okr-action-collapsed .okr-phase-dots { min-height: 2.35rem; align-content: flex-start; }
+    .okr-phase-dot { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.75rem; color: var(--vscode-descriptionForeground); }
+    .okr-dot { width: 0.5rem; height: 0.5rem; border-radius: 50%; flex: 0 0 auto; display: inline-block; }
+    .okr-dot-ok { background: var(--vscode-testing-iconPassed, #4ade80); }
+    .okr-dot-warn { background: var(--vscode-editorWarning-foreground, #fcd34d); }
+    .okr-dot-fail { background: var(--vscode-editorError-foreground, #f87171); }
+    .okr-dot-pend { background: var(--vscode-descriptionForeground); opacity: 0.4; }
+    .okr-phase-details { margin: 0.1rem 0; }
+    .okr-phase-details > summary { cursor: pointer; font-size: 0.75rem; color: var(--vscode-textLink-foreground); list-style: none; padding: 0.15rem 0; }
+    .okr-phase-details > summary::-webkit-details-marker { display: none; }
+    .okr-phase-details > summary::before { content: '▸ '; }
+    .okr-phase-details[open] > summary::before { content: '▾ '; }
+    .okr-details-inner { margin-top: 0.25rem; }
+    .okr-action-controls { margin-bottom: 0; }
+    .okr-phase-check { color: var(--vscode-testing-iconPassed, #4ade80); font-weight: 700; font-size: 0.95rem; }
+    .okr-action-card-header-right { display: inline-flex; align-items: center; gap: 0.5rem; flex: 0 0 auto; }
+    .okr-collapsed-controls { gap: 0.4rem; padding: 0.5rem 0.625rem; }
+    .okr-collapsed-ctl-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; font-size: 0.78rem; }
+    .okr-collapsed-ctl-btns { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .okr-collapsed-ctl { font-size: 0.72rem; padding: 0.125rem 0.4375rem; }
+    /* Collapsed header: a thin meta row (verdict pill left · poll + refresh
+       right) above a full-width title row, so the phase name never squishes. */
+    .okr-collapsed-header { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 0.5rem; }
+    .okr-collapsed-metarow { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+    .okr-collapsed-titlerow { display: flex; align-items: center; gap: 0.4rem; }
+    /* Fan-out pre-flight: at-a-glance readiness summary + a spotlight ring on
+       rows that are ready to fan out (mirrors the active-phase card). */
+    .okr-fanout-summary { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.8125rem; color: var(--vscode-descriptionForeground); background: rgba(148, 163, 184, 0.08); padding: 0.2rem 0.625rem; border-radius: 0.375rem; margin-bottom: 0.5rem; }
+    .okr-fanout-entry-ready { border: 2px solid var(--vscode-focusBorder, #388add); }
     .okr-phase-gate { margin-top: 0.75rem; }
     .okr-phase-gate-label { font-size: 0.8125rem; font-weight: 600; margin-bottom: 0.4rem; color: var(--vscode-foreground); }
     .okr-action-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }

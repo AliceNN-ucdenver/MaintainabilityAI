@@ -874,4 +874,138 @@ describe('renderOkrDetailView', () => {
       expect(getOkrDetailStyles()).toContain('.okr-poll-dot');
     });
   });
+
+  // ── 2026-06-13 — collapsed (done + sealed) phase cards: compact summary
+  //    with status lights + always-on controls; live/gated phases stay open ──
+  describe('collapsed phase cards', () => {
+    const doneWhy = (over: Record<string, unknown> = {}) => ({
+      id: 'ACT-1', phase: 'why' as const, description: 'Research', agent: 'market-research-agent',
+      runId: 'WHY-2026-06-13-rfh9pw', intentThreadUuid: '7f3e9c2d-1111-4222-8333-444444444444',
+      parentIntentThread: null, reviewerScores: { architect: 0, security: 0 }, rounds: 0,
+      governanceTier: 'autonomous' as const, status: 'complete' as const,
+      createdAt: '2026-06-13T17:16:00Z', completedAt: '2026-06-13T18:20:00Z',
+      hatterChainRoot: 'c80528dfb3df7d3244880dcfb1afa55eb811690bb9856c05d469205dec80b284',
+      ...over,
+    });
+
+    it('collapses a done + sealed phase to a compact card (dots + verdict + always-on controls)', () => {
+      const html = renderOkrDetailView({
+        okr: sampleCard({ actions: [doneWhy()] }),
+        affectedBars: [],
+        phaseSignals: { why: {
+          providers: { tavily: 1, arxiv: 1, uspto: 1, hn: 1, total: 4 },
+          conclusions: 6, findings: 50, briefTopicsCovered: 4, briefTopicsTotal: 4,
+          h2Present: 10, h2Total: 10,
+          pocketWatch: { passed: 'true', status: 'needs_review', rank: 1, margin: 0.13 },
+          prNumber: 235, prUrl: 'https://example.test/pull/235', prState: 'merged',
+          chainRoot: 'c80528dfb3df7d32', sealed: true,
+        } },
+      });
+      expect(html).toContain('okr-action-collapsed');
+      expect(html).toContain('okr-phase-check');              // clean green ✓ in header
+      expect(html).toContain('okr-collapsed-header');         // two-row de-squished header
+      expect(html).toContain('okr-collapsed-titlerow');       // title gets its own full-width row
+      expect(html).toContain('research-pass');                // verdict pill
+      expect(html).toContain('okr-phase-dots');               // status lights
+      expect(html).toContain('okr-dot-warn');                 // drift advisory (needs_review → amber)
+      expect(html).toContain('okr-phase-details');            // Details expander
+      // Always-on controls survive the collapse — compact icon+word buttons.
+      expect(html).toContain('data-action="verify-chain"');
+      expect(html).toContain('data-action="export-audit"');
+      expect(html).toContain('🔗 Verify');
+      expect(html).toContain('⬇ Export');
+      expect(html).toContain('🏷 Tag');
+      expect(html).toContain('🛡 Sealed');
+      // Metric numbers are still in the DOM (tucked behind <details>).
+      expect(html).toContain('<strong>Sources:</strong>');
+      // The collapsed card drops the verbose "Audit passed" box + the odd
+      // disabled "Start Why ✓" button — verdict pill + seal carry that now.
+      expect(html).not.toContain('Audit passed');
+      expect(html).not.toContain('Start Why');
+    });
+
+    it('keeps a complete-but-UNSEALED phase expanded (seal gates the collapse)', () => {
+      const html = renderOkrDetailView({
+        okr: sampleCard({ actions: [doneWhy({ runId: 'WHY-unsealed', hatterChainRoot: undefined })] }),
+        affectedBars: [],
+      });
+      expect(html).not.toContain('okr-action-collapsed');
+      expect(html).toContain('Start Why');                    // expanded footer present
+    });
+
+    it('keeps an in-flight phase expanded (only done + sealed collapses)', () => {
+      const html = renderOkrDetailView({
+        okr: sampleCard({ actions: [doneWhy({ runId: 'WHY-running', status: 'in_progress', completedAt: null, hatterChainRoot: undefined })] }),
+        affectedBars: [],
+      });
+      expect(html).not.toContain('okr-action-collapsed');
+    });
+
+    it('ships CSS for the collapsed card, status dots, top-aligned row, header rows + fan-out visuals', () => {
+      const css = getOkrDetailStyles();
+      expect(css).toContain('.okr-action-collapsed');
+      expect(css).toContain('.okr-phase-dots');
+      expect(css).toContain('.okr-dot-ok');
+      expect(css).toContain('.okr-dot-warn');
+      expect(css).toContain('align-items: flex-start');
+      expect(css).toContain('.okr-collapsed-header');
+      expect(css).toContain('.okr-fanout-summary');
+      expect(css).toContain('.okr-fanout-entry-ready');
+    });
+  });
+
+  // ── 2026-06-13 — fan-out pre-flight visuals: readiness summary + per-repo
+  //    check lights (derived from decision.status + governance) + ready ring ──
+  describe('fan-out pre-flight visuals', () => {
+    const whatDone = {
+      id: 'ACT-3', phase: 'what' as const, description: 'Code design', agent: 'code-design-agent',
+      runId: 'WHAT-test', intentThreadUuid: '7f3e9c2d-1111-4222-8333-444444444444',
+      parentIntentThread: null, reviewerScores: { architect: 95, security: 92 }, rounds: 1,
+      governanceTier: 'supervised' as const, status: 'complete' as const, createdAt: '2026-05-19T14:00:00Z',
+    };
+    const withRepo = () => sampleCard({
+      actions: [whatDone],
+      objectiveAlignment: {
+        ...sampleCard().objectiveAlignment,
+        affectedBarIds: ['APP-IMDB-001'],
+        targetCodeRepos: ['https://github.com/acme/movie-api'],
+        targetCodeRepoStatus: { 'https://github.com/acme/movie-api': 'connected' },
+      },
+    });
+
+    it('a ready row gets the summary, all-green check dots, and a spotlight ring', () => {
+      const html = renderOkrDetailView({
+        okr: withRepo(), affectedBars: [],
+        fanOutPreflight: { report: {
+          ok: true, okrId: withRepo().meta.id, readyRepos: ['acme/movie-api'], waves: [['acme/movie-api']],
+          entries: [{ slug: 'acme/movie-api', status: 'connected',
+            decision: { status: 'ready' },
+            coordinationRow: { fanout_wave: 1, coordination_role: 'independent', depends_on: [] } }],
+        } },
+      });
+      expect(html).toContain('okr-fanout-summary');
+      expect(html).toContain('1 of 1 ready');
+      expect(html).toContain('okr-fanout-entry-ready');   // spotlight ring
+      expect(html).toContain('okr-phase-dots');            // reused status lights
+      expect(html).toContain('Harness');
+      expect(html).toContain('Permissions');
+      expect(html).toContain('Upstream');
+      expect(html).not.toContain('okr-dot-fail');          // ready ⇒ no red checks
+    });
+
+    it('a blocked row reds exactly the failing check and drops the ready ring', () => {
+      const html = renderOkrDetailView({
+        okr: withRepo(), affectedBars: [],
+        fanOutPreflight: { report: {
+          ok: true, okrId: withRepo().meta.id, readyRepos: [], waves: [['acme/movie-api']],
+          entries: [{ slug: 'acme/movie-api', status: 'connected',
+            decision: { status: 'harness-missing', reason: 'Implementation harness missing.' },
+            coordinationRow: { fanout_wave: 1, coordination_role: 'independent', depends_on: [] } }],
+        } },
+      });
+      expect(html).toContain('0 of 1 ready');
+      expect(html).toContain('okr-dot-fail');              // Harness check red
+      expect(html).not.toContain('okr-fanout-entry-ready');
+    });
+  });
 });
