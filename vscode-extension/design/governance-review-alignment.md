@@ -153,11 +153,14 @@ methodology used. Body shrinks from ~30–60KB to ~2KB.
 - **P3**: §3 — bless the GitHub-contents-API fallback when `gh repo clone`
   is sandbox-blocked, with the same disclosure requirement.
 
-**Dead code to remove:** `onLoadReviewPackOptions`, the `reviewPackOptions`
-message, the pack-checkbox column, `selectedPacks` state, and (if knip
-agrees) `getEffectivePacks`'s embed path. `promptPackService.setMeshPath`
-gains a caller only if something else still needs mesh pack discovery —
-otherwise it goes too.
+**Dead code — removed (✅ 2026-06-12):** `onLoadReviewPackOptions`, the
+`reviewPackOptions` message, the pack-checkbox column, the review sheet's
+`selectedPacks` state, and `summarizeTopFindings` are gone; the final
+straggler `PromptPackService.getEffectivePacks` (the embed path) was removed
+in the cleanup pass — quality chain + knip green.
+`promptPackService.setMeshPath` is **kept** (the D1 fix wired it into
+`loadPortfolio`). The `selectedPacks` that remains is the Scorecard RCTRO
+`IssueCreationRequest` field — a different, live feature, untouched.
 
 ## 2. Instant summary — derive it, don't generate it
 
@@ -409,3 +412,18 @@ no gate/formula/schema change.
 - Historical comment-era review migration — old rows render as-is.
 - Branch-protection automation (promotion to required check is a manual
   repo-settings step, documented in the gate's header comment).
+
+---
+
+## Completion status — ✅ COMPLETE (code) 2026-06-12
+
+All code phases (4, 5, 7, 7b) shipped and the dead-code cleanup is done;
+knip + the full quality chain are green. **This design is complete on the code
+side.** The only remaining items are operational, by design — not code:
+
+- **Mesh redeploy** of the persona / workflow / template / packs via Cheshire
+  (Refresh Prompts / Deploy All) — required before changes reach a live mesh.
+- **Promote `review-agent.yml` to a required check** after one live review PR
+  passes it green (a branch-protection toggle — manual repo setting, per
+  *Out of scope*).
+- **Phase 6 (research agent)** continues in `design/research-agent-alignment.md`.

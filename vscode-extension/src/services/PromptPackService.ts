@@ -326,19 +326,6 @@ export class PromptPackService {
     return null;
   }
 
-  getEffectivePacks(domain: PackDomain, packIds: string[]): { name: string; content: string; source: 'local' | 'bundled' }[] {
-    const results: { name: string; content: string; source: 'local' | 'bundled' }[] = [];
-    for (const id of packIds) {
-      const pack = this.getEffectivePack(domain, id);
-      if (pack) {
-        const titleMatch = pack.content.match(/^#\s+(.+)$/m);
-        const name = titleMatch ? titleMatch[1].replace(/\s*—.*/, '') : id;
-        results.push({ name, content: pack.content, source: pack.source });
-      }
-    }
-    return results;
-  }
-
   private getLocalPackPath(domain: PackDomain, packId: string): string | null {
     if (domain === 'looking-glass') {
       if (!this.meshPath) { return null; }
