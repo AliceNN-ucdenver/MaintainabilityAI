@@ -233,7 +233,7 @@ Three permission tiers, driven by governance scores:
 
 **Improve your governance scores, and your agents earn more autonomy.** Governance becomes a force multiplier, not a bureaucratic tax. This is the same tier system the [Hatter&rsquo;s Tea Party](/docs/hatters-tea-party) uses to bound the planning-side recycle loop: one tier definition, two enforcement points (planning gates upstream, action gates inside code).
 
-And when you genuinely need to bypass a constraint? A scoped, per-session override ships today, and every use lands in the audit log with the tool, the rule that was bypassed, and the session ID. Queen&rsquo;s Next Act makes that override process harder to abuse: written reasons, co-signing for sensitive areas, budgets, follow-up deadlines, and signed override records. The anti-normalisation principle is the same: the exception never becomes the rule.
+And when you genuinely need to bypass a constraint? **Break-glass ships today.** A human grants a scoped, time-boxed override for one issue &mdash; committed to the repo and recorded with who approved it, why, and when it expires &mdash; and the agent inherits it for that work. It flips the tier denies (Write, Bash, Edit) into *audited* allows, each stamped `override: true` with the bypassed rule and the grant id; security-critical paths and the governance files themselves stay denied even under break-glass, and the agent can&rsquo;t forge its own grant. Validated end-to-end on a Restricted-tier repo. Queen&rsquo;s Next Act hardens the process further: override budgets, co-signing for sensitive areas, follow-up deadlines, and signed override records. The anti-normalisation principle is the same: the exception never becomes the rule.
 
 
 
@@ -289,11 +289,11 @@ Today the Red Queen makes deterministic policy decisions at the repo boundary an
     </div>
   </div>
   <div class="docs-gap-row">
-    <div class="docs-gap-status docs-gap-status-queued">Queued</div>
+    <div class="docs-gap-status docs-gap-status-shipped">Shipped</div>
     <div>
       <div class="docs-gap-title">Break-glass accountability</div>
-      <p class="docs-gap-body">Overrides should be rare, scoped, and reviewable. The next version records who approved the bypass, why it was needed, how long it lasts, and which follow-up work it creates.</p>
-      <p class="docs-gap-next"><strong>Next:</strong> add override budgets, written reasons, co-signing for sensitive areas, and follow-up SLAs.</p>
+      <p class="docs-gap-body">Overrides are rare, scoped, and reviewable. A human grants a time-boxed break-glass for one issue &mdash; committed to the repo and recorded with who approved it, why, and when it expires &mdash; and the agent inherits it for that work. It flips the Restricted-tier denies (Write, Bash, Edit) into <em>audited</em> allows stamped <code>override: true</code> with the bypassed rule and the grant id; security-critical paths and the governance files themselves stay denied even under break-glass, and the agent can&rsquo;t forge its own grant. Validated end-to-end on a Restricted-tier repo.</p>
+      <p class="docs-gap-next"><strong>Next:</strong> override budgets per epoch, co-signing for sensitive areas, follow-up SLAs, and signing the grant record itself.</p>
     </div>
   </div>
   <div class="docs-gap-row">
