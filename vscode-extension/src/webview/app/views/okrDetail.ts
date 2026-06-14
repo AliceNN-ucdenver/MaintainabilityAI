@@ -400,6 +400,7 @@ export function renderOkrDetailView(state: OkrDetailRenderState): string {
 
   return `
     <div class="okr-detail-container" data-okr-mode="${escapeAttr(mode)}" data-okr-id="${escapeAttr(okr.meta.id)}">
+      ${renderArtifactModal(state.phaseSignals, okr.meta.id)}
       ${banner}
       ${renderHeader(okr, primaryTier, mode)}
       ${isForm ? renderObjectiveForm(okr) : ''}
@@ -956,7 +957,6 @@ function renderActionCard(okr: OkrCard, phase: OkrPhase, state: OkrDetailRenderS
         ${details}
       </div>
       ${renderCollapsedControls(phase, latest, signal, okr.meta.id)}
-      ${renderArtifactPanel(signal, phase)}
     </div>
   `;
   }
@@ -1363,24 +1363,43 @@ function renderHowMetrics(s: OkrPhaseSignal | undefined, loading: boolean | unde
 }
 
 /**
- * Collapsible artifact-preview panel — the produced markdown (research-doc.md /
- * prd.md / code-design.md) fetched from GitHub and rendered inline. Returns ''
- * when not toggled open. Rendered by BOTH the expanded PR cascade AND the
- * collapsed phase card, so 📄 Artifact pulls the doc down in either layout
- * (the collapsed card replaces the full controls with its own compact row, so
- * without this shared helper the panel had nowhere to render on a done card).
+ * Artifact preview as a WIDE MODAL overlay — the produced markdown
+ * (research-doc.md / prd.md / code-design.md) fetched from GitHub. Returns ''
+ * unless some phase has its 📄 Artifact toggled open. Rendered once at the top
+ * of the OKR detail view (a position:fixed overlay) so the doc gets the full
+ * viewport instead of being crushed into the ~280px phase card column. Closed
+ * by × / backdrop (both re-fire `toggle-artifact` to flip artifactOpen off).
  */
-function renderArtifactPanel(s: OkrPhaseSignal | undefined, phase: OkrPhase): string {
-  if (!s?.artifactOpen) { return ''; }
+function renderArtifactModal(signals: OkrPhaseSignals | undefined, okrId: string): string {
+  if (!signals) { return ''; }
+  const order: OkrPhase[] = ['why', 'how', 'what'];
+  const phase = order.find(p => signals[p]?.artifactOpen);
+  if (!phase) { return ''; }
+  const s = signals[phase]!;
   const path = s.artifactPath ?? (phase === 'why' ? 'research-doc.md' : phase === 'how' ? 'prd.md' : 'code-design.md');
+  // Reuse `.okr-md-panel-body` so the rendered markdown picks up the existing
+  // heading/code/table styles; `.okr-artifact-modal-body` overrides the height
+  // cap to fill the modal.
+  let body: string;
   if (s.artifactLoading) {
-    return `<div class="okr-md-panel"><div class="okr-md-panel-header">📄 <code>${escapeHtml(path)}</code></div><div class="okr-md-panel-body okr-muted">Loading from GitHub…</div></div>`;
+    body = `<div class="okr-md-panel-body okr-artifact-modal-body okr-muted">Loading from GitHub…</div>`;
+  } else if (s.artifactContent) {
+    body = `<div class="okr-md-panel-body okr-artifact-modal-body">${renderMarkdownSafe(s.artifactContent)}</div>`;
+  } else {
+    body = `<div class="okr-md-panel-body okr-artifact-modal-body okr-muted">Could not load artifact from GitHub (not committed yet?). Try again after the agent's PR opens.</div>`;
   }
-  if (s.artifactContent) {
-    const rendered = renderMarkdownSafe(s.artifactContent);
-    return `<div class="okr-md-panel"><div class="okr-md-panel-header">📄 <code>${escapeHtml(path)}</code> <span class="okr-muted">(rendered from GitHub)</span></div><div class="okr-md-panel-body">${rendered}</div></div>`;
-  }
-  return `<div class="okr-md-panel"><div class="okr-md-panel-header">📄 <code>${escapeHtml(path)}</code></div><div class="okr-md-panel-body okr-muted">Could not load artifact from GitHub (not committed yet?). Try again after the agent's PR opens.</div></div>`;
+  const close = `data-action="toggle-artifact" data-okr-id="${escapeAttr(okrId)}" data-phase="${escapeAttr(phase)}"`;
+  return `
+    <div class="okr-artifact-modal" role="dialog" aria-modal="true" aria-label="Artifact preview">
+      <div class="okr-artifact-modal-backdrop" ${close} aria-hidden="true"></div>
+      <div class="okr-artifact-modal-sheet">
+        <div class="okr-artifact-modal-header">
+          <span>📄 <code>${escapeHtml(path)}</code> <span class="okr-muted">(rendered from GitHub)</span></span>
+          <button class="okr-artifact-modal-close" ${close} aria-label="Close artifact preview" title="Close">×</button>
+        </div>
+        ${body}
+      </div>
+    </div>`;
 }
 
 /**
@@ -1475,10 +1494,8 @@ function renderPrCascade(s: OkrPhaseSignal, phase: OkrPhase): string[] {
     lines.push(`<div class="okr-signal-audit-status">✓ Audit passed — <code>${passLabel}</code> applied. Merge unlocked (subject to branch protection).</div>`);
   }
 
-  // Collapsible artifact preview — toggled by 📄 View artifact (shared helper,
-  // also used by the collapsed card).
-  const artifactPanel = renderArtifactPanel(s, phase);
-  if (artifactPanel) { lines.push(artifactPanel); }
+  // 📄 View artifact opens the wide modal (renderArtifactModal at the view top),
+  // not an in-card panel — the narrow phase column crushed the markdown.
 
   return lines;
 }
@@ -2399,6 +2416,16 @@ export function getOkrDetailStyles(): string {
     .okr-signal-pr-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
     .okr-md-toggle-btn { font-size: 0.75rem; padding: 0.125rem 0.5rem; }
     .okr-md-merge-btn { font-size: 0.75rem; padding: 0.25rem 0.625rem; margin-left: 0.25rem; }
+    /* Wide artifact modal — a full-viewport overlay so the rendered doc isn't
+       crushed into the narrow phase-card column. */
+    .okr-artifact-modal { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 2rem; }
+    .okr-artifact-modal-backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.6); cursor: pointer; }
+    .okr-artifact-modal-sheet { position: relative; width: min(880px, 100%); max-height: 86vh; display: flex; flex-direction: column; background: var(--vscode-editor-background); border: 1px solid var(--vscode-panel-border); border-radius: 0.5rem; box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5); overflow: hidden; }
+    .okr-artifact-modal-header { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.625rem 0.875rem; background: rgba(148, 163, 184, 0.08); border-bottom: 1px solid var(--vscode-panel-border); font-size: 0.8125rem; }
+    .okr-artifact-modal-header code { font-family: var(--vscode-editor-font-family, monospace); }
+    .okr-artifact-modal-close { background: transparent; border: none; color: var(--vscode-foreground); font-size: 1.25rem; line-height: 1; cursor: pointer; padding: 0 0.25rem; }
+    /* Compound selector beats .okr-md-panel-body's max-height:50vh so the body fills the sheet. */
+    .okr-md-panel-body.okr-artifact-modal-body { max-height: none; flex: 1 1 auto; overflow: auto; padding: 1rem 1.25rem; }
     .okr-md-panel { margin-top: 0.5rem; border: 1px solid var(--vscode-panel-border); border-radius: 0.375rem; background: var(--vscode-editor-background); overflow: hidden; }
     .okr-md-panel-header { padding: 0.375rem 0.625rem; background: rgba(148, 163, 184, 0.08); border-bottom: 1px solid var(--vscode-panel-border); font-size: 0.75rem; }
     .okr-md-panel-header code { font-family: var(--vscode-editor-font-family, monospace); }
@@ -2693,6 +2720,17 @@ export function attachOkrDetailEvents(
       }
     });
   });
+  // Esc closes the artifact modal (× / backdrop already re-fire toggle-artifact).
+  // Bound once on document.body — attachHandlers re-runs every render, so guard
+  // against stacking duplicate listeners.
+  if (!document.body.dataset.artifactEscBound) {
+    document.body.dataset.artifactEscBound = '1';
+    document.addEventListener('keydown', (ev) => {
+      if (ev.key !== 'Escape') { return; }
+      const close = document.querySelector('.okr-artifact-modal-close') as HTMLElement | null;
+      if (close) { close.click(); }
+    });
+  }
   // ✓ Merge PR — surfaced only when the phase's audit passed. Extension
   // confirms via native VS Code modal (window.confirm in the webview is
   // unreliable), then calls GitHub's pulls.merge API with squash method.

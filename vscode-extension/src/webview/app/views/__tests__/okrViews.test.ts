@@ -926,11 +926,9 @@ describe('renderOkrDetailView', () => {
       expect(html).not.toContain('Start Why');
     });
 
-    it('renders the artifact panel on a COLLAPSED card when 📄 Artifact is toggled open (regression)', () => {
-      // Pre-fix the collapsed card dropped renderPrCascade (which held the
-      // artifact panel) for its compact control row, so 📄 Artifact set
-      // artifactOpen but the doc never pulled down. The shared renderArtifactPanel
-      // helper now renders on the collapsed card too.
+    it('opens the artifact in a WIDE MODAL when 📄 Artifact is toggled open (not crammed in the card)', () => {
+      // 📄 Artifact must NOT render the doc inline in the ~280px phase column —
+      // it opens a full-viewport modal overlay rendered once at the view top.
       const html = renderOkrDetailView({
         okr: sampleCard({ actions: [doneWhy()] }),
         affectedBars: [],
@@ -941,10 +939,11 @@ describe('renderOkrDetailView', () => {
           artifactContent: '# Research Doc\n\nKey findings here.',
         } },
       });
-      expect(html).toContain('okr-action-collapsed');     // still the compact card
-      expect(html).toContain('okr-md-panel');             // the artifact panel rendered
-      expect(html).toContain('research-doc.md');          // with its path
-      expect(html).toContain('Research Doc');             // and the rendered markdown body
+      expect(html).toContain('okr-action-collapsed');       // card still compact
+      expect(html).toContain('okr-artifact-modal-sheet');   // wide overlay, not in-card
+      expect(html).toContain('okr-artifact-modal-close');   // × close
+      expect(html).toContain('research-doc.md');            // with its path
+      expect(html).toContain('Research Doc');               // rendered markdown body
     });
 
     it('keeps a complete-but-UNSEALED phase expanded (seal gates the collapse)', () => {
