@@ -20,7 +20,8 @@
 - **OWASP Top 10 prompt packs** — Security-first templates for AI code generation
 - **STRIDE threat modeling** — Design-phase security with AI assistance
 - **Evolutionary architecture patterns** — Maintainability guardrails (fitness functions, dependency hygiene, strangler fig)
-- **VS Code extension** — Enterprise governance dashboard, security scorecard, and AI agent orchestration built on [CALM](https://github.com/finos/architecture-as-code)
+- **VS Code extension** — Enterprise governance dashboard built on [CALM](https://github.com/finos/architecture-as-code), plus an **end-to-end agentic SDLC**: intent → research → design → code (cross-repo fan-out), every step grounded in your mesh and signed into a **cryptographic audit trail** an auditor can re-verify
+- **Deterministic governance** — the **Red Queen** enforces architecture-as-law at the tool-call boundary (compiled policy + PreToolUse hooks), with evidence guardrails (prompt-injection / PII / groundedness rails) on everything that enters the audit chain
 - **6-phase SDLC integration** — From threat model to production deployment
 
 **Why Open Source?**
@@ -70,8 +71,10 @@ npm run dev  # Opens at http://localhost:5173
 
 The **MaintainabilityAI VS Code Extension** brings the full framework into your editor with two panels:
 
-- **Looking Glass** — Enterprise governance dashboard with portfolio scoring across four pillars (Architecture, Security, Information Risk, Operations), interactive CALM architecture diagrams, NIST SP 800-53 policy management, and the Absolem AI governance advisor
-- **Cheshire Cat** — Code-level companion with SDLC scaffolding, security scorecard (6 fitness functions), structured RCTRO issue creation, and agent orchestration for Claude Code and Copilot Coding Agent
+- **Looking Glass** — Enterprise governance dashboard with portfolio scoring across four pillars (Architecture, Security, Information Risk, Operations), interactive CALM architecture diagrams, NIST SP 800-53 policy management, the Absolem AI governance advisor, and the **agentic-SDLC OKR pipeline**
+- **Cheshire Cat** — Code-level companion with SDLC scaffolding (greenfield & brownfield), security scorecard (6 fitness functions), and grounded RCTRO issue creation that routes findings to a governed maintenance agent
+
+**The agentic SDLC**: from an OKR, the pipeline runs **WHY → HOW → WHAT → Implement** — market research, PRD, code design, then a cross-repo code fan-out — each phase a Copilot agent grounded in your governance mesh. Every step is **Ed25519-signed and hash-chained** (Knight's Seal), the **Red Queen** enforces policy at the tool-call boundary, **Oracle Rails** (injection / PII / groundedness) guard the evidence, and a one-click **audit rollup** reads verdict-first and re-verifies from a fresh shell.
 
 Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=chiefarcheologist.maintainabilityai) or see the [extension README](vscode-extension/README.md) for details.
 
@@ -243,9 +246,12 @@ git push origin feature/improve-a03-prompt
 MaintainabilityAI/
 ├── vscode-extension/          # VS Code extension (Looking Glass + Cheshire Cat)
 │   ├── src/
-│   │   ├── services/              # MeshService, GovernanceScorer, GitSync
-│   │   ├── webview/app/           # Panel UI (Looking Glass, Scaffold, Oraculum)
+│   │   ├── services/              # Mesh, scoring, fan-out engine, Hatter/Red Queen, audit export
+│   │   ├── webview/app/           # Panel UI (Looking Glass + OKR pipeline, Cheshire Cat)
+│   │   ├── mcp/                   # Red Queen policy engine + config scaffold
 │   │   └── types/                 # Shared TypeScript types
+│   ├── code-templates/           # Scaffolded workflows, agents, Red Queen hooks
+│   ├── design/                   # Tier 2/2.5/3 roadmap + design docs
 │   ├── prompt-packs/              # 23 embedded prompt packs
 │   └── package.json               # Extension manifest
 │
@@ -256,7 +262,7 @@ MaintainabilityAI/
 │   │       │   ├── owasp/         # OWASP Top 10 (A01-A10)
 │   │       │   ├── threat-modeling/  # STRIDE categories
 │   │       │   └── maintainability/  # Architecture patterns
-│   │       ├── workshop/          # 4-part workshop
+│   │       ├── workshop/          # 8-part workshop
 │   │       ├── sdlc/              # SDLC framework
 │   │       ├── agents/            # AI agent guides
 │   │       └── governance/        # Golden Rules
