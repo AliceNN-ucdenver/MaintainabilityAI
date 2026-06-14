@@ -381,6 +381,9 @@ export interface OkrDetailRenderState {
   phaseSignals?: OkrPhaseSignals;
   /** D-PR4 sub-PR 4 — fan-out pre-flight pane state (view mode only, post-WHAT). */
   fanOutPreflight?: FanOutPreflightUiState;
+  /** Exported audit report / rollup rendered in the shared doc modal (host-driven:
+   *  loading while it generates, then the markdown). Null = modal closed. */
+  reportPreview?: { title: string; loading: boolean; content?: string } | null;
 }
 
 export function renderOkrDetailView(state: OkrDetailRenderState): string {
@@ -401,6 +404,7 @@ export function renderOkrDetailView(state: OkrDetailRenderState): string {
   return `
     <div class="okr-detail-container" data-okr-mode="${escapeAttr(mode)}" data-okr-id="${escapeAttr(okr.meta.id)}">
       ${renderArtifactModal(state.phaseSignals, okr.meta.id)}
+      ${renderReportModal(state.reportPreview)}
       ${banner}
       ${renderHeader(okr, primaryTier, mode)}
       ${isForm ? renderObjectiveForm(okr) : ''}
@@ -1363,12 +1367,42 @@ function renderHowMetrics(s: OkrPhaseSignal | undefined, loading: boolean | unde
 }
 
 /**
- * Artifact preview as a WIDE MODAL overlay — the produced markdown
- * (research-doc.md / prd.md / code-design.md) fetched from GitHub. Returns ''
- * unless some phase has its 📄 Artifact toggled open. Rendered once at the top
- * of the OKR detail view (a position:fixed overlay) so the doc gets the full
- * viewport instead of being crushed into the ~280px phase card column. Closed
- * by × / backdrop (both re-fire `toggle-artifact` to flip artifactOpen off).
+ * Shared WIDE MODAL shell for rendering a markdown doc full-viewport (instead of
+ * crushed into the ~280px phase column or thrown into a raw editor tab). Used by
+ * BOTH the artifact preview and the exported audit-report preview. `closeAttrs`
+ * is the data-action wiring for the × + backdrop (each consumer closes its own
+ * way). `bodyHtml` is the already-built inner body (loading / rendered / empty).
+ */
+function renderDocModalShell(opts: { ariaLabel: string; headerHtml: string; bodyHtml: string; closeAttrs: string }): string {
+  return `
+    <div class="okr-artifact-modal" role="dialog" aria-modal="true" aria-label="${escapeAttr(opts.ariaLabel)}">
+      <div class="okr-artifact-modal-backdrop" ${opts.closeAttrs} aria-hidden="true"></div>
+      <div class="okr-artifact-modal-sheet">
+        <div class="okr-artifact-modal-header">
+          <span>${opts.headerHtml}</span>
+          <button class="okr-artifact-modal-close" ${opts.closeAttrs} aria-label="Close" title="Close">×</button>
+        </div>
+        ${opts.bodyHtml}
+      </div>
+    </div>`;
+}
+
+/** Body wrapper that reuses `.okr-md-panel-body` (markdown child styles) +
+ *  `.okr-artifact-modal-body` (fills the modal height). */
+function docModalBody(state: 'loading' | 'empty' | 'content', content: string): string {
+  if (state === 'loading') {
+    return `<div class="okr-md-panel-body okr-artifact-modal-body okr-muted">${content} <span class="okr-poll-dot okr-poll-dot-pulse" aria-hidden="true"></span></div>`;
+  }
+  if (state === 'empty') {
+    return `<div class="okr-md-panel-body okr-artifact-modal-body okr-muted">${content}</div>`;
+  }
+  return `<div class="okr-md-panel-body okr-artifact-modal-body">${renderMarkdownSafe(content)}</div>`;
+}
+
+/**
+ * Artifact preview modal — the produced markdown (research-doc.md / prd.md /
+ * code-design.md) fetched from GitHub. Returns '' unless some phase has its 📄
+ * Artifact toggled open. Closed by × / backdrop (both re-fire `toggle-artifact`).
  */
 function renderArtifactModal(signals: OkrPhaseSignals | undefined, okrId: string): string {
   if (!signals) { return ''; }
@@ -1377,29 +1411,39 @@ function renderArtifactModal(signals: OkrPhaseSignals | undefined, okrId: string
   if (!phase) { return ''; }
   const s = signals[phase]!;
   const path = s.artifactPath ?? (phase === 'why' ? 'research-doc.md' : phase === 'how' ? 'prd.md' : 'code-design.md');
-  // Reuse `.okr-md-panel-body` so the rendered markdown picks up the existing
-  // heading/code/table styles; `.okr-artifact-modal-body` overrides the height
-  // cap to fill the modal.
-  let body: string;
-  if (s.artifactLoading) {
-    body = `<div class="okr-md-panel-body okr-artifact-modal-body okr-muted">Loading from GitHub…</div>`;
-  } else if (s.artifactContent) {
-    body = `<div class="okr-md-panel-body okr-artifact-modal-body">${renderMarkdownSafe(s.artifactContent)}</div>`;
-  } else {
-    body = `<div class="okr-md-panel-body okr-artifact-modal-body okr-muted">Could not load artifact from GitHub (not committed yet?). Try again after the agent's PR opens.</div>`;
-  }
-  const close = `data-action="toggle-artifact" data-okr-id="${escapeAttr(okrId)}" data-phase="${escapeAttr(phase)}"`;
-  return `
-    <div class="okr-artifact-modal" role="dialog" aria-modal="true" aria-label="Artifact preview">
-      <div class="okr-artifact-modal-backdrop" ${close} aria-hidden="true"></div>
-      <div class="okr-artifact-modal-sheet">
-        <div class="okr-artifact-modal-header">
-          <span>📄 <code>${escapeHtml(path)}</code> <span class="okr-muted">(rendered from GitHub)</span></span>
-          <button class="okr-artifact-modal-close" ${close} aria-label="Close artifact preview" title="Close">×</button>
-        </div>
-        ${body}
-      </div>
-    </div>`;
+  const bodyHtml = s.artifactLoading
+    ? docModalBody('loading', 'Loading from GitHub…')
+    : s.artifactContent
+      ? docModalBody('content', s.artifactContent)
+      : docModalBody('empty', "Could not load artifact from GitHub (not committed yet?). Try again after the agent's PR opens.");
+  return renderDocModalShell({
+    ariaLabel: 'Artifact preview',
+    headerHtml: `📄 <code>${escapeHtml(path)}</code> <span class="okr-muted">(rendered from GitHub)</span>`,
+    bodyHtml,
+    closeAttrs: `data-action="toggle-artifact" data-okr-id="${escapeAttr(okrId)}" data-phase="${escapeAttr(phase)}"`,
+  });
+}
+
+/**
+ * Exported audit-report / rollup preview modal — host-driven. Shows a spinner
+ * while the report generates (it fetches canonical bytes + runs the verifier,
+ * ~a few seconds), then the rendered markdown. Closed by × / backdrop, both
+ * firing `close-report` (webview-only state; the report file is still written +
+ * committed by the host regardless).
+ */
+function renderReportModal(report: OkrDetailRenderState['reportPreview']): string {
+  if (!report) { return ''; }
+  const bodyHtml = report.loading
+    ? docModalBody('loading', 'Generating the report…')
+    : report.content
+      ? docModalBody('content', report.content)
+      : docModalBody('empty', 'No report content returned.');
+  return renderDocModalShell({
+    ariaLabel: 'Audit report preview',
+    headerHtml: `🧾 ${escapeHtml(report.title)}`,
+    bodyHtml,
+    closeAttrs: 'data-action="close-report"',
+  });
 }
 
 /**

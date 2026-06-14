@@ -5051,6 +5051,9 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       this.postMessage({ type: 'error', message: 'No mesh configured' });
       return;
     }
+    // Open the shared doc modal immediately with a spinner — generating the
+    // report fetches canonical bytes + runs the verifier (~a few seconds).
+    this.postMessage({ type: 'reportPreview', title: 'Audit report', loading: true });
 
     // Codex E3-gold review (2026-05-25): fetch canonical okr.yaml
     // FIRST, derive runId from the canonical action, THEN fetch
@@ -5304,12 +5307,10 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       this.postMessage({ type: 'error', message: `Failed to write audit report: ${toErrorMessage(err)}` });
       return;
     }
-    // Open the new file in VS Code so the user sees it immediately.
-    try {
-      const uri = vscode.Uri.file(exportPath);
-      const doc = await vscode.workspace.openTextDocument(uri);
-      await vscode.window.showTextDocument(doc, { preview: false });
-    } catch { /* non-fatal — file's still on disk */ }
+    // Render the report in the webview's shared doc modal (replaces the old
+    // raw-editor-tab open). The file is still on disk + committed; this is just
+    // the view. `markdown` was already built above + written to exportPath.
+    this.postMessage({ type: 'reportPreview', title: path.basename(exportPath), loading: false, content: markdown });
     const runnerNote = runnerVerdict.invoked
       ? (runnerVerdict.ok ? ' · runner verdict: PASS' : ' · runner verdict: FAIL')
       : ' · runner: NOT INVOKED';
@@ -5713,6 +5714,9 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       this.postMessage({ type: 'error', message: 'No mesh configured' });
       return;
     }
+    // Open the shared doc modal with a spinner — the rollup re-derives bytes +
+    // verifies every phase, which takes a few seconds.
+    this.postMessage({ type: 'reportPreview', title: 'OKR audit rollup', loading: true });
 
     // Step 1: fetch canonical okr.yaml — same source-discipline pattern
     // as onExportAuditReport. Canonical-first; local-fallback on failure.
@@ -5916,11 +5920,9 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       this.postMessage({ type: 'error', message: `Failed to write OKR rollup: ${toErrorMessage(err)}` });
       return;
     }
-    try {
-      const uri = vscode.Uri.file(exportPath);
-      const doc = await vscode.workspace.openTextDocument(uri);
-      await vscode.window.showTextDocument(doc, { preview: false });
-    } catch { /* non-fatal — file's still on disk */ }
+    // Render the rollup in the webview's shared doc modal (replaces the old
+    // raw-editor-tab open). File still written + committed above.
+    this.postMessage({ type: 'reportPreview', title: path.basename(exportPath), loading: false, content: markdown });
     const { verdict } = computeOkrRollupVerdict(rollupInput);
     void vscode.window.showInformationMessage(`OKR rollup exported · verdict: ${verdict}: okrs/${okrId}/audit/exports/${okrId}-rollup.md`);
   }

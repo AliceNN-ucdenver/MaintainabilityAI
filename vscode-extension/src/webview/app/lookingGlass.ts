@@ -138,6 +138,9 @@ const state = {
   // `pollFanOutPRs` which the extension uses to walk design-fan-out.yaml
   // opened/pr-opened rows + update statuses when impl PRs progress.
   fanOutPollTimer: undefined as ReturnType<typeof setInterval> | undefined,
+  // Exported audit report / rollup, rendered in the shared doc modal. Host-driven:
+  // set { loading:true } the moment export starts, then patched with the markdown.
+  reportPreview: null as null | { title: string; loading: boolean; content?: string },
   // Phase B-PR4 — Hatter Tag slide-out sheet
   hatterTagSheetOpen: false,
   hatterTagSheetData: null as { okrId: string; actionId: string; tag: Record<string, unknown> | null; reason?: string } | null,
@@ -1588,6 +1591,7 @@ function renderView(): string {
           gitStatus: state.gitStatus,
           phaseSignals: state.okrPhaseSignals,
           fanOutPreflight: state.fanOutPreflight,
+          reportPreview: state.reportPreview,
         })
         + (state.hatterTagSheetOpen ? renderHatterTagSheet() : '')
         + (state.chainVerifySheetOpen ? renderChainVerifySheet() : '')
@@ -4222,6 +4226,14 @@ function attachEventHandlers() {
       }
     });
   });
+  // Close the exported-report doc modal (× / backdrop). Webview-only state —
+  // the report file itself was already written + committed by the host.
+  document.querySelectorAll('[data-action="close-report"]').forEach(el => {
+    el.addEventListener('click', () => {
+      state.reportPreview = null;
+      render();
+    });
+  });
 
   // Phase E E2: Hatter Tag panel — Copy field button (clipboard)
   document.querySelectorAll('[data-action="copy-text"]').forEach(el => {
@@ -4813,6 +4825,11 @@ const inboundHandlers: Record<string, InboundHandler> = {
         state.repoPickerModal.loading = false;
         state.repoPickerModal.error = message.message as string;
       }
+      // An export that errored mid-generation must not leave the report doc
+      // modal spinning forever — dismiss it (the error toast carries the why).
+      if (state.reportPreview && state.reportPreview.loading) {
+        state.reportPreview = null;
+      }
       render();
     },
     'orgScanProgress': (message: WebviewInboundMessage) => {
@@ -5357,6 +5374,15 @@ const inboundHandlers: Record<string, InboundHandler> = {
         state.okrPhaseSignals = msg.signals;
         render();
       }
+    },
+    'reportPreview': (message: WebviewInboundMessage) => {
+      // Host-driven doc modal for an exported audit report / rollup: the host
+      // posts { loading:true, title } the moment export starts, then re-posts
+      // with { loading:false, content } once the markdown is ready. `content`
+      // absent + loading:false would be an error case (host omits on failure).
+      const msg = message as unknown as { title: string; loading: boolean; content?: string };
+      state.reportPreview = { title: msg.title, loading: msg.loading, content: msg.content };
+      render();
     },
     'panelActivated': (_message: WebviewInboundMessage) => {
       // Panel regained focus (e.g. user came back from working in

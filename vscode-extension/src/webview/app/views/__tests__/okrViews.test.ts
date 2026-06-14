@@ -946,6 +946,25 @@ describe('renderOkrDetailView', () => {
       expect(html).toContain('Research Doc');               // rendered markdown body
     });
 
+    it('renders the exported report in the shared doc modal (spinner → content)', () => {
+      const loadingHtml = renderOkrDetailView({
+        okr: sampleCard({ actions: [doneWhy()] }), affectedBars: [],
+        reportPreview: { title: 'OKR audit rollup', loading: true },
+      });
+      expect(loadingHtml).toContain('okr-artifact-modal-sheet');   // same modal shell as the artifact
+      expect(loadingHtml).toContain('OKR audit rollup');           // title in the header
+      expect(loadingHtml).toContain('Generating the report');      // spinner copy
+      expect(loadingHtml).toContain('data-action="close-report"'); // × / backdrop close
+
+      const contentHtml = renderOkrDetailView({
+        okr: sampleCard({ actions: [doneWhy()] }), affectedBars: [],
+        reportPreview: { title: 'OKR-X-rollup.md', loading: false, content: '# Rollup\n\nVERDICT: PASS' },
+      });
+      expect(contentHtml).toContain('okr-artifact-modal-sheet');
+      expect(contentHtml).toContain('Rollup');                     // rendered markdown heading
+      expect(contentHtml).not.toContain('Generating the report');  // spinner gone
+    });
+
     it('keeps a complete-but-UNSEALED phase expanded (seal gates the collapse)', () => {
       const html = renderOkrDetailView({
         okr: sampleCard({ actions: [doneWhy({ runId: 'WHY-unsealed', hatterChainRoot: undefined })] }),

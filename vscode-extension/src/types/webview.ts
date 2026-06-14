@@ -793,4 +793,13 @@ export type LookingGlassExtensionMessage =
        * place (e.g. building→shipped once the impl PR merges). */
       okrStatus?: string;
       skippedRepos?: Array<{ slug: string; status: 'not-connected' | 'unreachable' }>;
+    }
+  | {
+      /** Host-driven doc modal for an exported audit report / rollup: posted
+       *  with loading:true the moment export starts, then re-posted with the
+       *  rendered markdown content. */
+      type: 'reportPreview';
+      title: string;
+      loading: boolean;
+      content?: string;
     };
