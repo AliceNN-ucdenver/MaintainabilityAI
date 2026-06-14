@@ -1229,6 +1229,8 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
             // ⏳ Held-workflow count so the row can surface "N workflows
             // awaiting approval" (GitHub holds Copilot-bot PR workflows).
             entry.workflowsAwaitingApproval = fanOutRow.workflowsAwaitingApproval;
+            // Impl chain reference for the merged-row governance line.
+            entry.implementationRunId = fanOutRow.implementation_run_id;
           }
         }
       }

@@ -1027,5 +1027,28 @@ describe('renderOkrDetailView', () => {
       // PR is ready (draft=false) → no stale "Mark PR ready"
       expect(html).not.toContain('Mark PR ready');
     });
+
+    it('a fully-merged fan-out reads as complete + shows impl-chain governance, drops the dead Fan out button', () => {
+      const html = renderOkrDetailView({
+        okr: withRepo(), affectedBars: [],
+        fanOutPreflight: { report: {
+          ok: true, okrId: withRepo().meta.id, readyRepos: [], waves: [['acme/movie-api']],
+          entries: [{ slug: 'acme/movie-api', status: 'connected',
+            decision: { status: 'pr-merged' },
+            coordinationRow: { fanout_wave: 1, coordination_role: 'independent', depends_on: [] },
+            implPrUrl: 'https://github.com/acme/movie-api/pull/24', implPrNumber: 24,
+            implPrIsDraft: false, implementationRunId: 'IMPL-2026-06-13-acme-movie-api-x1' }],
+        } },
+      });
+      // #1 done-state
+      expect(html).toContain('Fan-out complete');
+      expect(html).toContain('1 of 1 merged');
+      expect(html).not.toContain('Fan out — no rows ready');   // dead execute button gone
+      expect(html).toContain('Undo fan-out');                  // reset de-emphasized
+      // #2 merged-row governance
+      expect(html).toContain('🛡 impl chain');
+      expect(html).toContain('IMPL-2026-06-13-acme-movie-api-x1');
+      expect(html).toContain('merged ↗');
+    });
   });
 });

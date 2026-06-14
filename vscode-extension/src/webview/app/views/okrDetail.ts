@@ -218,6 +218,9 @@ export interface FanOutRepoEntryUi {
    *  PR (Copilot-bot PRs trigger this). Drives the "⏳ N workflows awaiting
    *  approval" affordance + Checks deep-link. */
   workflowsAwaitingApproval?: number;
+  /** Impl run id (e.g. IMPL-2026-06-13-…-m5k2q7) from the design-fan-out row —
+   *  the impl Knight's-Seal chain reference shown on a merged row. */
+  implementationRunId?: string;
 }
 
 export type FanOutPreflightReportUi =
@@ -1896,6 +1899,11 @@ function renderFanOutPreflightPane(
   // issues + dispatches impl-agent via assignCustomCopilotAgent +
   // writes design-fan-out.yaml.
   const buttonEnabled = readyCount > 0;
+  // Fan-out is COMPLETE when every row has merged — the impl shipped. The pane
+  // then reads as done (no dead "Fan out" button, a "complete" summary, Reset
+  // de-emphasized) rather than dangling a "0 of N ready" + a red re-do button.
+  const mergedCount = report.entries.filter(e => e.decision.status === 'pr-merged').length;
+  const allMerged = totalCount > 0 && mergedCount === totalCount;
   const buttonLabel = readyCount === 0
     ? 'Fan out — no rows ready'
     : `🚀 Fan out ${readyCount} of ${totalCount} ready`;
@@ -1920,26 +1928,34 @@ function renderFanOutPreflightPane(
     'opened', 'pending-on-upstream', 'pr-opened', 'pr-merged', 'pr-rejected',
   ]);
   const hasFannedOut = report.entries.some(e => POST_FANOUT_STATUSES.has(e.decision.status));
-  const resetBtnHtml = hasFannedOut ? `
-        <button class="okr-button-secondary okr-button-danger" data-action="fanout-reset" data-okr-id="${escapeAttr(okr.meta.id)}" title="Delete this OKR's design-fan-out.yaml so the card returns to its pre-fan-out state. Then optionally close the landing issues + impl PRs this fan-out opened (you'll be asked, and shown the list first). Does not revert merged code.">
-          ↺ Reset fan-out
-        </button>` : '';
+  // Reset is a red danger button while the fan-out is in flight; once everything
+  // has shipped (allMerged) it shrinks to a muted "undo" link so a completed
+  // fan-out doesn't dangle a prominent destructive re-do.
+  const resetTitle = "Delete this OKR's design-fan-out.yaml so the card returns to its pre-fan-out state. Then optionally close the landing issues + impl PRs this fan-out opened (you'll be asked, and shown the list first). Does not revert merged code.";
+  const resetBtnHtml = !hasFannedOut ? '' : allMerged
+    ? `<button class="okr-link-button okr-fanout-reset-link" data-action="fanout-reset" data-okr-id="${escapeAttr(okr.meta.id)}" title="${escapeAttr(resetTitle)}">↺ Undo fan-out</button>`
+    : `<button class="okr-button-secondary okr-button-danger" data-action="fanout-reset" data-okr-id="${escapeAttr(okr.meta.id)}" title="${escapeAttr(resetTitle)}">↺ Reset fan-out</button>`;
 
   const summaryDot = (readyCount === totalCount && totalCount > 0) ? 'okr-dot-ok' : readyCount > 0 ? 'okr-dot-warn' : 'okr-dot-pend';
   const summaryWaves = report.waves.length > 1 ? ` · ${report.waves.length} waves` : (totalCount > 0 ? ' · wave 1' : '');
+  const summaryHtml = allMerged
+    ? `<div class="okr-fanout-summary okr-fanout-complete"><span class="okr-dot okr-dot-ok"></span> ✓ Fan-out complete · ${mergedCount} of ${totalCount} merged</div>`
+    : `<div class="okr-fanout-summary"><span class="okr-dot ${summaryDot}"></span> ${readyCount} of ${totalCount} ready${summaryWaves}</div>`;
+  // The "Fan out" execute button is meaningless once everything merged — drop it.
+  const fanOutBtnHtml = allMerged
+    ? ''
+    : `<button class="${buttonClass}" ${buttonEnabled ? '' : 'disabled'} title="${escapeAttr(buttonTitle)}" data-action="fanout-execute" data-okr-id="${escapeAttr(okr.meta.id)}">${escapeHtml(buttonLabel)}</button>`;
   return `
     ${heading}
     <div class="okr-fanout-pane okr-fanout-ok">
-      <div class="okr-fanout-summary"><span class="okr-dot ${summaryDot}"></span> ${readyCount} of ${totalCount} ready${summaryWaves}</div>
+      ${summaryHtml}
       <div class="okr-fanout-entries">
         ${entriesHtml}
       </div>
       ${wavesHtml}
       ${skippedHtml}
       <div class="okr-fanout-actions">
-        <button class="${buttonClass}" ${buttonEnabled ? '' : 'disabled'} title="${escapeAttr(buttonTitle)}" data-action="fanout-execute" data-okr-id="${escapeAttr(okr.meta.id)}">
-          ${escapeHtml(buttonLabel)}
-        </button>
+        ${fanOutBtnHtml}
         <button class="okr-button-secondary" data-action="fanout-refresh" data-okr-id="${escapeAttr(okr.meta.id)}" title="Re-run pre-flight (re-fetches code-design.md + re-probes every target repo).">
           🔄 Re-check
         </button>
@@ -2044,6 +2060,19 @@ function renderFanOutEntryRow(entry: FanOutRepoEntryUi, okr: OkrCard, availableB
       </div>`
     : '';
 
+  // Merged-row governance: surface that the impl landed through the
+  // Implementation Provenance gate + its Knight's-Seal chain reference (stitched
+  // into the OKR chain-ladder) + the merged PR link. Parity with the planning
+  // cards' Sealed/Verify/Export — full Verify/Export lives in the OKR rollup.
+  const mergedGovernance = entry.decision.status === 'pr-merged'
+    ? `
+      <div class="okr-fanout-entry-actions okr-fanout-merged-gov">
+        <span class="okr-seal-badge okr-seal-ok" title="The impl PR merged through the Implementation Provenance gate; its per-event Ed25519 chain is stitched into the OKR chain-ladder. Verify / Export the full chain from the OKR audit rollup.">🛡 impl chain</span>
+        ${entry.implPrUrl ? `<a class="okr-link-button" href="${escapeAttr(entry.implPrUrl)}" target="_blank" rel="noopener">#${entry.implPrNumber ?? ''} merged ↗</a>` : ''}
+        ${entry.implementationRunId ? `<span class="okr-fanout-entry-meta"><code>${escapeHtml(entry.implementationRunId)}</code></span>` : ''}
+      </div>`
+    : '';
+
   const readyRing = entry.decision.status === 'ready' ? ' okr-fanout-entry-ready' : '';
   return `
     <div class="okr-fanout-entry okr-fanout-tone-${presentation.tone}${readyRing}">
@@ -2059,6 +2088,7 @@ function renderFanOutEntryRow(entry: FanOutRepoEntryUi, okr: OkrCard, availableB
       ${govNote}
       ${affordance}
       ${prReadyActions}
+      ${mergedGovernance}
     </div>
   `;
 }
@@ -2289,6 +2319,8 @@ export function getOkrDetailStyles(): string {
     /* Fan-out pre-flight: at-a-glance readiness summary + a spotlight ring on
        rows that are ready to fan out (mirrors the active-phase card). */
     .okr-fanout-summary { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.8125rem; color: var(--vscode-descriptionForeground); background: rgba(148, 163, 184, 0.08); padding: 0.2rem 0.625rem; border-radius: 0.375rem; margin-bottom: 0.5rem; }
+    .okr-fanout-complete { color: var(--vscode-foreground); font-weight: 600; background: rgba(74, 222, 128, 0.12); }
+    .okr-fanout-reset-link { font-size: 0.75rem; color: var(--vscode-descriptionForeground); opacity: 0.75; }
     .okr-fanout-entry-ready { border: 2px solid var(--vscode-focusBorder, #388add); }
     .okr-phase-gate { margin-top: 0.75rem; }
     .okr-phase-gate-label { font-size: 0.8125rem; font-weight: 600; margin-bottom: 0.4rem; color: var(--vscode-foreground); }

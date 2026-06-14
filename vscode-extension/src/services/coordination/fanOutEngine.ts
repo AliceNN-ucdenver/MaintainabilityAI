@@ -157,6 +157,9 @@ export interface FanOutRepoEntry {
   /** Held workflow runs awaiting approval on the impl PR (threaded from the
    *  persisted row). Drives the "⏳ N workflows awaiting approval" hint. */
   workflowsAwaitingApproval?: number;
+  /** Impl run id (threaded from the persisted row) — the Knight's-Seal chain
+   *  reference shown on a merged row's governance line. */
+  implementationRunId?: string;
 }
 
 /**
