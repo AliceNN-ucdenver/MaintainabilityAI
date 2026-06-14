@@ -1661,10 +1661,13 @@ function renderCollapsedControls(phase: OkrPhase, action: OkrAction, s: OkrPhase
     `<button class="okr-link-button okr-collapsed-ctl" data-action="verify-chain" data-action-id="${aid}" data-run-id="${rid}" title="Re-verify the per-epoch Ed25519 audit chain via the runner">🔗 Verify</button>`,
     `<button class="okr-link-button okr-collapsed-ctl" data-action="export-audit" data-action-id="${aid}" data-run-id="${rid}" title="Export the audit report markdown">🧾 Export</button>`,
   ];
+  // All chips (PR · Sealed · Artifact · Tag · Verify · Export) are DIRECT
+  // children of one flex row so they flow left-aligned and wrap by width — no
+  // inner wrapper divs (those, plus the parent's flex-direction:column, stacked
+  // everything vertically).
   return `
     <div class="okr-action-signals okr-action-controls okr-collapsed-controls">
-      ${meta.length ? `<div class="okr-collapsed-ctl-meta">${meta.join(' ')}</div>` : ''}
-      <div class="okr-collapsed-ctl-btns">${buttons.join('')}</div>
+      ${[...meta, ...buttons].join('')}
     </div>`;
 }
 
@@ -2326,12 +2329,11 @@ export function getOkrDetailStyles(): string {
     .okr-action-controls { margin-bottom: 0; }
     .okr-phase-check { color: var(--vscode-testing-iconPassed, #4ade80); font-weight: 700; font-size: 0.95rem; }
     .okr-action-card-header-right { display: inline-flex; align-items: center; gap: 0.5rem; flex: 0 0 auto; }
-    /* One flowing row: PR link · Sealed · Artifact · Tag · Verify · Export all
-       wrap together (display:contents lets the meta + btns children flow in the
-       parent flex), so the cluster takes 1-2 rows instead of three. */
-    .okr-collapsed-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.5rem; padding: 0.375rem 0.5rem; font-size: 0.78rem; }
-    .okr-collapsed-ctl-meta { display: contents; }
-    .okr-collapsed-ctl-btns { display: contents; }
+    /* One LEFT-ALIGNED wrapping ROW: PR link, Sealed, Artifact, Tag, Verify,
+       Export flow together and wrap by width. The compound selector raises
+       specificity above okr-action-signals (flex-direction:column) so the chips
+       do NOT stack vertically; flex-flow:row wrap pins the direction. */
+    .okr-collapsed-controls.okr-action-controls { display: flex; flex-flow: row wrap; align-items: center; justify-content: flex-start; gap: 0.25rem 0.45rem; padding: 0.375rem 0.5rem; font-size: 0.78rem; }
     .okr-collapsed-ctl { font-size: 0.72rem; padding: 0.1rem 0.375rem; }
     /* Collapsed header: a thin meta row (verdict pill left · poll + refresh
        right) above a full-width title row, so the phase name never squishes. */
