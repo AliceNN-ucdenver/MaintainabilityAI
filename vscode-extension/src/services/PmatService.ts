@@ -18,18 +18,29 @@ export class PmatService {
   // Detection
   // --------------------------------------------------------------------------
 
+  /**
+   * True only when `output` contains pmat's OWN version line — a line that
+   * starts with "pmat" followed by a version (e.g. `pmat 3.3.0`). Anchoring
+   * here (vs the old loose `/\d+\.\d+/`) avoids false positives from stray
+   * version-like strings: the npm stub prints "PMAT binary not found …" (no
+   * version), and a broken `env node` can crash with a path like
+   * ".../node/19.3.0/…" whose "19.3.0" the loose check misread as installed.
+   */
+  static isPmatVersionOutput(output: string): boolean {
+    return /^\s*pmat\s+v?\d+\.\d+/im.test(output);
+  }
+
   async isInstalled(): Promise<boolean> {
     if (this.installedCache !== null) {
       return this.installedCache;
     }
 
     try {
-      // pmat --version should exit 0 and print version info
-      // The npm stub exits 1 with an error, so this correctly detects it as not installed
+      // pmat --version prints "pmat <version>" (e.g. `pmat 3.3.0`) and exits 0.
       const output = await this.execShell('pmat --version');
-      // Verify it's a real version output, not an error stub
-      this.installedCache = /\d+\.\d+/.test(output);
+      this.installedCache = PmatService.isPmatVersionOutput(output);
     } catch {
+      // Non-zero exit (binary missing, dyld/load failure, etc.) → not installed.
       this.installedCache = false;
     }
     return this.installedCache;
