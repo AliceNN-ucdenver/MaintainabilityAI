@@ -789,5 +789,8 @@ export type LookingGlassExtensionMessage =
       ok: boolean;
       report?: unknown;
       setupError?: string;
+      /** Freshly-read meta.status so the webview re-syncs the header chip in
+       * place (e.g. building→shipped once the impl PR merges). */
+      okrStatus?: string;
       skippedRepos?: Array<{ slug: string; status: 'not-connected' | 'unreachable' }>;
     };

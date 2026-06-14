@@ -5328,10 +5328,18 @@ const inboundHandlers: Record<string, InboundHandler> = {
         ok: boolean;
         report?: FanOutPreflightReportUi;
         setupError?: string;
+        okrStatus?: string;
         skippedRepos?: Array<{ slug: string; status: 'not-connected' | 'unreachable' }>;
       };
       if (!state.currentOkr || state.currentOkr.meta.id !== msg.okrId) {
         return; // user navigated away; drop stale result
+      }
+      // Re-sync the header chip in place. onFanOutPreflight reads okr.yaml
+      // fresh and runs on reopen / Re-check / the 60s poll, so a
+      // building→shipped flip (or any stale chip) self-heals here without a
+      // disruptive full okrDetail re-post. Patch the cached status only.
+      if (msg.okrStatus && state.currentOkr.meta.status !== msg.okrStatus) {
+        state.currentOkr.meta.status = msg.okrStatus as typeof state.currentOkr.meta.status;
       }
       state.fanOutPreflight = msg.ok
         ? { report: msg.report, skippedRepos: msg.skippedRepos }

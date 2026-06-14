@@ -1239,6 +1239,12 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         okrId,
         ok: true,
         report,
+        // Carry the freshly-read meta.status so the webview can re-sync the
+        // header chip. onFanOutPreflight runs on reopen, Re-check, AND the
+        // 60s poll, so a building→shipped flip (or any stale chip) self-heals
+        // without a full okrDetail re-post — onFanOutPreflightResult patches
+        // state.currentOkr.meta.status in place.
+        okrStatus: okr.meta.status,
         ...(skippedRepos.length > 0 ? { skippedRepos } : {}),
       });
     } catch (err) {
@@ -2560,8 +2566,12 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       // previously-merged OKR advances 'building' → 'shipped'.
       if (prior.rows.length > 0 && prior.rows.every(r => r.status === 'pr-merged')) {
         if (await this.rollOkrShippedIfBuilding(meshPath, okrId)) {
-          await this.onFanOutPreflight(okrId);
+          // List chip lives off the portfolio summary; refresh it on the flip.
+          await this.loadPortfolio();
         }
+        // onFanOutPreflight carries the fresh meta.status → re-syncs the
+        // header chip in place (handles the already-shipped case too).
+        await this.onFanOutPreflight(okrId);
       }
       return;
     }
@@ -2861,10 +2871,14 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     // Once EVERY fan-out row has merged, the implementation shipped — advance the
     // OKR from 'building' to 'shipped' (its own commit, after the poll write).
     if (updatedRows.length > 0 && updatedRows.every(r => r.status === 'pr-merged')) {
-      await this.rollOkrShippedIfBuilding(meshPath, okrId);
+      if (await this.rollOkrShippedIfBuilding(meshPath, okrId)) {
+        // List chip lives off the portfolio summary; refresh it on the flip.
+        await this.loadPortfolio();
+      }
     }
 
-    // Refresh the pane.
+    // Refresh the pane. onFanOutPreflight carries the fresh meta.status →
+    // re-syncs the header chip in place (no full okrDetail re-post needed).
     await this.onFanOutPreflight(okrId);
   }
 
