@@ -53,36 +53,17 @@ export class PmatService {
   // Install steps (each runs in a fresh terminal)
   // --------------------------------------------------------------------------
 
-  // The crates.io aprender 0.25.4 is broken (missing source files). We clone
-  // pmat from source, bump aprender to 0.25.9 (fixed on crates.io), and build
-  // with a separate target dir to avoid stale `target` entries in the clone.
-  private static readonly PMAT_INSTALL_SCRIPT = [
-    'PMAT_TMP=$(mktemp -d)',
-    'git clone https://github.com/paiml/paiml-mcp-agent-toolkit "$PMAT_TMP/pmat"',
-    // Bump aprender to a working crates.io version
-    "sed -i '' 's|^aprender = .*|aprender = \"0.25.9\"|' \"$PMAT_TMP/pmat/Cargo.toml\"",
-    'export CARGO_TARGET_DIR="$PMAT_TMP/cargo-target"',
-    'cargo install --path "$PMAT_TMP/pmat"',
-    'rm -rf "$PMAT_TMP"',
-    'echo pmat installed successfully',
-  ].join(' && ');
-
-  private static readonly PMAT_INSTALL_SCRIPT_WIN = [
-    'set PMAT_TMP=%TEMP%\\pmat-build',
-    'git clone https://github.com/paiml/paiml-mcp-agent-toolkit "%PMAT_TMP%"',
-    // Bump aprender to a working crates.io version
-    'powershell -Command "(Get-Content %PMAT_TMP%\\Cargo.toml) -replace \'^aprender = .*\', \'aprender = \\"0.25.9\\"\' | Set-Content %PMAT_TMP%\\Cargo.toml"',
-    'set CARGO_TARGET_DIR=%PMAT_TMP%\\cargo-target',
-    'cargo install --path "%PMAT_TMP%"',
-    'rmdir /s /q "%PMAT_TMP%"',
-    'echo pmat installed successfully',
-  ].join(' && ');
+  // pmat installs straight from crates.io now. The clone-and-`sed` workaround
+  // existed because aprender 0.25.4 (a pmat dependency) was published broken —
+  // missing source files — so `cargo install pmat` failed. That's resolved:
+  // aprender is at 0.41.x and pmat 3.x requires `aprender = "0.41"`, so the
+  // registry build is clean. `--locked` uses the maintainer-tested dependency
+  // set. (Same command on every platform now — no PowerShell/sed variant.)
+  private static readonly PMAT_INSTALL_SCRIPT = 'cargo install pmat --locked';
 
   async getInstallSteps(): Promise<{ command: string; label: string }[]> {
     const hasCargo = await this.isCargoInstalled();
-    const installCmd = process.platform === 'win32'
-      ? PmatService.PMAT_INSTALL_SCRIPT_WIN
-      : PmatService.PMAT_INSTALL_SCRIPT;
+    const installCmd = PmatService.PMAT_INSTALL_SCRIPT;
 
     if (hasCargo) {
       return [{ command: installCmd, label: 'Install pmat' }];
