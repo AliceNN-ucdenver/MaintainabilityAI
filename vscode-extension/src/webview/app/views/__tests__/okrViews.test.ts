@@ -912,10 +912,11 @@ describe('renderOkrDetailView', () => {
       // Always-on controls survive the collapse — compact icon+word buttons.
       expect(html).toContain('data-action="verify-chain"');
       expect(html).toContain('data-action="export-audit"');
-      expect(html).toContain('🔗 Verify');
-      expect(html).toContain('🧾 Export');
-      expect(html).toContain('🏷 Tag');
-      expect(html).toContain('📄 Artifact');
+      // Glyph-only action buttons — labels live in aria-label/title.
+      expect(html).toContain('aria-label="Verify"');
+      expect(html).toContain('aria-label="Export"');
+      expect(html).toContain('aria-label="Tag"');
+      expect(html).toContain('aria-label="Artifact"');
       expect(html).toContain('🛡 Sealed');
       // Metric numbers are still in the DOM (tucked behind <details>).
       expect(html).toContain('<strong>Sources:</strong>');

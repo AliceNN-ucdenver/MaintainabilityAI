@@ -1656,10 +1656,12 @@ function renderCollapsedControls(phase: OkrPhase, action: OkrAction, s: OkrPhase
   const aid = escapeAttr(action.id);
   const rid = escapeAttr(action.runId);
   const buttons = [
-    `<button class="okr-link-button okr-collapsed-ctl" data-action="toggle-artifact" data-okr-id="${escapeAttr(okrId)}" data-phase="${escapeAttr(phase)}" title="View the produced artifact markdown inline">📄 Artifact</button>`,
-    `<button class="okr-link-button okr-collapsed-ctl" data-action="view-hatter-tag" data-action-id="${aid}" data-run-id="${rid}" title="View the Hatter Tag for this run">🏷 Tag</button>`,
-    `<button class="okr-link-button okr-collapsed-ctl" data-action="verify-chain" data-action-id="${aid}" data-run-id="${rid}" title="Re-verify the per-epoch Ed25519 audit chain via the runner">🔗 Verify</button>`,
-    `<button class="okr-link-button okr-collapsed-ctl" data-action="export-audit" data-action-id="${aid}" data-run-id="${rid}" title="Export the audit report markdown">🧾 Export</button>`,
+    // Glyph-only — labels moved to title + aria-label so all four fit one row
+    // in the narrow 3-up layout (the words wrapped Export onto its own line).
+    `<button class="okr-link-button okr-collapsed-ctl okr-collapsed-ctl-icon" data-action="toggle-artifact" data-okr-id="${escapeAttr(okrId)}" data-phase="${escapeAttr(phase)}" aria-label="Artifact" title="Artifact — view the produced artifact markdown inline">📄</button>`,
+    `<button class="okr-link-button okr-collapsed-ctl okr-collapsed-ctl-icon" data-action="view-hatter-tag" data-action-id="${aid}" data-run-id="${rid}" aria-label="Tag" title="Tag — view the Hatter Tag for this run">🏷</button>`,
+    `<button class="okr-link-button okr-collapsed-ctl okr-collapsed-ctl-icon" data-action="verify-chain" data-action-id="${aid}" data-run-id="${rid}" aria-label="Verify" title="Verify — re-verify the per-epoch Ed25519 audit chain via the runner">🔗</button>`,
+    `<button class="okr-link-button okr-collapsed-ctl okr-collapsed-ctl-icon" data-action="export-audit" data-action-id="${aid}" data-run-id="${rid}" aria-label="Export" title="Export — export the audit report markdown">🧾</button>`,
   ];
   // All chips (PR · Sealed · Artifact · Tag · Verify · Export) are DIRECT
   // children of one flex row so they flow left-aligned and wrap by width — no
@@ -2335,6 +2337,9 @@ export function getOkrDetailStyles(): string {
        do NOT stack vertically; flex-flow:row wrap pins the direction. */
     .okr-collapsed-controls.okr-action-controls { display: flex; flex-flow: row wrap; align-items: center; justify-content: flex-start; gap: 0.25rem 0.45rem; padding: 0.375rem 0.5rem; font-size: 0.78rem; }
     .okr-collapsed-ctl { font-size: 0.72rem; padding: 0.1rem 0.375rem; }
+    /* Glyph-only action buttons: slightly larger glyph (no text to carry it) +
+       even padding so each icon stays a comfortable hit target. */
+    .okr-collapsed-ctl-icon { font-size: 0.95rem; line-height: 1; padding: 0.15rem 0.3rem; }
     /* Collapsed header: a thin meta row (verdict pill left · poll + refresh
        right) above a full-width title row, so the phase name never squishes. */
     .okr-collapsed-header { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 0.5rem; }
