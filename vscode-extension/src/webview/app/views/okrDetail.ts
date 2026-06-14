@@ -1928,11 +1928,16 @@ function renderFanOutPreflightPane(
     'opened', 'pending-on-upstream', 'pr-opened', 'pr-merged', 'pr-rejected',
   ]);
   const hasFannedOut = report.entries.some(e => POST_FANOUT_STATUSES.has(e.decision.status));
-  // Reset is a red danger button while the fan-out is in flight; once everything
-  // has shipped (allMerged) it shrinks to a muted "undo" link so a completed
-  // fan-out doesn't dangle a prominent destructive re-do.
+  // Reset is a red danger button while the fan-out is in flight; once every row
+  // has merged (but before the shipped roll) it shrinks to a muted "undo" link.
+  // Once the OKR has SHIPPED we drop it entirely — undoing a shipped fan-out
+  // would delete design-fan-out.yaml while okr.yaml still says shipped + the
+  // impl is already merged, an inconsistent state with no safe recovery. The
+  // allMerged-but-not-yet-shipped window keeps the muted undo so a mistaken
+  // fan-out can still be backed out in the brief gap before the status rolls.
+  const isShipped = okr.meta.status === 'shipped';
   const resetTitle = "Delete this OKR's design-fan-out.yaml so the card returns to its pre-fan-out state. Then optionally close the landing issues + impl PRs this fan-out opened (you'll be asked, and shown the list first). Does not revert merged code.";
-  const resetBtnHtml = !hasFannedOut ? '' : allMerged
+  const resetBtnHtml = (!hasFannedOut || isShipped) ? '' : allMerged
     ? `<button class="okr-link-button okr-fanout-reset-link" data-action="fanout-reset" data-okr-id="${escapeAttr(okr.meta.id)}" title="${escapeAttr(resetTitle)}">↺ Undo fan-out</button>`
     : `<button class="okr-button-secondary okr-button-danger" data-action="fanout-reset" data-okr-id="${escapeAttr(okr.meta.id)}" title="${escapeAttr(resetTitle)}">↺ Reset fan-out</button>`;
 

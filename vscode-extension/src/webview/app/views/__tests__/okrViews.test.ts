@@ -1050,5 +1050,33 @@ describe('renderOkrDetailView', () => {
       expect(html).toContain('IMPL-2026-06-13-acme-movie-api-x1');
       expect(html).toContain('merged ↗');
     });
+
+    it('hides Undo fan-out once the OKR has shipped (no inconsistent-undo footgun)', () => {
+      const shipped = sampleCard({
+        meta: { ...sampleCard().meta, status: 'shipped' },
+        actions: [whatDone],
+        objectiveAlignment: {
+          ...sampleCard().objectiveAlignment,
+          affectedBarIds: ['APP-IMDB-001'],
+          targetCodeRepos: ['https://github.com/acme/movie-api'],
+          targetCodeRepoStatus: { 'https://github.com/acme/movie-api': 'connected' },
+        },
+      });
+      const html = renderOkrDetailView({
+        okr: shipped, affectedBars: [],
+        fanOutPreflight: { report: {
+          ok: true, okrId: shipped.meta.id, readyRepos: [], waves: [['acme/movie-api']],
+          entries: [{ slug: 'acme/movie-api', status: 'connected',
+            decision: { status: 'pr-merged' },
+            coordinationRow: { fanout_wave: 1, coordination_role: 'independent', depends_on: [] },
+            implPrUrl: 'https://github.com/acme/movie-api/pull/24', implPrNumber: 24,
+            implPrIsDraft: false, implementationRunId: 'IMPL-2026-06-13-acme-movie-api-x1' }],
+        } },
+      });
+      expect(html).toContain('Fan-out complete');   // done-state intact
+      expect(html).toContain('Re-check');           // Re-check stays (harmless re-poll)
+      expect(html).not.toContain('Undo fan-out');   // undo suppressed on shipped
+      expect(html).not.toContain('Reset fan-out');  // and no danger reset either
+    });
   });
 });
