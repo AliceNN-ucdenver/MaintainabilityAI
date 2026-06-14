@@ -3388,11 +3388,11 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
         //    line so the audit-failed message reflects the actual
         //    failure branch, not the umbrella label's stock text
         //    (Bug BB).
-        const commentMarker = phase === 'why'
-          ? '<!-- market-research-agent-audit -->'
-          : phase === 'how'
-          ? '<!-- prd-agent-audit -->'
-          : null;
+        // phaseSpec is the single source of truth for the per-phase audit-comment
+        // marker — WHY/HOW/WHAT. (Previously hardcoded why/how + null for WHAT,
+        // so the WHAT card never parsed its Pocket Watch row → grey Drift dot
+        // even though the comment + rollup both carry it.)
+        const commentMarker = phaseSpec(phase).auditMarker;
         let auditCommentReason: string | null = null;
         if (commentMarker) {
           const auditComment = await this.fetchPrCommentByMarker(owner, repo, pr.number, commentMarker);
