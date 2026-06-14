@@ -34,8 +34,10 @@
  * checked-out PR head. It reads files and shells out to git/gh; it never
  * executes PR-supplied code.
  */
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 
 // ── Contract constants (parity-pinned by phase-contract-parity.test.ts) ──
 // REQUIRED_H2 is the canonical review-report section order. The pillar
@@ -298,12 +300,15 @@ function main() {
   const PR = env.PR_NUMBER;
   const BASE_SHA = env.BASE_SHA;
 
-  const sh = (cmd) => execSync(cmd, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
-  const shQuiet = (cmd) => { try { return sh(cmd); } catch { return ''; } };
+  // Arg-array exec (no shell) — values like BASE_SHA / REPO / PR come from the
+  // workflow env and are passed as literal argv, never interpolated into a shell
+  // string, so there is no command-injection surface (CodeQL js/indirect-command-line-injection).
+  const sh = (file, args) => execFileSync(file, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  const shQuiet = (file, args) => { try { return sh(file, args); } catch { return ''; } };
 
   let changed = [];
-  const diff = shQuiet(`git diff --name-only ${BASE_SHA}...HEAD`).trim()
-    || shQuiet(`git diff --name-only ${BASE_SHA} HEAD`).trim();
+  const diff = shQuiet('git', ['diff', '--name-only', `${BASE_SHA}...HEAD`]).trim()
+    || shQuiet('git', ['diff', '--name-only', BASE_SHA, 'HEAD']).trim();
   changed = diff ? diff.split('\n').map((s) => s.trim()).filter(Boolean) : [];
 
   const reportFile = changed.find((f) => REPORT_RE.test(f));
@@ -318,7 +323,7 @@ function main() {
   // Fetch dispatch issue
   let issueReadable = false, issueHasLabel = false, issueBarPath = null, issueScope = null;
   if (issueNum != null) {
-    const issueJson = shQuiet(`gh issue view ${issueNum} --repo ${REPO} --json labels,body`);
+    const issueJson = shQuiet('gh', ['issue', 'view', String(issueNum), '--repo', REPO, '--json', 'labels,body']);
     if (issueJson) {
       issueReadable = true;
       let issue = null;
@@ -329,15 +334,15 @@ function main() {
       issueScope = parsed.scope;
     }
   }
-  const closesIssues = shQuiet(
-    `gh pr view ${PR} --repo ${REPO} --json closingIssuesReferences --jq '.closingIssuesReferences[].number'`,
-  ).trim().split('\n').map((s) => parseInt(s.trim(), 10)).filter((n) => !Number.isNaN(n));
+  const closesIssues = shQuiet('gh', ['pr', 'view', String(PR), '--repo', REPO,
+    '--json', 'closingIssuesReferences', '--jq', '.closingIssuesReferences[].number'])
+    .trim().split('\n').map((s) => parseInt(s.trim(), 10)).filter((n) => !Number.isNaN(n));
 
   const reportText = reportFile && fs.existsSync(reportFile)
     ? fs.readFileSync(reportFile, 'utf8') : null;
   const headYaml = reviewsFile && fs.existsSync(reviewsFile)
     ? fs.readFileSync(reviewsFile, 'utf8') : '';
-  const baseYaml = reviewsFile ? shQuiet(`git show ${BASE_SHA}:${reviewsFile}`) : '';
+  const baseYaml = reviewsFile ? shQuiet('git', ['show', `${BASE_SHA}:${reviewsFile}`]) : '';
 
   const { reasons, barPath } = evaluateArtifacts({
     changed, reportText, headYaml, baseYaml,
@@ -346,14 +351,16 @@ function main() {
 
   const marker = '<!-- review-gate -->';
   const upsertComment = (body) => {
-    const ids = shQuiet(
-      `gh api repos/${REPO}/issues/${PR}/comments --paginate ` +
-      `--jq '.[] | select(.body | startswith("${marker}")) | .id'`,
-    ).trim().split('\n').map((s) => s.trim()).filter(Boolean);
-    for (const id of ids) shQuiet(`gh api -X DELETE repos/${REPO}/issues/comments/${id}`);
-    const tmp = `/tmp/review-gate-comment-${PR}.md`;
+    const ids = shQuiet('gh', ['api', `repos/${REPO}/issues/${PR}/comments`, '--paginate',
+      '--jq', `.[] | select(.body | startswith("${marker}")) | .id`])
+      .trim().split('\n').map((s) => s.trim()).filter(Boolean);
+    for (const id of ids) shQuiet('gh', ['api', '-X', 'DELETE', `repos/${REPO}/issues/comments/${id}`]);
+    // Write the comment body into a per-run private temp dir (0700) rather than a
+    // predictable /tmp path — closes CodeQL js/insecure-temporary-file.
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'review-gate-'));
+    const tmp = path.join(tmpDir, `comment-${PR}.md`);
     fs.writeFileSync(tmp, body);
-    shQuiet(`gh pr comment ${PR} --repo ${REPO} --body-file ${tmp}`);
+    shQuiet('gh', ['pr', 'comment', String(PR), '--repo', REPO, '--body-file', tmp]);
   };
 
   if (reasons.length) {
@@ -363,8 +370,8 @@ function main() {
       ...reasons.map((r) => `- \`${r}\``), '',
       '> Fix the artifact and push; this gate re-runs on every update.',
     ].join('\n'));
-    shQuiet(`gh pr edit ${PR} --repo ${REPO} --remove-label review-pass`);
-    shQuiet(`gh pr edit ${PR} --repo ${REPO} --add-label review-invalid`);
+    shQuiet('gh', ['pr', 'edit', String(PR), '--repo', REPO, '--remove-label', 'review-pass']);
+    shQuiet('gh', ['pr', 'edit', String(PR), '--repo', REPO, '--add-label', 'review-invalid']);
     console.error(`Review gate FAILED:\n${reasons.map((r) => '  - ' + r).join('\n')}`);
     process.exit(1);
   }
@@ -372,8 +379,8 @@ function main() {
     marker, '### ✅ Review gate passed', '',
     `Scope, structure, record, and drift-math checks all passed for \`${barPath}\` (issue #${issueNum}).`,
   ].join('\n'));
-  shQuiet(`gh pr edit ${PR} --repo ${REPO} --remove-label review-invalid`);
-  shQuiet(`gh pr edit ${PR} --repo ${REPO} --add-label review-pass`);
+  shQuiet('gh', ['pr', 'edit', String(PR), '--repo', REPO, '--remove-label', 'review-invalid']);
+  shQuiet('gh', ['pr', 'edit', String(PR), '--repo', REPO, '--add-label', 'review-pass']);
   console.log('Review gate passed.');
   process.exit(0);
 }
