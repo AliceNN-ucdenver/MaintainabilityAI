@@ -1197,6 +1197,26 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       // The engine has no mesh-reader; do it here where we do.
       if (report.ok) {
         const bars = this.meshService.createReader(meshPath).listBars();
+        // Backfill the impl run-id from chain-ladder.yaml (the source of truth)
+        // for rows that merged before the poll persisted it onto the design-
+        // fan-out row. Keyed by repo slug → implementation_run_id. Best-effort:
+        // a missing/unparseable ladder just leaves the fallback empty.
+        const runIdByRepo = new Map<string, string>();
+        try {
+          const ladderPath = path.join(meshPath, 'okrs', okrId, 'audit', 'chain-ladder.yaml');
+          if (fs.existsSync(ladderPath)) {
+            const ladder = (YAML.parse(fs.readFileSync(ladderPath, 'utf8')) as { chain?: Array<Record<string, unknown>> })?.chain ?? [];
+            for (const r of ladder) {
+              if (String(r['phase'] ?? '').toLowerCase() !== 'implementation') continue;
+              const repoSlug = r['repo'];
+              const runId = r['implementation_run_id'];
+              if (typeof repoSlug === 'string' && typeof runId === 'string' && repoSlug && runId) {
+                runIdByRepo.set(this.normalizeGitHubSlug(repoSlug), runId);
+              }
+            }
+          }
+        } catch { /* best-effort — fallback stays empty */ }
+
         for (const entry of report.entries) {
           const bar = bars.find(b => (b.repos ?? []).some(u => this.normalizeGitHubSlug(u) === entry.slug));
           if (bar) {
@@ -1229,8 +1249,10 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
             // ⏳ Held-workflow count so the row can surface "N workflows
             // awaiting approval" (GitHub holds Copilot-bot PR workflows).
             entry.workflowsAwaitingApproval = fanOutRow.workflowsAwaitingApproval;
-            // Impl chain reference for the merged-row governance line.
-            entry.implementationRunId = fanOutRow.implementation_run_id;
+            // Impl chain reference for the merged-row governance line. Prefer
+            // the persisted row value; fall back to chain-ladder.yaml for rows
+            // that merged before the poll wrote it onto the row.
+            entry.implementationRunId = fanOutRow.implementation_run_id ?? runIdByRepo.get(entry.slug);
           }
         }
       }
@@ -2690,6 +2712,12 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
             const pr = await client.rest.pulls.get({ owner, repo, pull_number: observed.number });
             const implChain = parseImplementationChainBlock(pr.data.body ?? null);
             if (implChain && implChain.implementation_run_id && implChain.chain_root_hash && implChain.parent_chain_root) {
+              // Persist the impl run-id onto the design-fan-out row so the
+              // merged-row governance line can surface it. It's parsed here
+              // for the chain-ladder append below, but was previously never
+              // written back to the row, so entry.implementationRunId stayed
+              // empty and the row showed only the badge + PR link.
+              updatedRows[i] = { ...updatedRows[i], implementation_run_id: implChain.implementation_run_id };
               // Codex-r4 Bug 1 — VERIFY EVIDENCE AT MERGE SHA before
               // queuing the chain-ladder row. Pre-fix Stage 5 would
               // queue + append based on PR-body claims alone, so a PR
