@@ -2147,6 +2147,14 @@ interface ParsedRailReport {
   schema_version?: string; rail?: string;
   okr_id?: string; run_id?: string; phase?: string; config_sha256?: string;
   verdict?: string; policy?: string;
+  // Pinning tier — drives whether the rail GATES the rollup. An unpinned rail
+  // (`require_pinned_revision:false`, or a model recorded on an unpinned tag) is
+  // ADVISORY: it records + renders but its model-replay dimension never gates
+  // (integrity still does). `require_pinned_revision` is the self-describing
+  // signal emitted into the report; `model.model_revision === 'unpinned-tag'`
+  // is the back-compat fallback for reports that predate that field.
+  require_pinned_revision?: boolean;
+  model?: { model_revision?: string | null };
   inputs?: Array<{ path: string; sha256: string }>;
   counts?: {
     blocked?: number; needs_review?: number; redacted?: number; scanned?: number;
@@ -2163,10 +2171,19 @@ interface ParsedRailReport {
  * verdict (computeOkrRollupVerdict) and the rendered subsection, so the top-
  * line verdict can NEVER contradict the section (the Red Queen honesty bug
  * class). `fail` = a deterministic mismatch (report hash / input hash incl.
- * missing bytes / event↔report field) OR a CI model-replay failure → rollup
- * FAIL. `partial` = deterministic checks green but CI replay not invoked (e.g.
- * local export) → rollup PARTIAL, never PASS. `absent` = no rail evidence
- * (section omitted, no rollup effect).
+ * missing bytes / event↔report field) OR — for a PINNED rail — a CI model-replay
+ * failure → rollup FAIL. `partial` = deterministic checks green but CI replay
+ * not invoked on a PINNED rail (e.g. local export) → rollup PARTIAL, never PASS.
+ * `absent` = no rail evidence (section omitted, no rollup effect).
+ *
+ * ADVISORY rails (`advisory:true` — unpinned model; see isAdvisoryRail) are the
+ * exception: their model-replay dimension NEVER gates. Integrity still gates (a
+ * tampered advisory report is `fail`), but a replay that failed/was-not-invoked
+ * folds into a non-gating note and the status stays `pass` when integrity is
+ * clean. Mirrors the config's own contract ("advisory: it runs + records but the
+ * gate does not hard-fail on it") and the Pocket Watch "recorded, not gating"
+ * precedent. `status` remains the single gating signal, so the verdict still
+ * cannot contradict the section.
  */
 export interface OracleRailStatus {
   status: 'pass' | 'partial' | 'fail' | 'absent';
@@ -2179,6 +2196,24 @@ export interface OracleRailStatus {
   inputs: { total: number; ok: number; mismatches: string[] };
   fieldMismatches: string[];
   modelReplay: 'pass' | 'fail' | 'not-invoked';
+  /** True when the rail's model is unpinned → model-replay dimension is non-gating. */
+  advisory: boolean;
+}
+
+/**
+ * A rail is ADVISORY (records but its model-replay never gates) when its model
+ * is unpinned. Primary signal: the report's own `require_pinned_revision:false`.
+ * Back-compat fallback (for reports that predate that field): a model recorded
+ * on the `unpinned-tag` sentinel. Pinned rails (injection, pii) — which carry
+ * `require_pinned_revision:true` or a resolved revision SHA — are NOT advisory
+ * and gate normally. Absence of any signal → NOT advisory (fail-closed: a rail
+ * gates unless it explicitly declares itself advisory).
+ */
+function isAdvisoryRail(report: ParsedRailReport | null): boolean {
+  if (!report) { return false; }
+  if (report.require_pinned_revision === false) { return true; }
+  if (report.require_pinned_revision === true) { return false; }
+  return report.model?.model_revision === 'unpinned-tag';
 }
 
 function makeRailStatus(p: Partial<OracleRailStatus> & { status: OracleRailStatus['status'] }): OracleRailStatus {
@@ -2193,6 +2228,7 @@ function makeRailStatus(p: Partial<OracleRailStatus> & { status: OracleRailStatu
     inputs: p.inputs ?? { total: 0, ok: 0, mismatches: [] },
     fieldMismatches: p.fieldMismatches ?? [],
     modelReplay: p.modelReplay ?? 'not-invoked',
+    advisory: p.advisory ?? false,
   };
 }
 
@@ -2267,25 +2303,40 @@ export function computeOracleRailStatus(input: OracleRailRollupInput): OracleRai
   ];
   const fieldMismatches = fieldChecks.filter(([, a, b]) => a !== b).map(([f]) => f);
 
-  const reasons: string[] = [];
-  if (!reportHashOk) { reasons.push('report-hash mismatch (committed report ≠ chain event)'); }
-  if (inputMismatches.length > 0) { reasons.push(`input-hash mismatch: ${inputMismatches.join(', ')}`); }
-  if (fieldMismatches.length > 0) { reasons.push(`event↔report mismatch: ${fieldMismatches.join(', ')}`); }
-  if (modelReplay === 'fail') {
-    const ciReason = ('reason' in ciReplay) ? ciReplay.reason : '';
-    reasons.push(`CI model replay FAILED: ${ciReason}`.trim());
-  }
+  // Integrity dimension — report bytes / cited-input bytes / event↔report
+  // fields. These gate for EVERY rail (advisory or pinned): a tampered report
+  // is a chain-integrity failure regardless of the rail's gating tier.
+  const integrityReasons: string[] = [];
+  if (!reportHashOk) { integrityReasons.push('report-hash mismatch (committed report ≠ chain event)'); }
+  if (inputMismatches.length > 0) { integrityReasons.push(`input-hash mismatch: ${inputMismatches.join(', ')}`); }
+  if (fieldMismatches.length > 0) { integrityReasons.push(`event↔report mismatch: ${fieldMismatches.join(', ')}`); }
 
+  const advisory = isAdvisoryRail(report);
+  const ciReason = ('reason' in ciReplay) ? ciReplay.reason : '';
+  const reasons: string[] = [...integrityReasons];
   let status: OracleRailStatus['status'];
-  if (reasons.length > 0) { status = 'fail'; }
-  else if (modelReplay === 'not-invoked') { status = 'partial'; reasons.push('CI model replay not invoked (deterministic checks green)'); }
-  else { status = 'pass'; }
+  if (advisory) {
+    // Advisory rail: the model-replay dimension records but never gates. Only
+    // integrity can fail it. A failed / not-invocable replay folds into a
+    // non-gating note so the verdict matches the rendered section.
+    if (modelReplay === 'fail') {
+      reasons.push(`CI model replay not reproducible — advisory rail (unpinned model), non-gating: ${ciReason}`.trim());
+    } else if (modelReplay === 'not-invoked') {
+      reasons.push(`CI model replay not invoked — advisory rail (unpinned model), non-gating${ciReason ? ` (${ciReason})` : ''}`);
+    }
+    status = integrityReasons.length > 0 ? 'fail' : 'pass';
+  } else {
+    if (modelReplay === 'fail') { reasons.push(`CI model replay FAILED: ${ciReason}`.trim()); }
+    if (reasons.length > 0) { status = 'fail'; }
+    else if (modelReplay === 'not-invoked') { status = 'partial'; reasons.push('CI model replay not invoked (deterministic checks green)'); }
+    else { status = 'pass'; }
+  }
 
   return makeRailStatus({
     status, reasons, reportPresent: true, reportParsed: true, reportHashOk,
     reportShaRecomputed: reportSha, report,
     inputs: { total: reportInputs.length, ok: inputsOk, mismatches: inputMismatches },
-    fieldMismatches, modelReplay,
+    fieldMismatches, modelReplay, advisory,
   });
 }
 
@@ -2353,12 +2404,25 @@ export function renderOracleRailsSubsection(
   lines.push(`- event ↔ report consistency: ${s.fieldMismatches.length === 0 ? '✓' : `MISMATCH ✗ (${s.fieldMismatches.join(', ')})`}`);
 
   const ciReason = ('reason' in ciReplay) ? ciReplay.reason : '';
-  const replayLine = s.modelReplay === 'pass' ? 'PASS in CI ✓'
-    : s.modelReplay === 'fail' ? `FAILED ✗ — ${ciReason}`
+  let replayLine: string;
+  if (s.modelReplay === 'pass') {
+    replayLine = 'PASS in CI ✓';
+  } else if (s.advisory) {
+    // Advisory rail (unpinned model) — replay is best-effort, non-gating.
+    replayLine = s.modelReplay === 'fail'
+      ? `not reproducible — advisory (unpinned model), non-gating · ${ciReason}`
+      : `not invoked — advisory (unpinned model), non-gating${ciReason ? ` · ${ciReason}` : ''}`;
+  } else {
+    replayLine = s.modelReplay === 'fail'
+      ? `FAILED ✗ — ${ciReason}`
       : `not invoked in exporter; see CI rail replay (${ciReason})`;
+  }
   lines.push(`- model replay: ${replayLine}`);
 
   const r = s.report!;
+  if (s.advisory) {
+    lines.push('- gating: advisory (unpinned model) — recorded, integrity-gated only; model replay does not affect the rollup verdict');
+  }
   lines.push(`- verdict: ${r.verdict ?? '—'}`);
   lines.push(`- policy: ${r.policy ?? '—'}`);
   lines.push(`- rail: ${ev.rail}`);

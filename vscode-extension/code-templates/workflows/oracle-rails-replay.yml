@@ -101,17 +101,24 @@ jobs:
             VERDICT_PATH="${REPORT%.rail-report.json}.replay-verdict.json"
             if [ "${#INPUTS[@]}" -eq 0 ]; then
               echo "::warning::$REPORT cites no inputs — cannot replay"
-              printf '%s\n' '{"invoked":true,"ok":false,"reason":"rail-replay-not-invoked-no-inputs"}' > "$VERDICT_PATH"
-              FAIL=1; WROTE=1; continue
+              # NOT-INVOCABLE, not a failure: invoked:false. The exporter reads
+              # this as "replay not invoked" (deterministic checks still gate);
+              # for an advisory/unpinned rail it folds to a non-gating note.
+              printf '%s\n' '{"invoked":false,"reason":"rail-replay-not-invoked-no-inputs"}' > "$VERDICT_PATH"
+              WROTE=1; continue
             fi
             set +e
             python3 "$SCRIPTS/$SCRIPT" verify --config "$CONFIG" --report "$REPORT" --inputs "${INPUTS[@]}"
             CODE=$?
             set -e
+            # exit 0 = reproduced; 4 = MISMATCH (rail ran, committed bytes differ
+            # → real tamper signal, FAIL); 5 = NOT-INVOCABLE (model couldn't
+            # load — e.g. an unpinned advisory rail; NOT a failure → invoked:false,
+            # no FAIL); other = unexpected error (fail-closed).
             case "$CODE" in
               0) RV='{"invoked":true,"ok":true}' ;;
               4) RV='{"invoked":true,"ok":false,"reason":"rail-replay-mismatch"}'; FAIL=1 ;;
-              5) RV='{"invoked":true,"ok":false,"reason":"rail-replay-not-invoked"}'; FAIL=1 ;;
+              5) RV='{"invoked":false,"reason":"rail-replay-not-invoked"}' ;;
               *) RV='{"invoked":true,"ok":false,"reason":"rail-replay-error"}'; FAIL=1 ;;
             esac
             printf '%s\n' "$RV" > "$VERDICT_PATH"
@@ -133,7 +140,7 @@ jobs:
           fi
 
           if [ "$FAIL" -ne 0 ]; then
-            echo "::error::Oracle rails model replay FAILED for one or more reports (rail-replay-mismatch / not-invoked) — the committed report could not be reproduced from committed bytes."
+            echo "::error::Oracle rails model replay FAILED for one or more reports (rail-replay-mismatch / error) — a rail ran but the committed report could not be reproduced from committed bytes. (Not-invocable replays are recorded as invoked:false and do NOT fail here.)"
             exit 1
           fi
           echo "::notice::Oracle rails model replay: all reports reproduced ✓"

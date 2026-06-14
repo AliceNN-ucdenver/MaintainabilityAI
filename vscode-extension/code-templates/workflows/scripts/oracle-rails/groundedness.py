@@ -400,6 +400,12 @@ def build_report(*, okr_id: str, run_id: str, phase: str, inputs: list[dict],
         "model": model,
         "thresholds": thresholds,
         "mode": mode,  # support_claims (sidecar, atomic) | whole_conclusion (fallback)
+        # Self-describing gating tier — false → ADVISORY (unpinned model: the
+        # rollup exporter records the model-replay but never gates on it; only
+        # integrity gates). Flips true when the model SHA is pinned. Lets the
+        # exporter read the tier from the signed report instead of inferring it
+        # from the model_revision sentinel.
+        "require_pinned_revision": bool(config.get("require_pinned_revision", True)),
         "config_sha256": canonical_hash(config),
         "verdict": verdict,
         "counts": {

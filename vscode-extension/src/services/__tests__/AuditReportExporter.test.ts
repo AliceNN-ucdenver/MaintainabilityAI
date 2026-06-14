@@ -1663,6 +1663,81 @@ describe('computeOkrRollupVerdict', () => {
     expect(out.reason).toContain('Oracle rails FAIL');
   });
 
+  // ── Advisory rails (unpinned model) — model replay is NON-GATING ─────────
+  // groundedness ships advisory (require_pinned_revision:false) until its model
+  // SHA is pinned. A not-invocable / failed model replay on an advisory rail
+  // must NOT sink the rollup; only an integrity break (tampered report/inputs/
+  // fields) gates. Mirrors the config's own "does not hard-fail" contract.
+  const advisoryGroundedness = (over: Record<string, unknown> = {}): string => JSON.stringify({
+    schema_version: 'oracle-rail-report.v1', rail: 'groundedness', verdict: 'needs_review',
+    okr_id: 'OKR-X', run_id: 'WHY-1', phase: 'why', config_sha256: 'cfg',
+    require_pinned_revision: false, model: { model_revision: 'unpinned-tag' }, inputs: [],
+    ...over,
+  });
+  const groundednessEventFor = (reportRaw: string): NonNullable<OracleRailRollupInput['railEvent']> => ({
+    schema_version: 'oracle-rail-report.v1', rail: 'groundedness', verdict: 'needs_review',
+    okr_id: 'OKR-X', run_id: 'WHY-1', phase: 'why', config_sha256: 'cfg',
+    report_path: 'okrs/OKR-X/audit/rails/WHY-1.groundedness.rail-report.json',
+    report_sha256: railSha(reportRaw), merge_commit_sha: 'm'.repeat(40), pr_number: 7,
+  });
+
+  it('advisory rail: replay failed (not-invocable) does NOT gate — rollup PASS', () => {
+    const report = advisoryGroundedness();
+    const rail: OracleRailRollupInput = {
+      railEvent: groundednessEventFor(report), reportRaw: report, inputContents: {},
+      ciReplay: { invoked: true, ok: false, reason: 'rail-replay-not-invoked' },
+    };
+    const out = computeOkrRollupVerdict(makeInput({ oracleRailsList: [passPii, passInjection], oracleRails: rail }));
+    expect(out.verdict).toBe('PASS');
+  });
+
+  it('advisory rail: replay not-invoked does NOT downgrade to PARTIAL — rollup PASS', () => {
+    const report = advisoryGroundedness();
+    const rail: OracleRailRollupInput = {
+      railEvent: groundednessEventFor(report), reportRaw: report, inputContents: {},
+      ciReplay: { invoked: false, reason: 'local export' },
+    };
+    const out = computeOkrRollupVerdict(makeInput({ oracleRails: rail }));
+    expect(out.verdict).toBe('PASS');
+  });
+
+  it('advisory rail detected via the unpinned-tag fallback (no require_pinned_revision field)', () => {
+    const report = JSON.stringify({
+      schema_version: 'oracle-rail-report.v1', rail: 'groundedness', verdict: 'needs_review',
+      okr_id: 'OKR-X', run_id: 'WHY-1', phase: 'why', config_sha256: 'cfg',
+      model: { model_revision: 'unpinned-tag' }, inputs: [],
+    });
+    const rail: OracleRailRollupInput = {
+      railEvent: groundednessEventFor(report), reportRaw: report, inputContents: {},
+      ciReplay: { invoked: true, ok: false, reason: 'rail-replay-not-invoked' },
+    };
+    expect(computeOkrRollupVerdict(makeInput({ oracleRails: rail })).verdict).toBe('PASS');
+  });
+
+  it('advisory rail STILL fails on an integrity break (tampered report) — integrity always gates', () => {
+    const report = advisoryGroundedness();
+    const rail: OracleRailRollupInput = {
+      // event points at a different sha than the committed report → report-hash mismatch
+      railEvent: { ...groundednessEventFor(report), report_sha256: 'abc' },
+      reportRaw: report, inputContents: {},
+      ciReplay: { invoked: true, ok: true },
+    };
+    const out = computeOkrRollupVerdict(makeInput({ oracleRails: rail }));
+    expect(out.verdict).toBe('FAIL');
+    expect(out.reason).toContain('Oracle rails FAIL');
+  });
+
+  it('computeOracleRailStatus: advisory rail with failed replay is pass + non-gating note', () => {
+    const report = advisoryGroundedness();
+    const s = computeOracleRailStatus({
+      railEvent: groundednessEventFor(report), reportRaw: report, inputContents: {},
+      ciReplay: { invoked: true, ok: false, reason: 'rail-replay-not-invoked' },
+    });
+    expect(s.advisory).toBe(true);
+    expect(s.status).toBe('pass');
+    expect(s.reasons.join(' ')).toContain('non-gating');
+  });
+
   it('FAIL when keys=mismatch breaks atomicity even if runner not invoked', () => {
     const out = computeOkrRollupVerdict(makeInput({
       phases: [
@@ -2459,6 +2534,27 @@ describe('renderOracleRailsSubsection (Oracle & Privacy Rails — pure re-deriva
   it('surfaces an injected CI replay mismatch', () => {
     const md = renderOracleRailsSubsection(makeInput({ ciReplay: { invoked: true, ok: false, reason: 'rail-replay-mismatch' } }));
     expect(md).toContain('model replay: FAILED ✗ — rail-replay-mismatch');
+  });
+
+  it('advisory rail: renders status PASS with a non-gating replay note + gating line', () => {
+    const advisoryReport = makeReport({
+      rail: 'groundedness', verdict: 'needs_review',
+      require_pinned_revision: false, model: { model_revision: 'unpinned-tag' },
+    });
+    const md = renderOracleRailsSubsection(makeInput({
+      railEvent: {
+        schema_version: 'oracle-rail-report.v1', rail: 'groundedness', verdict: 'needs_review',
+        okr_id: 'OKR-X', run_id: 'WHY-1', phase: 'why', config_sha256: 'cfg',
+        report_path: 'okrs/OKR-X/audit/rails/WHY-1.groundedness.rail-report.json',
+        report_sha256: sha(advisoryReport), merge_commit_sha: 'm'.repeat(40), pr_number: 7,
+      },
+      reportRaw: advisoryReport,
+      ciReplay: { invoked: true, ok: false, reason: 'rail-replay-not-invoked' },
+    }));
+    expect(md).toContain('status: ✓ PASS');
+    expect(md).toContain('advisory (unpinned model), non-gating');
+    expect(md).toContain('gating: advisory');
+    expect(md).not.toContain('model replay: FAILED ✗');
   });
 
   it('computeOracleRailStatus: a cited input with no committed bytes is a fail (not cosmetic)', () => {
