@@ -243,7 +243,7 @@ Every agent interaction is measured. Governance scores before and after, guardra
 
 Governance scores aren't static. They behave like a **trust battery**: scores decay over time based on review freshness, scan recency, and dependency age. Skip a security review? Your score drifts down. Let dependencies age? The trust battery drains. Active governance earns autonomy; neglect erodes it.
 
-In Queen's Next Act, the Red Queen will build **agent memory**: which policy rules fire most, which prompt packs resolve issues on the first pass, which repos keep violating the same contracts. That memory will feed back into policy refinements. Agents get smarter. Policies get sharper. **Governance improves continuously.**
+In Queen's Next Act, the Red Queen will build **agent memory** from the signals it already records &mdash; which rules fire most, which prompt packs resolve issues on the first pass, which repos keep violating the same contracts, and (the highest-signal of all) every override and repeated denial. A reflection step distills those runs into **proposed** learnings; a human approves them in the Looking Glass; only then are they promoted &mdash; as signed, provenance-stamped entries &mdash; into the durable surfaces agents actually read: the repo&rsquo;s `AGENTS.md` and path-scoped `*.instructions.md`, the deterministic policy rules, and the prompt packs. Mesh-wide lessons live in the governance mesh; repo-specific ones live in the repo. Nothing gates behavior until it is reviewed. Agents get smarter. Policies get sharper. **Governance improves continuously &mdash; and every improvement is auditable.**
 
 
 
@@ -300,8 +300,8 @@ Today the Red Queen makes deterministic policy decisions at the repo boundary an
     <div class="docs-gap-status docs-gap-status-queued">Queued</div>
     <div>
       <div class="docs-gap-title">Agent roster and policy learning</div>
-      <p class="docs-gap-body">Auditors need to know which agents exist, what they are allowed to touch, and which rules they keep hitting. Teams need that same memory to improve prompts and policies.</p>
-      <p class="docs-gap-next"><strong>Next:</strong> show agent identity, owner, model, prompt hash, access scope, and repeated policy failures in Looking Glass.</p>
+      <p class="docs-gap-body">Auditors need to know which agents exist, what they are allowed to touch, and which rules they keep hitting. Teams need that same memory to turn repeated overrides and denials into sharper prompts and policies &mdash; without letting an unreviewed lesson quietly change how an agent behaves.</p>
+      <p class="docs-gap-next"><strong>Next:</strong> a Looking Glass roster &mdash; agent identity, owner, model, prompt hash, access scope, and repeated policy failures &mdash; plus a learning loop that distills override and repeated-denial signals into <em>proposed</em> rule and prompt-pack changes, promoted into the agents&rsquo; <code>AGENTS.md</code> / instructions / policy rules only after human review, each as a signed, provenance-stamped entry.</p>
     </div>
   </div>
   <div class="docs-gap-row">
