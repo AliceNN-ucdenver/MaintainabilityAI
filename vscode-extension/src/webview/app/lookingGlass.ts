@@ -5375,6 +5375,22 @@ const inboundHandlers: Record<string, InboundHandler> = {
         render();
       }
     },
+    'okrArtifactLoading': (message: WebviewInboundMessage) => {
+      // Instant artifact-modal feedback ahead of the host's GitHub reload:
+      // open → spinner immediately; close → dismiss immediately. The host's
+      // subsequent full-signals post (on open) replaces this with the content.
+      const msg = message as unknown as { okrId: string; phase: 'why' | 'how' | 'what'; open: boolean };
+      if (!state.currentOkr || state.currentOkr.meta.id !== msg.okrId) { return; }
+      const signals = (state.okrPhaseSignals ?? (state.okrPhaseSignals = {})) as Record<string, Record<string, unknown>>;
+      const sig = { ...(signals[msg.phase] ?? {}) };
+      if (msg.open) {
+        sig.artifactOpen = true; sig.artifactLoading = true; sig.artifactContent = undefined;
+      } else {
+        sig.artifactOpen = false; sig.artifactLoading = false;
+      }
+      signals[msg.phase] = sig;
+      render();
+    },
     'reportPreview': (message: WebviewInboundMessage) => {
       // Host-driven doc modal for an exported audit report / rollup: the host
       // posts { loading:true, title } the moment export starts, then re-posts

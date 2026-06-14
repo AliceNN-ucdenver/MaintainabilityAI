@@ -3850,14 +3850,18 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
     if (phase !== 'why' && phase !== 'how' && phase !== 'what') { return; }
     let set = this.artifactOpenPhases.get(okrId);
     if (!set) { set = new Set(); this.artifactOpenPhases.set(okrId, set); }
-    if (set.has(phase)) {
-      set.delete(phase);
-    } else {
-      set.add(phase);
+    const willOpen = !set.has(phase);
+    if (willOpen) { set.add(phase); } else { set.delete(phase); }
+    // Instant webview feedback BEFORE the slow GitHub reload: spinner on open,
+    // immediate dismiss on close. Without this the modal only appeared (or
+    // closed) after onLoadOkrPhaseSignals re-fetched every phase's artifact —
+    // a visible lag the user noticed vs the host-driven report modal.
+    this.postMessage({ type: 'okrArtifactLoading', okrId, phase, open: willOpen });
+    // Only OPEN needs the reload (to fetch artifactContent). Closing just drops
+    // the open state — no GitHub round-trip, so the modal closes instantly.
+    if (willOpen) {
+      await this.onLoadOkrPhaseSignals(okrId);
     }
-    // Re-fetch signals so artifactOpen + artifactContent populate (or
-    // empty back out, on close).
-    await this.onLoadOkrPhaseSignals(okrId);
   }
 
   /**

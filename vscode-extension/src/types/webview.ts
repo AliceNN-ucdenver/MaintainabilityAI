@@ -802,4 +802,12 @@ export type LookingGlassExtensionMessage =
       title: string;
       loading: boolean;
       content?: string;
+    }
+  | {
+      /** Instant artifact-modal feedback ahead of the host's signal reload:
+       *  open → spinner; close → dismiss. */
+      type: 'okrArtifactLoading';
+      okrId: string;
+      phase: 'why' | 'how' | 'what';
+      open: boolean;
     };
