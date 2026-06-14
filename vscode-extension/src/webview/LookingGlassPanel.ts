@@ -2476,6 +2476,50 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
    * stays at its prior state until the next poll. Doesn't block the
    * other rows.
    */
+  /**
+   * Roll an OKR from 'building' to 'shipped' once its implementation has
+   * landed (every fan-out row merged). Idempotent + forward-only:
+   * `updateStatus` guards backward transitions, and we no-op unless the
+   * OKR is currently at 'building'. Commits + pushes okr.yaml (best-effort)
+   * when it flips, in its own commit separate from the fan-out poll write.
+   *
+   * Returns true when the status actually changed (so callers can refresh
+   * the pane), false otherwise.
+   *
+   * Owned by the poll because there is no mesh-side workflow for the impl
+   * merge (that happens on the code repo). Covers BOTH the transition case
+   * (a poll that observes the final merge) and the already-merged case (an
+   * OKR that merged before this code shipped, so the poll has no live
+   * candidates left to drive the post-loop roll).
+   */
+  private async rollOkrShippedIfBuilding(meshPath: string, okrId: string): Promise<boolean> {
+    try {
+      const okrService = this.meshService.getOkrService();
+      if (okrService.read(meshPath, okrId)?.meta.status !== 'building') return false;
+      okrService.updateStatus(meshPath, okrId, 'shipped');
+      logger.info(`rollOkrShippedIfBuilding(${okrId}): all rows merged → OKR meta.status building → shipped`);
+    } catch (err) {
+      logger.warn(`rollOkrShippedIfBuilding(${okrId}): shipped roll failed (${toErrorMessage(err)})`);
+      return false;
+    }
+    const gitRoot = this.gitSyncService.findGitRoot(meshPath);
+    if (gitRoot) {
+      try {
+        await execFileAsync('git', ['add', path.join('okrs', okrId, 'okr.yaml')], { cwd: gitRoot });
+        const { stdout: staged } = await execFileAsync('git', ['diff', '--cached', '--name-only'], { cwd: gitRoot });
+        if (staged.trim()) {
+          await execFileAsync('git', ['commit', '-m', `chore(okr): ${okrId} → shipped (implementation merged)`], { cwd: gitRoot });
+          try {
+            await execFileAsync('git', ['push'], { cwd: gitRoot, timeout: 30_000 });
+          } catch { /* best-effort */ }
+        }
+      } catch (err) {
+        logger.warn(`rollOkrShippedIfBuilding(${okrId}): okr.yaml commit failed (${toErrorMessage(err)})`);
+      }
+    }
+    return true;
+  }
+
   private async onPollFanOutPRs(okrId: string): Promise<void> {
     const meshPath = MeshService.getMeshPath();
     if (!meshPath) return;
@@ -2507,7 +2551,20 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       r.status === 'pr-rejected' ||
       (r.status === 'pr-merged' && r.chainLadderAppendError),
     );
-    if (candidates.length === 0) return;
+    if (candidates.length === 0) {
+      // No live candidates to poll — but an OKR whose rows are ALL
+      // pr-merged still owes a shipped roll. This is the already-merged
+      // case: the impl PRs merged before this code shipped (or on a prior
+      // session), so the post-loop shipped block below never runs because
+      // a pr-merged row isn't a candidate. Drive the transition here so a
+      // previously-merged OKR advances 'building' → 'shipped'.
+      if (prior.rows.length > 0 && prior.rows.every(r => r.status === 'pr-merged')) {
+        if (await this.rollOkrShippedIfBuilding(meshPath, okrId)) {
+          await this.onFanOutPreflight(okrId);
+        }
+      }
+      return;
+    }
 
     const nowIso = new Date().toISOString();
     let anyChanged = false;
@@ -2777,35 +2834,17 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       rows: updatedRows.sort((a, b) => a.repo.localeCompare(b.repo)),
     });
 
-    // Once EVERY fan-out row has merged, the implementation shipped — advance the
-    // OKR from 'building' to 'shipped'. There is no mesh-side workflow for this
-    // (the impl merge happens on the code repo), so the poll is the owner.
-    // Forward-only (updateStatus guards), no-op unless currently at 'building'.
-    let okrYamlChanged = false;
-    if (updatedRows.length > 0 && updatedRows.every(r => r.status === 'pr-merged')) {
-      try {
-        const okrService = this.meshService.getOkrService();
-        if (okrService.read(meshPath, okrId)?.meta.status === 'building') {
-          okrService.updateStatus(meshPath, okrId, 'shipped');
-          okrYamlChanged = true;
-          logger.info(`pollFanOutPRs(${okrId}): all rows merged → OKR meta.status building → shipped`);
-        }
-      } catch (err) {
-        logger.warn(`pollFanOutPRs(${okrId}): shipped roll failed (${toErrorMessage(err)})`);
-      }
-    }
-
     const changedCount = updatedRows.filter((r, i) => prior.rows[i] && (r.status !== prior.rows[i].status || r.implPrUrl !== prior.rows[i].implPrUrl)).length;
-    const commitMsg = `chore(okr): ${okrId} fan-out poll (${changedCount} row${changedCount === 1 ? '' : 's'} updated${okrYamlChanged ? '; shipped' : ''})\n\nStage 5 auto-poll detected impl PR state changes.`;
+    const commitMsg = `chore(okr): ${okrId} fan-out poll (${changedCount} row${changedCount === 1 ? '' : 's'} updated)\n\nStage 5 auto-poll detected impl PR state changes.`;
     if (gitRoot) {
       try {
-        // Stage design-fan-out.yaml always, chain-ladder.yaml when the Bug F
-        // impl-row append landed this poll, and okr.yaml when we rolled shipped.
+        // Stage design-fan-out.yaml always and chain-ladder.yaml when the
+        // Bug F impl-row append landed this poll. okr.yaml is committed
+        // separately by rollOkrShippedIfBuilding below.
         const addPaths = [
           path.join('okrs', okrId, 'what', 'design-fan-out.yaml'),
           path.join('okrs', okrId, 'audit', 'chain-ladder.yaml'),
         ];
-        if (okrYamlChanged) { addPaths.push(path.join('okrs', okrId, 'okr.yaml')); }
         await execFileAsync('git', ['add', ...addPaths], { cwd: gitRoot });
         const { stdout: staged } = await execFileAsync('git', ['diff', '--cached', '--name-only'], { cwd: gitRoot });
         if (staged.trim()) {
@@ -2817,6 +2856,12 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       } catch (err) {
         logger.warn(`pollFanOutPRs(${okrId}): commit failed (${toErrorMessage(err)})`);
       }
+    }
+
+    // Once EVERY fan-out row has merged, the implementation shipped — advance the
+    // OKR from 'building' to 'shipped' (its own commit, after the poll write).
+    if (updatedRows.length > 0 && updatedRows.every(r => r.status === 'pr-merged')) {
+      await this.rollOkrShippedIfBuilding(meshPath, okrId);
     }
 
     // Refresh the pane.
