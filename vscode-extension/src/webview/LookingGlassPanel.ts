@@ -2777,16 +2777,36 @@ export class LookingGlassPanel extends BasePanel<LookingGlassWebviewMessage, Loo
       rows: updatedRows.sort((a, b) => a.repo.localeCompare(b.repo)),
     });
 
+    // Once EVERY fan-out row has merged, the implementation shipped — advance the
+    // OKR from 'building' to 'shipped'. There is no mesh-side workflow for this
+    // (the impl merge happens on the code repo), so the poll is the owner.
+    // Forward-only (updateStatus guards), no-op unless currently at 'building'.
+    let okrYamlChanged = false;
+    if (updatedRows.length > 0 && updatedRows.every(r => r.status === 'pr-merged')) {
+      try {
+        const okrService = this.meshService.getOkrService();
+        if (okrService.read(meshPath, okrId)?.meta.status === 'building') {
+          okrService.updateStatus(meshPath, okrId, 'shipped');
+          okrYamlChanged = true;
+          logger.info(`pollFanOutPRs(${okrId}): all rows merged → OKR meta.status building → shipped`);
+        }
+      } catch (err) {
+        logger.warn(`pollFanOutPRs(${okrId}): shipped roll failed (${toErrorMessage(err)})`);
+      }
+    }
+
     const changedCount = updatedRows.filter((r, i) => prior.rows[i] && (r.status !== prior.rows[i].status || r.implPrUrl !== prior.rows[i].implPrUrl)).length;
-    const commitMsg = `chore(okr): ${okrId} fan-out poll (${changedCount} row${changedCount === 1 ? '' : 's'} updated)\n\nStage 5 auto-poll detected impl PR state changes.`;
+    const commitMsg = `chore(okr): ${okrId} fan-out poll (${changedCount} row${changedCount === 1 ? '' : 's'} updated${okrYamlChanged ? '; shipped' : ''})\n\nStage 5 auto-poll detected impl PR state changes.`;
     if (gitRoot) {
       try {
-        // Stage both files -- design-fan-out.yaml always, chain-ladder.yaml
-        // when the Bug F impl-row append landed during this poll.
-        await execFileAsync('git', ['add',
+        // Stage design-fan-out.yaml always, chain-ladder.yaml when the Bug F
+        // impl-row append landed this poll, and okr.yaml when we rolled shipped.
+        const addPaths = [
           path.join('okrs', okrId, 'what', 'design-fan-out.yaml'),
           path.join('okrs', okrId, 'audit', 'chain-ladder.yaml'),
-        ], { cwd: gitRoot });
+        ];
+        if (okrYamlChanged) { addPaths.push(path.join('okrs', okrId, 'okr.yaml')); }
+        await execFileAsync('git', ['add', ...addPaths], { cwd: gitRoot });
         const { stdout: staged } = await execFileAsync('git', ['diff', '--cached', '--name-only'], { cwd: gitRoot });
         if (staged.trim()) {
           await execFileAsync('git', ['commit', '-m', commitMsg], { cwd: gitRoot });
