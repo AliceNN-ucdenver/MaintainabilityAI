@@ -913,8 +913,9 @@ describe('renderOkrDetailView', () => {
       expect(html).toContain('data-action="verify-chain"');
       expect(html).toContain('data-action="export-audit"');
       expect(html).toContain('🔗 Verify');
-      expect(html).toContain('⬇ Export');
+      expect(html).toContain('🧾 Export');
       expect(html).toContain('🏷 Tag');
+      expect(html).toContain('📄 Artifact');
       expect(html).toContain('🛡 Sealed');
       // Metric numbers are still in the DOM (tucked behind <details>).
       expect(html).toContain('<strong>Sources:</strong>');
@@ -922,6 +923,27 @@ describe('renderOkrDetailView', () => {
       // disabled "Start Why ✓" button — verdict pill + seal carry that now.
       expect(html).not.toContain('Audit passed');
       expect(html).not.toContain('Start Why');
+    });
+
+    it('renders the artifact panel on a COLLAPSED card when 📄 Artifact is toggled open (regression)', () => {
+      // Pre-fix the collapsed card dropped renderPrCascade (which held the
+      // artifact panel) for its compact control row, so 📄 Artifact set
+      // artifactOpen but the doc never pulled down. The shared renderArtifactPanel
+      // helper now renders on the collapsed card too.
+      const html = renderOkrDetailView({
+        okr: sampleCard({ actions: [doneWhy()] }),
+        affectedBars: [],
+        phaseSignals: { why: {
+          prNumber: 235, prUrl: 'https://example.test/pull/235', prState: 'merged',
+          chainRoot: 'c80528dfb3df7d32', sealed: true,
+          artifactOpen: true, artifactPath: 'research-doc.md',
+          artifactContent: '# Research Doc\n\nKey findings here.',
+        } },
+      });
+      expect(html).toContain('okr-action-collapsed');     // still the compact card
+      expect(html).toContain('okr-md-panel');             // the artifact panel rendered
+      expect(html).toContain('research-doc.md');          // with its path
+      expect(html).toContain('Research Doc');             // and the rendered markdown body
     });
 
     it('keeps a complete-but-UNSEALED phase expanded (seal gates the collapse)', () => {

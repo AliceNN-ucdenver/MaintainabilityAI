@@ -956,6 +956,7 @@ function renderActionCard(okr: OkrCard, phase: OkrPhase, state: OkrDetailRenderS
         ${details}
       </div>
       ${renderCollapsedControls(phase, latest, signal, okr.meta.id)}
+      ${renderArtifactPanel(signal, phase)}
     </div>
   `;
   }
@@ -1362,6 +1363,27 @@ function renderHowMetrics(s: OkrPhaseSignal | undefined, loading: boolean | unde
 }
 
 /**
+ * Collapsible artifact-preview panel — the produced markdown (research-doc.md /
+ * prd.md / code-design.md) fetched from GitHub and rendered inline. Returns ''
+ * when not toggled open. Rendered by BOTH the expanded PR cascade AND the
+ * collapsed phase card, so 📄 Artifact pulls the doc down in either layout
+ * (the collapsed card replaces the full controls with its own compact row, so
+ * without this shared helper the panel had nowhere to render on a done card).
+ */
+function renderArtifactPanel(s: OkrPhaseSignal | undefined, phase: OkrPhase): string {
+  if (!s?.artifactOpen) { return ''; }
+  const path = s.artifactPath ?? (phase === 'why' ? 'research-doc.md' : phase === 'how' ? 'prd.md' : 'code-design.md');
+  if (s.artifactLoading) {
+    return `<div class="okr-md-panel"><div class="okr-md-panel-header">📄 <code>${escapeHtml(path)}</code></div><div class="okr-md-panel-body okr-muted">Loading from GitHub…</div></div>`;
+  }
+  if (s.artifactContent) {
+    const rendered = renderMarkdownSafe(s.artifactContent);
+    return `<div class="okr-md-panel"><div class="okr-md-panel-header">📄 <code>${escapeHtml(path)}</code> <span class="okr-muted">(rendered from GitHub)</span></div><div class="okr-md-panel-body">${rendered}</div></div>`;
+  }
+  return `<div class="okr-md-panel"><div class="okr-md-panel-header">📄 <code>${escapeHtml(path)}</code></div><div class="okr-md-panel-body okr-muted">Could not load artifact from GitHub (not committed yet?). Try again after the agent's PR opens.</div></div>`;
+}
+
+/**
  * PR + audit cascade — PR link, draft/ready states, Run Audit / Mark Ready
  * / Merge / Revise / Re-run / View Artifact affordances. The most complex
  * branch in the phase-signal renderer because each PR state surfaces a
@@ -1453,18 +1475,10 @@ function renderPrCascade(s: OkrPhaseSignal, phase: OkrPhase): string[] {
     lines.push(`<div class="okr-signal-audit-status">✓ Audit passed — <code>${passLabel}</code> applied. Merge unlocked (subject to branch protection).</div>`);
   }
 
-  // Collapsible artifact preview — toggled by 📄 View artifact.
-  if (s?.artifactOpen) {
-    const path = s.artifactPath ?? (phase === 'why' ? 'research-doc.md' : phase === 'how' ? 'prd.md' : 'code-design.md');
-    if (s.artifactLoading) {
-      lines.push(`<div class="okr-md-panel"><div class="okr-md-panel-header">📄 <code>${escapeHtml(path)}</code></div><div class="okr-md-panel-body okr-muted">Loading from GitHub…</div></div>`);
-    } else if (s.artifactContent) {
-      const rendered = renderMarkdownSafe(s.artifactContent);
-      lines.push(`<div class="okr-md-panel"><div class="okr-md-panel-header">📄 <code>${escapeHtml(path)}</code> <span class="okr-muted">(rendered from GitHub)</span></div><div class="okr-md-panel-body">${rendered}</div></div>`);
-    } else {
-      lines.push(`<div class="okr-md-panel"><div class="okr-md-panel-header">📄 <code>${escapeHtml(path)}</code></div><div class="okr-md-panel-body okr-muted">Could not load artifact from GitHub (not committed yet?). Try again after the agent's PR opens.</div></div>`);
-    }
-  }
+  // Collapsible artifact preview — toggled by 📄 View artifact (shared helper,
+  // also used by the collapsed card).
+  const artifactPanel = renderArtifactPanel(s, phase);
+  if (artifactPanel) { lines.push(artifactPanel); }
 
   return lines;
 }
@@ -1645,7 +1659,7 @@ function renderCollapsedControls(phase: OkrPhase, action: OkrAction, s: OkrPhase
     `<button class="okr-link-button okr-collapsed-ctl" data-action="toggle-artifact" data-okr-id="${escapeAttr(okrId)}" data-phase="${escapeAttr(phase)}" title="View the produced artifact markdown inline">📄 Artifact</button>`,
     `<button class="okr-link-button okr-collapsed-ctl" data-action="view-hatter-tag" data-action-id="${aid}" data-run-id="${rid}" title="View the Hatter Tag for this run">🏷 Tag</button>`,
     `<button class="okr-link-button okr-collapsed-ctl" data-action="verify-chain" data-action-id="${aid}" data-run-id="${rid}" title="Re-verify the per-epoch Ed25519 audit chain via the runner">🔗 Verify</button>`,
-    `<button class="okr-link-button okr-collapsed-ctl" data-action="export-audit" data-action-id="${aid}" data-run-id="${rid}" title="Export the audit report markdown">⬇ Export</button>`,
+    `<button class="okr-link-button okr-collapsed-ctl" data-action="export-audit" data-action-id="${aid}" data-run-id="${rid}" title="Export the audit report markdown">🧾 Export</button>`,
   ];
   return `
     <div class="okr-action-signals okr-action-controls okr-collapsed-controls">
@@ -2312,10 +2326,13 @@ export function getOkrDetailStyles(): string {
     .okr-action-controls { margin-bottom: 0; }
     .okr-phase-check { color: var(--vscode-testing-iconPassed, #4ade80); font-weight: 700; font-size: 0.95rem; }
     .okr-action-card-header-right { display: inline-flex; align-items: center; gap: 0.5rem; flex: 0 0 auto; }
-    .okr-collapsed-controls { gap: 0.4rem; padding: 0.5rem 0.625rem; }
-    .okr-collapsed-ctl-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; font-size: 0.78rem; }
-    .okr-collapsed-ctl-btns { display: flex; flex-wrap: wrap; gap: 0.4rem; }
-    .okr-collapsed-ctl { font-size: 0.72rem; padding: 0.125rem 0.4375rem; }
+    /* One flowing row: PR link · Sealed · Artifact · Tag · Verify · Export all
+       wrap together (display:contents lets the meta + btns children flow in the
+       parent flex), so the cluster takes 1-2 rows instead of three. */
+    .okr-collapsed-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.5rem; padding: 0.375rem 0.5rem; font-size: 0.78rem; }
+    .okr-collapsed-ctl-meta { display: contents; }
+    .okr-collapsed-ctl-btns { display: contents; }
+    .okr-collapsed-ctl { font-size: 0.72rem; padding: 0.1rem 0.375rem; }
     /* Collapsed header: a thin meta row (verdict pill left · poll + refresh
        right) above a full-width title row, so the phase name never squishes. */
     .okr-collapsed-header { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 0.5rem; }
