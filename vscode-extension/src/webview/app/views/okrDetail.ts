@@ -1663,13 +1663,13 @@ function renderCollapsedControls(phase: OkrPhase, action: OkrAction, s: OkrPhase
     `<button class="okr-link-button okr-collapsed-ctl okr-collapsed-ctl-icon" data-action="verify-chain" data-action-id="${aid}" data-run-id="${rid}" aria-label="Verify" title="Verify — re-verify the per-epoch Ed25519 audit chain via the runner">🔗</button>`,
     `<button class="okr-link-button okr-collapsed-ctl okr-collapsed-ctl-icon" data-action="export-audit" data-action-id="${aid}" data-run-id="${rid}" aria-label="Export" title="Export — export the audit report markdown">🧾</button>`,
   ];
-  // All chips (PR · Sealed · Artifact · Tag · Verify · Export) are DIRECT
-  // children of one flex row so they flow left-aligned and wrap by width — no
-  // inner wrapper divs (those, plus the parent's flex-direction:column, stacked
-  // everything vertically).
+  // Two stacked rows: the PR + Sealed meta on top, then the glyph action
+  // buttons (📄 🏷 🔗 🧾) on a row by themselves. Each inner div is its own
+  // left-aligned flex row; the outer container stacks them.
   return `
     <div class="okr-action-signals okr-action-controls okr-collapsed-controls">
-      ${[...meta, ...buttons].join('')}
+      ${meta.length ? `<div class="okr-collapsed-ctl-meta">${meta.join('')}</div>` : ''}
+      <div class="okr-collapsed-ctl-btns">${buttons.join('')}</div>
     </div>`;
 }
 
@@ -2332,10 +2332,12 @@ export function getOkrDetailStyles(): string {
     .okr-phase-check { color: var(--vscode-testing-iconPassed, #4ade80); font-weight: 700; font-size: 0.95rem; }
     .okr-action-card-header-right { display: inline-flex; align-items: center; gap: 0.5rem; flex: 0 0 auto; }
     /* One LEFT-ALIGNED wrapping ROW: PR link, Sealed, Artifact, Tag, Verify,
-       Export flow together and wrap by width. The compound selector raises
-       specificity above okr-action-signals (flex-direction:column) so the chips
-       do NOT stack vertically; flex-flow:row wrap pins the direction. */
-    .okr-collapsed-controls.okr-action-controls { display: flex; flex-flow: row wrap; align-items: center; justify-content: flex-start; gap: 0.25rem 0.45rem; padding: 0.375rem 0.5rem; font-size: 0.78rem; }
+       Two stacked left-aligned rows: PR + Sealed meta on top, then the glyph
+       action buttons on their OWN row. The outer container stacks the two
+       inner rows; each inner div is its own horizontal flex row. */
+    .okr-collapsed-controls.okr-action-controls { display: flex; flex-direction: column; align-items: flex-start; gap: 0.3rem; padding: 0.375rem 0.5rem; font-size: 0.78rem; }
+    .okr-collapsed-ctl-meta { display: flex; flex-flow: row wrap; align-items: center; gap: 0.25rem 0.45rem; }
+    .okr-collapsed-ctl-btns { display: flex; flex-flow: row wrap; align-items: center; gap: 0.3rem; }
     .okr-collapsed-ctl { font-size: 0.72rem; padding: 0.1rem 0.375rem; }
     /* Glyph-only action buttons: slightly larger glyph (no text to carry it) +
        even padding so each icon stays a comfortable hit target. */
