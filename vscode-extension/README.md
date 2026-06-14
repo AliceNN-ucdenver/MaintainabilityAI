@@ -243,7 +243,7 @@ The extension's own LLM calls (Cheshire, Absolem, threat models, policy baseline
 | **Git** | Repo detection, governance mesh | [git-scm.com](https://git-scm.com/) |
 | **GitHub CLI (`gh`)** | Secrets, issue/PR ops, agent dispatch | [cli.github.com](https://cli.github.com/) |
 | **GitHub Copilot** | The extension's LLM (VS Code LM API) | [github.com/features/copilot](https://github.com/features/copilot) |
-| **pmat** *(optional)* | Complexity + tech-debt analysis | `npm i -g pmat` |
+| **pmat** *(optional)* | Complexity + tech-debt analysis | `cargo install pmat --locked` (the Scorecard's **Install pmat** button runs this for you; needs Rust) |
 
 ---
 
