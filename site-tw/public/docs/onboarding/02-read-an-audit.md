@@ -29,7 +29,7 @@ Before we walk through the structure, **see the actual output**:
   <div>
     <div class="docs-card-kicker">Live sample</div>
     <div class="docs-heading">Open the sample audit report</div>
-    <div class="docs-copy">The button below opens a readable HTML preview of the May 2026 cert-run rollup: WHY + HOW + WHAT all signed, all source-atomic, verdict PASS. Look at the destination, then come back here for the walkthrough.</div>
+    <div class="docs-copy">The button below opens a readable HTML preview of a real OKR rollup: WHY + HOW + WHAT all signed and source-atomic, a cross-repo implementation chain with a Red Queen seal, the Hatter Oracle rails, and Pocket Watch alignment — verdict PASS. Look at the destination, then come back here for the walkthrough.</div>
   </div>
   <button type="button" class="docs-button-primary" data-audit-report-preview>View sample audit report</button>
 </div>
@@ -40,17 +40,21 @@ A modal opens with the same verdict and key sections the extension exports, rend
 
 ## The shape of a rollup
 
-Every rollup has nine sections, in this order:
+A complete rollup has up to thirteen sections, in this order (the implementation, Red Queen, and Oracle-rail sections appear once those evidence sources exist for the OKR):
 
 1. **Header**: okrId, generated-at timestamp, sources line
 2. **Executive summary**: verdict, risk, action, scope (a four-line summary block)
 3. **OKR identity**: objective, owner, tier, BAR, created/completed dates
 4. **Phase rollup**: one row per phase with run ID, status, seal badge, runner verdict, chain head, PR link
-5. **Per-phase trust posture**: condensed trust block per phase (sources, runner verdict, persona scores, artifact path, link to the full per-action report)
-6. **Cross-phase ladder**: the chain-of-chains table threading all phases through one `intent_thread_uuid`
+5. **Per-phase trust posture**: condensed trust block per phase (sources, runner verdict, persona scores, signed-event count, artifact path, link to the full per-action report)
+6. **Cross-phase ladder**: the chain-of-chains table threading all phases — and the implementation row — through one `intent_thread_uuid`
 7. **Unioned control coverage**: every PRD-declared SR, traced to its STRIDE / OWASP roots and design citation
-8. **Outstanding gaps**: bullet list of anything not green (empty = "✓ No outstanding gaps")
-9. **Verifier notes**: one runner command per phase, so any reviewer can re-verify from a fresh shell
+8. **Implementation chain**: the cross-repo fan-out — each impl PR with its run id, `parent_chain_root` + intent-thread cross-checks, evidence-at-merge-SHA, and runner-verify status
+9. **Implementation chain (Red Queen)**: the deterministic policy seal — sealed decision count, allowed / denied / overrides, and the re-hashable prefix sha256
+10. **Oracle rails (evidence boundary)**: the Hatter rails (injection / groundedness / PII) — report + input hashes re-derived, model replayed in CI; groundedness is advisory (unpinned model, non-gating)
+11. **Pocket Watch alignment**: advisory contrastive rank / margin vs sibling OKRs (recorded, not gating)
+12. **Outstanding gaps**: bullet list of anything not green (empty = "✓ No outstanding gaps")
+13. **Verifier notes**: one runner command per phase, so any reviewer can re-verify from a fresh shell
 
 Per-action closeouts have a similar shape but scoped to one phase: header, executive summary, run identity, trust posture, evidence (which skills ran), self-review trail (round-by-round persona scores), workflow facts, event timeline, control mapping, cross-phase ladder, verifier notes.
 
@@ -146,6 +150,26 @@ This table is auto-extracted from the PRD's `## Security Requirements` section a
 
 > ⚠ **`not declared` for STRIDE is a real artifact-quality signal.** If you see it, the PRD agent cited OWASP categories but didn't explicitly tag STRIDE THR-NNN refs. The report is honest about this. Worth pushing your PRD prompt to insist on both taxonomies in future runs.
 
+### Implementation chain
+
+When the OKR fans out to code repos, the rollup adds one row per target repo: the merged impl PR, its `parent_chain_root` and `parent_intent_thread` cross-checked against the mesh `chain-ladder.yaml` (a `✓` means the PR body's continuation block matched mesh ground truth), and whether the per-event audit evidence (events JSONL + signing key) was present in the target repo **at the merge SHA**.
+
+> 💡 **`not-yet-verified` in the Runner-verify column is expected, not a failure.** The cross-repo runner extension (Tier 3 T3-2) is what flips it real. Until then the chain-root + intent-thread cross-checks above ARE the verification — they prove the impl PR descends from this OKR's WHAT phase and shares its one intent thread.
+
+### Implementation chain — Red Queen
+
+The deterministic enforcement layer signs and seals every policy decision the impl agent's tool calls triggered. This row shows the seal status (`verified ✓`), the sealed decision count, how many were **allowed vs denied**, any break-glass **overrides**, and the prefix `sha256` the merge-time gate re-hashes. A non-zero `denied` count or a seal mismatch is a hard signal worth investigating before promotion.
+
+### Oracle rails (evidence boundary)
+
+The Hatter rails sit at the research/evidence boundary. For each rail the exporter **re-derives** the report bytes and the cited-input bytes (so a tampered report fails on integrity), and **CI replays the model**. `injection` (prompt-injection) and `pii` are pinned and gate normally.
+
+> 💡 **`groundedness` is advisory.** Its NLI model is unpinned, so the rail is recorded and integrity-gated but its model replay **never** gates the verdict — it shows as `advisory · non-gating` rather than a failure. It promotes to gating once its model SHA is pinned. (This is why a rollup can read PASS with a groundedness replay that wasn't reproducible — by design, not a miss.)
+
+### Pocket Watch alignment
+
+Advisory. A contrastive check that ranks this OKR's artifact against sibling OKRs to catch drift — did the WHY actually argue for *this* objective rather than a neighbour's? Rank, margin, nearest decoy, and critical-anchor coverage are recorded but **do not affect the verdict** while v2 calibrates.
+
 ### Outstanding gaps
 
 When everything is green: `✓ No outstanding gaps across the OKR.`
@@ -165,7 +189,7 @@ The bottom of the rollup has one runner command per phase:
 
 ```sh
 printf '{"okrId":"OKR-...","runId":"WHAT-..."}' \
-  | npx -y @maintainabilityai/research-runner@~0.1.42 skill-audit-verify-chain
+  | npx -y @maintainabilityai/research-runner@~0.1.64 skill-audit-verify-chain
 ```
 
 Copy-pastable. An auditor with `npx` and the mesh repo cloned can re-verify any phase independently using the same code path CI uses on every PR. The UI's shape-check is convenience. **The runner verifier is source of truth.**
@@ -176,7 +200,7 @@ Copy-pastable. An auditor with `npx` and the mesh repo cloned can re-verify any 
 
 After you've walked a few rollups, three patterns become familiar:
 
-**🟢 The clean run.** VERDICT: PASS, all rows green, sources canonical, "No outstanding gaps." This is the destination. The May 2026 cert-run sample is one of these.
+**🟢 The clean run.** VERDICT: PASS, all rows green, sources canonical, "No outstanding gaps." This is the destination. The sample rollup behind the button above is one of these — shipped end-to-end through implementation.
 
 **🟡 The honest partial.** VERDICT: PARTIAL. Either you haven't finished all three phases yet (PARTIAL because WHAT isn't started) OR the runner could not be invoked for an innocent reason (PARTIAL · runner not invoked: `npx` missing). Not a defect; just incomplete.
 
