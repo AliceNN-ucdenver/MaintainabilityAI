@@ -8,6 +8,7 @@ import { AgentStatusService } from '../services/AgentStatusService';
 import { promptPackService } from '../services/PromptPackService';
 import { LlmService } from '../services/llm/LlmService';
 import { buildRepoContext } from '../services/RepoContextScanner';
+import { detectCoverageCommand } from '../services/coverageCommand';
 import { PmatService } from '../services/PmatService';
 import { ScorecardService } from '../services/ScorecardService';
 import { ScorecardHistoryService } from '../services/ScorecardHistoryService';
@@ -753,150 +754,28 @@ export class ScorecardPanel extends BasePanel<ScorecardWebviewMessage, Scorecard
     };
 
     const cmd = commands[this.detectedPackageManager] || 'npx npm-check-updates -u --target minor && npm install';
-    this.runInTerminalThenRefresh('Refresh Dependencies', cmd);
+    // Single self-contained line — its internal `&&` is intentional (only
+    // install if the update resolves), so it's passed as one terminal step.
+    this.runInTerminalThenRefresh('Refresh Dependencies', [cmd]);
   }
 
   private onRunCoverage() {
     const workspaceRoot = this.selectedFolderPath || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-    const cmd = this.detectCoverageCommand(workspaceRoot);
-    this.runInTerminalThenRefresh('Run Coverage', cmd);
+    const cmds = detectCoverageCommand(workspaceRoot, this.detectedPackageManager);
+    this.runInTerminalThenRefresh('Run Coverage', cmds);
   }
 
-  /**
-   * Read package.json / pyproject.toml to determine the best coverage command.
-   * Priority:
-   *   1. Existing script named "test:coverage" or "coverage" in package.json
-   *   2. Coverage tool in devDependencies (nyc, c8, jest, vitest, pytest-cov)
-   *   3. Fallback based on detected test framework / package manager
-   */
-  private detectCoverageCommand(workspaceRoot?: string): string {
-    if (!workspaceRoot) { return 'npm test -- --coverage'; }
-
-    // ── Python projects ──
-    const pyprojectPath = path.join(workspaceRoot, 'pyproject.toml');
-    const setupCfgPath = path.join(workspaceRoot, 'setup.cfg');
-    const requirementsPath = path.join(workspaceRoot, 'requirements.txt');
-    const hasPyproject = fs.existsSync(pyprojectPath);
-    const hasSetupCfg = fs.existsSync(setupCfgPath);
-    const hasRequirements = fs.existsSync(requirementsPath);
-
-    if (hasPyproject || hasSetupCfg) {
-      // Detect runner from pyproject.toml
-      if (hasPyproject) {
-        try {
-          const pyContent = fs.readFileSync(pyprojectPath, 'utf-8');
-          // Check for poetry
-          if (pyContent.includes('[tool.poetry]')) {
-            return 'poetry run pytest --cov --cov-report=json --cov-report=term';
-          }
-          // Check for pytest-cov config
-          if (pyContent.includes('pytest-cov') || pyContent.includes('[tool.pytest')) {
-            return 'python -m pytest --cov --cov-report=json --cov-report=term';
-          }
-        } catch { /* fall through */ }
-      }
-      // Generic Python
-      return 'python -m pytest --cov --cov-report=json --cov-report=term';
-    }
-
-    if (hasRequirements) {
-      try {
-        const reqContent = fs.readFileSync(requirementsPath, 'utf-8');
-        if (reqContent.includes('pytest-cov') || reqContent.includes('coverage')) {
-          return 'python -m pytest --cov --cov-report=json --cov-report=term';
-        }
-      } catch { /* fall through */ }
-    }
-
-    // ── Node.js / TypeScript projects ──
-    const pkgPath = path.join(workspaceRoot, 'package.json');
-    if (!fs.existsSync(pkgPath)) { return 'npm test -- --coverage'; }
-
-    let pkg: { scripts?: Record<string, string>; devDependencies?: Record<string, string>; dependencies?: Record<string, string> };
-    try {
-      pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
-    } catch {
-      return 'npm test -- --coverage';
-    }
-
-    const scripts = pkg.scripts || {};
-    const allDeps = { ...pkg.dependencies, ...pkg.devDependencies };
-
-    // 1. Prefer existing coverage script — append nyc/c8 report step to ensure json-summary is generated
-    if (scripts['test:coverage']) {
-      const runner = allDeps['yarn'] ? 'yarn' : allDeps['pnpm'] ? 'pnpm' : 'npm';
-      const base = `${runner} run test:coverage`;
-      if (allDeps['nyc']) { return `${base} && npx nyc report --report-dir=coverage --reporter=json-summary`; }
-      if (allDeps['c8']) { return `${base} && npx c8 report -o coverage --reporter=json-summary`; }
-      return base;
-    }
-    if (scripts['coverage']) {
-      const runner = allDeps['yarn'] ? 'yarn' : allDeps['pnpm'] ? 'pnpm' : 'npm';
-      const base = `${runner} run coverage`;
-      if (allDeps['nyc']) { return `${base} && npx nyc report --report-dir=coverage --reporter=json-summary`; }
-      if (allDeps['c8']) { return `${base} && npx c8 report -o coverage --reporter=json-summary`; }
-      return base;
-    }
-
-    // 2. Detect from devDependencies — pick the coverage tool that's actually installed
-    const hasNyc = !!allDeps['nyc'];
-    const hasC8 = !!allDeps['c8'];
-    const hasJest = !!allDeps['jest'];
-    const hasVitest = !!allDeps['vitest'];
-    const hasMocha = !!allDeps['mocha'];
-
-    // jest and vitest have built-in coverage
-    if (hasJest) {
-      return 'npx jest --coverage --coverageReporters=json-summary --coverageReporters=text';
-    }
-    if (hasVitest) {
-      return 'npx vitest run --coverage --coverage.reporter=json-summary --coverage.reporter=text --coverage.reportsDirectory=coverage';
-    }
-    // mocha needs an external coverage tool. Prefer the project's own `test`
-    // script (it knows the real spec glob and any build step — e.g. `tsc` then
-    // `dist/tests/**/*.test.js`) over a hardcoded `mocha --recursive`, which
-    // defaults to ./test and silently finds nothing when the project keeps
-    // tests under tests/ or compiles them to dist/.
-    if (hasMocha) {
-      const runner = allDeps['yarn'] ? 'yarn' : allDeps['pnpm'] ? 'pnpm' : 'npm';
-      const target = scripts['test'] ? `${runner} test` : 'mocha --recursive --exit';
-      const tool = hasNyc
-        ? 'npx nyc --report-dir=coverage --reporter=json-summary --reporter=text'
-        : 'npx c8 -o coverage --reporter=json-summary --reporter=text';
-      return `${tool} ${target}`;
-    }
-    // Standalone nyc or c8 with npm test
-    if (hasNyc) {
-      const testCmd = scripts['test'] || 'echo "no test script"';
-      return `npx nyc --report-dir=coverage --reporter=json-summary --reporter=text ${testCmd}`;
-    }
-    if (hasC8) {
-      const testCmd = scripts['test'] || 'echo "no test script"';
-      return `npx c8 -o coverage --reporter=json-summary --reporter=text ${testCmd}`;
-    }
-
-    // 3. Fallback based on detected package manager
-    const pmFallbacks: Record<string, string> = {
-      pip: 'python -m pytest --cov --cov-report=json --cov-report=term',
-      uv: 'uv run pytest --cov --cov-report=json --cov-report=term',
-      poetry: 'poetry run pytest --cov --cov-report=json --cov-report=term',
-      pipenv: 'pipenv run pytest --cov --cov-report=json --cov-report=term',
-    };
-    if (pmFallbacks[this.detectedPackageManager]) {
-      return pmFallbacks[this.detectedPackageManager];
-    }
-
-    // Last resort — pass --coverage and hope the runner supports it
-    if (allDeps['nyc']) { return `npx nyc --report-dir=coverage --reporter=json-summary --reporter=text npm test`; }
-    if (allDeps['c8']) { return `npx c8 -o coverage --reporter=json-summary --reporter=text npm test`; }
-    return 'npm test -- --coverage';
-  }
-
-  private runInTerminalThenRefresh(name: string, cmd: string) {
+  private runInTerminalThenRefresh(name: string, cmds: string[]) {
     const cwd = this.selectedFolderPath || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     const terminal = vscode.window.createTerminal({ name, cwd });
     terminal.show();
-    terminal.sendText(cmd);
+    // Send each step as its own line. The terminal runs them sequentially as
+    // the prompt returns, INDEPENDENTLY of each step's exit code — so a trailing
+    // json-summary report still runs when the test step exits non-zero (failing
+    // tests / unmet coverage threshold). `&&`-chaining would skip it exactly then.
+    for (const line of cmds) {
+      terminal.sendText(line);
+    }
 
     const disposable = vscode.window.onDidCloseTerminal((closed) => {
       if (closed === terminal) {
