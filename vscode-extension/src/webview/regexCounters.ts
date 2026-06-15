@@ -281,21 +281,38 @@ export function parseDriftRow(commentBody: string, labelPrefix: string): DriftRo
   const m = commentBody.match(rowRe);
   if (!m) { return null; }
   const cell = m[1].trim();
-  if (/skipped/i.test(cell)) {
+  // Non-verdict placeholders → skipped (advisory), never a failure. Besides an
+  // explicit "skipped (reason)" row, Caterpillar's WHAT row is a STATIC
+  // "calibration-pending (D-PR1.v1.x)" until its contrastive migration lands —
+  // it is advisory, not a fail. The old default-to-fail fallback (below) folded
+  // it into the worst-of Drift dot as a failure, reddening EVERY shipped WHAT
+  // card's Drift light even when Pocket Watch passed.
+  if (/skipped|calibration-pending/i.test(cell)) {
     const reasonM = cell.match(/skipped\s*\(`?([^`)]+)`?\)/i);
-    return { passed: 'skipped', status: 'skipped', reason: reasonM ? reasonM[1] : undefined };
+    const calM = cell.match(/calibration-pending\s*\(`?([^`)]+)`?\)/i);
+    return {
+      passed: 'skipped',
+      status: 'skipped',
+      reason: reasonM ? reasonM[1] : calM ? `calibration-pending (${calM[1]})` : undefined,
+    };
   }
   const cosineM = cell.match(/cosine\s*=\s*([0-9.]+)/i);
   const thresholdM = cell.match(/[≥<]\s*([0-9.]+)/);
   const rankM = cell.match(/rank\s*#\s*([0-9]+)/i);
   const marginM = cell.match(/margin\s*([+-]?[0-9.]+)/i);
   const nearestM = cell.match(/nearest\s+(\S+)/i);
-  const status: 'pass' | 'needs_review' | 'fail' = /^✓/.test(cell) ? 'pass'
+  // Verdict from the leading glyph first (the renderer emits ✓/⚠/✗), then an
+  // explicit pass/fail keyword. An unrecognized, non-verdict cell is treated as
+  // skipped — NOT defaulted to fail — so a future placeholder can't silently
+  // read as a failure the way "calibration-pending" did.
+  const status: 'pass' | 'needs_review' | 'fail' | 'skipped' = /^✓/.test(cell) ? 'pass'
     : /^⚠/.test(cell) ? 'needs_review'
     : /^✗/.test(cell) ? 'fail'
-    : /pass/i.test(cell) ? 'pass' : 'fail';
+    : /\bpass\b/i.test(cell) ? 'pass'
+    : /\bfail\b/i.test(cell) ? 'fail'
+    : 'skipped';
   return {
-    passed: status === 'pass' ? 'true' : 'false',
+    passed: status === 'pass' ? 'true' : status === 'skipped' ? 'skipped' : 'false',
     status,
     cosine: cosineM ? parseFloat(cosineM[1]) : undefined,
     threshold: thresholdM ? parseFloat(thresholdM[1]) : undefined,

@@ -75,6 +75,30 @@ describe('parseDriftRow — Pocket Watch v2 (contrastive) + legacy/Caterpillar (
   it('returns null when no matching row is present', () => {
     expect(parseDriftRow('| Some other check | ✓ ok |', 'Pocket Watch')).toBeNull();
   });
+
+  it("treats Caterpillar's static WHAT placeholder as skipped, not fail", () => {
+    // The WHAT audit comment always writes this static cell until Caterpillar's
+    // contrastive migration lands. It is advisory — must NOT redden the Drift dot.
+    const cat = parseDriftRow(
+      "| Caterpillar's Challenge (code-design vs PRD) | calibration-pending (D-PR1.v1.x) |",
+      'Caterpillar',
+    )!;
+    expect(cat.status).toBe('skipped');
+    expect(cat.passed).toBe('skipped');
+    expect(cat.reason).toBe('calibration-pending (D-PR1.v1.x)');
+  });
+
+  it('treats an unrecognized non-verdict cell as skipped, never default-fail', () => {
+    const row = parseDriftRow('| Caterpillar | — not yet wired — |', 'Caterpillar')!;
+    expect(row.status).toBe('skipped');
+    expect(row.passed).toBe('skipped');
+  });
+
+  it('still detects a glyph-less explicit fail', () => {
+    const row = parseDriftRow('| Caterpillar | fail (cosine=0.50 < 0.70) |', 'Caterpillar')!;
+    expect(row.status).toBe('fail');
+    expect(row.passed).toBe('false');
+  });
 });
 
 /**
