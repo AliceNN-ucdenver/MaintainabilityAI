@@ -28,3 +28,16 @@ describe('PmatService.isPmatVersionOutput', () => {
     expect(PmatService.isPmatVersionOutput('3.3.0')).toBe(false); // version without the pmat prefix
   });
 });
+
+describe('PmatService.pmatInstallCommand', () => {
+  it('pins macOS and Windows to the known-good pre-prctl release', () => {
+    // pmat 3.16+ pulls aprender-orchestrate (Linux-only libc::prctl), which
+    // fails to compile off-Linux — so these platforms must install 3.15.0.
+    expect(PmatService.pmatInstallCommand('darwin')).toBe('cargo install pmat@3.15.0 --locked');
+    expect(PmatService.pmatInstallCommand('win32')).toBe('cargo install pmat@3.15.0 --locked');
+  });
+
+  it('lets Linux install the latest pmat (prctl is supported there)', () => {
+    expect(PmatService.pmatInstallCommand('linux')).toBe('cargo install pmat --locked');
+  });
+});

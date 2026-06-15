@@ -64,17 +64,34 @@ export class PmatService {
   // Install steps (each runs in a fresh terminal)
   // --------------------------------------------------------------------------
 
-  // pmat installs straight from crates.io now. The clone-and-`sed` workaround
-  // existed because aprender 0.25.4 (a pmat dependency) was published broken —
-  // missing source files — so `cargo install pmat` failed. That's resolved:
-  // aprender is at 0.41.x and pmat 3.x requires `aprender = "0.41"`, so the
-  // registry build is clean. `--locked` uses the maintainer-tested dependency
-  // set. (Same command on every platform now — no PowerShell/sed variant.)
-  private static readonly PMAT_INSTALL_SCRIPT = 'cargo install pmat --locked';
+  // Version pin rationale: pmat 3.16+ depends on aprender 0.41 → apr-cli →
+  // aprender-orchestrate, which calls the Linux-only libc::prctl(PR_SET_PDEATHSIG)
+  // with no cfg(target_os) guard, so it fails to compile on macOS and Windows
+  // (E0425: cannot find function `prctl`). 3.15.0 (aprender 0.30) is the newest
+  // release that never resolves that crate and builds clean everywhere — verified
+  // with `cargo install pmat@3.15.0 --locked` on macOS. Linux compiles the latest
+  // fine, so only non-Linux is pinned. Lift the pin once upstream guards prctl
+  // behind cfg(target_os = "linux"). (The older end is broken too: aprender
+  // 0.25.4 was published with missing source files, so don't pin below 3.15.0.)
+  // `--locked` uses each release's own tested Cargo.lock so cargo won't resolve
+  // *up* into a newer aprender that re-introduces aprender-orchestrate.
+  private static readonly PMAT_PINNED_VERSION = '3.15.0';
+
+  /**
+   * The `cargo install` command for pmat on a given platform. Linux installs the
+   * latest; macOS/Windows pin to the last pre-prctl release (PMAT_PINNED_VERSION)
+   * because newer pmat can't compile there. Exposed for unit testing the
+   * per-platform selection.
+   */
+  static pmatInstallCommand(platform: NodeJS.Platform = process.platform): string {
+    return platform === 'linux'
+      ? 'cargo install pmat --locked'
+      : `cargo install pmat@${PmatService.PMAT_PINNED_VERSION} --locked`;
+  }
 
   async getInstallSteps(): Promise<{ command: string; label: string }[]> {
     const hasCargo = await this.isCargoInstalled();
-    const installCmd = PmatService.PMAT_INSTALL_SCRIPT;
+    const installCmd = PmatService.pmatInstallCommand();
 
     if (hasCargo) {
       return [{ command: installCmd, label: 'Install pmat' }];
